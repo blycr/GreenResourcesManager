@@ -172,8 +172,8 @@ export interface TreeNodeRoot {
  * TreeNode 组件属性
  */
 export interface TreeNodeProps extends LayoutProps {
-	/** 树形数据根节点 */
-	root: SignalValue<TreeNodeRoot>;
+	/** 树形数据根节点数组（支持多个根节点） */
+	roots: SignalValue<TreeNodeRoot[]>;
 	/** 外部管理的引用（可选，如果不提供则内部创建） */
 	refs?: SignalValue<TreeNodeRefs>;
 	/** 主题配置 */
@@ -184,11 +184,11 @@ export interface TreeNodeProps extends LayoutProps {
 
 /**
  * 树形节点组件 - 符合 Motion Canvas 规范的类组件
- * 使用方式：<TreeNodeComponent root={treeData} />
+ * 使用方式：<TreeNodeComponent roots={[treeData]} />
  */
 export class TreeNodeComponent extends Layout {
 	@signal()
-	public declare readonly root: SimpleSignal<TreeNodeRoot, this>;
+	public declare readonly roots: SimpleSignal<TreeNodeRoot[], this>;
 
 	@signal()
 	public declare readonly refs: SimpleSignal<TreeNodeRefs | undefined, this>;
@@ -227,18 +227,30 @@ export class TreeNodeComponent extends Layout {
 	 * 构建树形结构
 	 */
 	private buildTree() {
-		const root = this.root();
+		const roots = this.roots();
 		const finalTheme = { ...defaultTheme, ...this.theme() };
 		const finalLayout: TreeNodeLayout = { ...defaultLayout, ...this.treeLayout() };
 		const showArrows = true; // 始终显示箭头
 		const refs = this.internalRefs!;
 
-		// 转换节点数据
-		const nodes = convertToTreeNodes(root);
-		refs.nodes = nodes;
+		// 检查根节点数组
+		if (!roots || roots.length === 0) {
+			console.warn('TreeNodeComponent: 未提供 roots 或 roots 为空');
+			return;
+		}
+
+		// 转换所有根节点数据
+		const allNodes: TreeNodeData[] = [];
+		for (const rootNode of roots) {
+			const nodes = convertToTreeNodes(rootNode);
+			allNodes.push(...nodes);
+		}
+		refs.nodes = allNodes;
 
 		// 使用广度优先遍历创建树形结构
-		let queue: TreeNodeData[] = [nodes[0]];
+		// 找到所有根节点（没有父节点的节点）
+		const rootDataNodes = allNodes.filter(node => !node.parent);
+		let queue: TreeNodeData[] = [...rootDataNodes];
 		let row = 0;
 
 		while (queue.length > 0) {
@@ -897,15 +909,23 @@ export class TreeNodeComponent extends Layout {
 			yield* self.hideNode(node.key, { duration, easing });
 		};
 
-		// 找到根节点
-		const rootNode = refs.nodes.find(n => !n.parent);
-		if (rootNode) {
-			// 递归隐藏所有节点（从叶子节点到根节点）
-			yield* hideAllNodes(rootNode);
+		// 找到所有根节点（支持多个根节点）
+		const rootNodes = refs.nodes.filter(n => !n.parent);
+		if (rootNodes.length > 0) {
+			// 并行隐藏所有根节点及其子树
+			const rootAnimations: ThreadGenerator[] = [];
+			for (const rootNode of rootNodes) {
+				rootAnimations.push(hideAllNodes(rootNode));
+			}
+			if (rootAnimations.length > 0) {
+				yield* all(...rootAnimations);
+			}
 			
-			// 等待动画完成后删除根节点（removeNode 会递归删除所有子节点）
+			// 等待动画完成后删除所有根节点（removeNode 会递归删除所有子节点）
 			yield* waitFor(0.1);
-			removeNode(refs, rootNode.key);
+			for (const rootNode of rootNodes) {
+				removeNode(refs, rootNode.key);
+			}
 		}
 	}
 }

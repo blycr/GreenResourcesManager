@@ -6,7 +6,7 @@ import {
   waitFor,
   waitUntil,
 } from '@motion-canvas/core';
-import {Folder} from '../nodes/folder';
+import {FolderComponent} from '../nodes/folder';
 
 // 主题颜色配置
 const theme = {
@@ -19,12 +19,12 @@ export default makeScene2D(function* (view) {
   // 设置背景色
   view.fill(theme.bgDark);
 
-  // 创建 Folder 组件的引用
-  const folderRef = createRef<Layout>();
+  // 创建 FolderComponent 组件的引用
+  const folderRef = createRef<FolderComponent>();
 
-  // 创建第一个 Folder 组件（默认样式）
+  // 创建第一个 FolderComponent 组件（默认样式）
   view.add(
-    <Folder
+    <FolderComponent
       ref={folderRef}
       folderColor="#FFD700"
       tabColor="#DAA520"
@@ -41,7 +41,7 @@ export default makeScene2D(function* (view) {
         fontFamily="Microsoft YaHei, sans-serif"
         fontWeight={600}
       />
-    </Folder>,
+    </FolderComponent>,
   );
 
   // 等待开始
@@ -58,12 +58,12 @@ export default makeScene2D(function* (view) {
   yield* waitFor(1.5);
 
   // 创建多个不同颜色的文件夹
-  const folder2Ref = createRef<Layout>();
-  const folder3Ref = createRef<Layout>();
-  const folder4Ref = createRef<Layout>();
+  const folder2Ref = createRef<FolderComponent>();
+  const folder3Ref = createRef<FolderComponent>();
+  const folder4Ref = createRef<FolderComponent>();
 
   view.add(
-    <Folder
+    <FolderComponent
       ref={folder2Ref}
       folderColor="#4CAF50"
       tabColor="#2E7D32"
@@ -80,11 +80,11 @@ export default makeScene2D(function* (view) {
         fontFamily="Microsoft YaHei, sans-serif"
         fontWeight={600}
       />
-    </Folder>,
+    </FolderComponent>,
   );
 
   view.add(
-    <Folder
+    <FolderComponent
       ref={folder3Ref}
       folderColor="#2196F3"
       tabColor="#1565C0"
@@ -101,11 +101,11 @@ export default makeScene2D(function* (view) {
         fontFamily="Microsoft YaHei, sans-serif"
         fontWeight={600}
       />
-    </Folder>,
+    </FolderComponent>,
   );
 
   view.add(
-    <Folder
+    <FolderComponent
       ref={folder4Ref}
       folderColor="#FF9800"
       tabColor="#E65100"
@@ -122,7 +122,7 @@ export default makeScene2D(function* (view) {
         fontFamily="Microsoft YaHei, sans-serif"
         fontWeight={600}
       />
-    </Folder>,
+    </FolderComponent>,
   );
 
   yield* waitFor(0.5);
@@ -143,11 +143,11 @@ export default makeScene2D(function* (view) {
   yield* waitFor(1.5);
 
   // 创建不同尺寸的文件夹
-  const largeFolderRef = createRef<Layout>();
-  const smallFolderRef = createRef<Layout>();
+  const largeFolderRef = createRef<FolderComponent>();
+  const smallFolderRef = createRef<FolderComponent>();
 
   view.add(
-    <Folder
+    <FolderComponent
       ref={largeFolderRef}
       folderColor="#9C27B0"
       tabColor="#6A1B9A"
@@ -178,11 +178,11 @@ export default makeScene2D(function* (view) {
           opacity={0.8}
         />
       </Layout>
-    </Folder>,
+    </FolderComponent>,
   );
 
   view.add(
-    <Folder
+    <FolderComponent
       ref={smallFolderRef}
       folderColor="#E91E63"
       tabColor="#AD1457"
@@ -199,7 +199,7 @@ export default makeScene2D(function* (view) {
         fontFamily="Microsoft YaHei, sans-serif"
         fontWeight={600}
       />
-    </Folder>,
+    </FolderComponent>,
   );
 
   yield* waitFor(0.5);
@@ -217,10 +217,10 @@ export default makeScene2D(function* (view) {
   yield* waitFor(1.5);
 
   // 创建自定义标签页的文件夹
-  const customTabFolderRef = createRef<Layout>();
+  const customTabFolderRef = createRef<FolderComponent>();
 
   view.add(
-    <Folder
+    <FolderComponent
       ref={customTabFolderRef}
       folderColor="#00BCD4"
       tabColor="#00838F"
@@ -239,7 +239,7 @@ export default makeScene2D(function* (view) {
         fontFamily="Microsoft YaHei, sans-serif"
         fontWeight={600}
       />
-    </Folder>,
+    </FolderComponent>,
   );
 
   yield* waitFor(0.5);

@@ -6,7 +6,7 @@ import ProgressSegmentConfig from '../interface/ProgressSegmentConfig';
 import VideoPostion from '../utils/VideoPostion';
 import { createImage, createTexts, createCircleImages } from '../utils/creatorUtil';
 import { TreeNodeComponent, createTreeNodeRefs, addNodeTo, addNodesTo, removeNode } from '../nodes/TreeNode';
-import { Folder } from '../nodes/folder';
+import { FolderComponent } from '../nodes/folder';
 import { Paper } from '../nodes/Paper';
 import { PersistentKeywords } from '../nodes/PersistentKeywords';
 import { MyImg } from '../nodes/MyImg';
@@ -228,9 +228,9 @@ export function createMainSubtitles(
 	});
 	
 	// 创建5个Folder组件的引用
-	const 文件夹FolderRefs: ReturnType<typeof createRef<Layout>>[] = [];
+	const 文件夹FolderRefs: ReturnType<typeof createRef<FolderComponent>>[] = [];
 	for (let i = 0; i < 5; i++) {
-		文件夹FolderRefs.push(createRef<Layout>());
+		文件夹FolderRefs.push(createRef<FolderComponent>());
 	}
 	
 	// 创建"新游戏"Paper的引用
@@ -359,9 +359,9 @@ export function createMainSubtitles(
 	const 标签文件夹Ref = createRef<Layout>();
 	
 	// 创建类型子文件夹的引用（JRPG、SLG、ACT）
-	const 类型子文件夹Refs: ReturnType<typeof createRef<Layout>>[] = [];
+	const 类型子文件夹Refs: ReturnType<typeof createRef<FolderComponent>>[] = [];
 	for (let i = 0; i < 3; i++) {
-		类型子文件夹Refs.push(createRef<Layout>());
+		类型子文件夹Refs.push(createRef<FolderComponent>());
 	}
 	
 	// 创建标签子文件夹的引用（巫女、天使、3D、像素）
@@ -547,7 +547,7 @@ export function createMainSubtitles(
 					<TreeNodeComponent
 						ref={folderTreeRef}
 						refs={folderTreeRefs}
-						root={rootOnlyData}
+						roots={[rootOnlyData]}
 						theme={{
 							fontSize: 32,
 						}}
@@ -758,7 +758,7 @@ export function createMainSubtitles(
 					const folderRef = 文件夹FolderRefs[index];
 					
 					view.add(
-						<Folder
+						<FolderComponent
 							ref={folderRef}
 							folderColor="#FFD700"
 							tabColor="#DAA520"
@@ -777,7 +777,7 @@ export function createMainSubtitles(
 								textAlign="center"
 								fontWeight={600}
 							/>
-						</Folder>
+						</FolderComponent>
 					);
 				});
 
@@ -794,28 +794,29 @@ export function createMainSubtitles(
 		{ 
 			text: '新创建的游戏，默认进入待整理文件夹',
 			callback: function* () {
-				// 创建"新游戏"Paper
+				// 创建"新游戏"Paper，放在待整理文件夹内部
 				const 待整理FolderRef = 文件夹FolderRefs[0]; // 第一个是"待整理"
-				const 待整理Position = 待整理FolderRef().position();
+				// 使用 contentPosition 获取文件夹内容区中心位置
+				const contentPos = 待整理FolderRef().contentPosition();
 				
 				view.add(
 					<Paper
 						ref={新游戏PaperRef}
 						fill="#bbbbbb"
-						width={120}
-						height={150}
-						position={[待整理Position.x, 待整理Position.y + 200]}
+						width={100}
+						height={100}
+						position={contentPos}
 						opacity={0}
 						layout
 						direction="column"
 						alignItems="center"
 						justifyContent="center"
-						padding={10}
+						padding={8}
 						zIndex={99}
 					>
 						<Txt
 							text="新游戏"
-							fontSize={20}
+							fontSize={16}
 							fill="#000000"
 							fontFamily="Microsoft YaHei, sans-serif"
 							textAlign="center"
@@ -829,28 +830,26 @@ export function createMainSubtitles(
 				
 				// 淡入"新游戏"Paper
 				yield* 新游戏PaperRef().opacity(1, 0.6, easeOutCubic);
-
-
-				// 移动到待整理文件夹
-				yield* 新游戏PaperRef().position([待整理Position.x, 待整理Position.y], 0.8, easeOutCubic);
 			}
 		},
 		{ 
 			text: '经过1次访问的，移动到低频文件夹',
 			callback: function* () {
-				// 移动到低频文件夹（索引1）
+				// 移动到低频文件夹内部（索引1）
 				const 低频FolderRef = 文件夹FolderRefs[1];
-				const 低频Position = 低频FolderRef().position();
-				yield* 新游戏PaperRef().position([低频Position.x, 低频Position.y], 0.8, easeOutCubic);
+				// 使用 contentPosition 获取文件夹内容区中心位置
+				const contentPos = 低频FolderRef().contentPosition();
+				yield* 新游戏PaperRef().position(contentPos, 0.8, easeOutCubic);
 			}
 		},
 		{ 
 			text: '2~3次访问的，移动到中频文件夹。',
 			callback: function* () {
-				// 移动到中频文件夹（索引2）
+				// 移动到中频文件夹内部（索引2）
 				const 中频FolderRef = 文件夹FolderRefs[2];
-				const 中频Position = 中频FolderRef().position();
-				yield* 新游戏PaperRef().position([中频Position.x, 中频Position.y ], 0.8, easeOutCubic);
+				// 使用 contentPosition 获取文件夹内容区中心位置
+				const contentPos = 中频FolderRef().contentPosition();
+				yield* 新游戏PaperRef().position(contentPos, 0.8, easeOutCubic);
 			}
 		},
 		{
@@ -868,7 +867,7 @@ export function createMainSubtitles(
 				
 				// 创建类型文件夹
 				view.add(
-					<Folder
+					<FolderComponent
 						ref={类型文件夹Ref}
 						folderColor="#4CAF50"
 						tabColor="#2E7D32"
@@ -887,12 +886,12 @@ export function createMainSubtitles(
 							textAlign="center"
 							fontWeight={600}
 						/>
-					</Folder>
+					</FolderComponent>
 				);
 				
 				// 创建标签文件夹
 				view.add(
-					<Folder
+					<FolderComponent
 						ref={标签文件夹Ref}
 						folderColor="#2196F3"
 						tabColor="#1565C0"
@@ -911,7 +910,7 @@ export function createMainSubtitles(
 							textAlign="center"
 							fontWeight={600}
 						/>
-					</Folder>
+					</FolderComponent>
 				);
 				
 				// 等待文件夹创建完成
@@ -1032,7 +1031,7 @@ export function createMainSubtitles(
 					const folderRef = 类型子文件夹Refs[index];
 					
 					view.add(
-						<Folder
+						<FolderComponent
 							ref={folderRef}
 							folderColor="#81C784"
 							tabColor="#66BB6A"
@@ -1051,7 +1050,7 @@ export function createMainSubtitles(
 								textAlign="center"
 								fontWeight={600}
 							/>
-						</Folder>
+						</FolderComponent>
 					);
 				});
 				
@@ -1137,7 +1136,7 @@ export function createMainSubtitles(
 					const folderRef = 标签子文件夹Refs[index];
 					
 					view.add(
-						<Folder
+						<FolderComponent
 							ref={folderRef}
 							folderColor="#64B5F6"
 							tabColor="#42A5F5"
@@ -1156,7 +1155,7 @@ export function createMainSubtitles(
 								textAlign="center"
 								fontWeight={600}
 							/>
-						</Folder>
+						</FolderComponent>
 					);
 				});
 				
@@ -1228,10 +1227,11 @@ export function createMainSubtitles(
 		{
 			text:"之后就可以将资源移动到对应的类型文件夹中",
 			callback: function* () {
-				// 移动到JRPG文件夹（类型子文件夹Refs[0]）
+				// 移动到JRPG文件夹内部（类型子文件夹Refs[0]）
 				const JRPGFolderRef = 类型子文件夹Refs[0]; // JRPG是第一个
-				const JRPGPosition = JRPGFolderRef().position();
-				yield* 新游戏PaperRef().position([JRPGPosition.x, JRPGPosition.y], 0.8, easeOutCubic);
+				// 使用 contentPosition 获取文件夹内容区中心位置
+				const contentPos = JRPGFolderRef().contentPosition();
+				yield* 新游戏PaperRef().position(contentPos, 0.8, easeOutCubic);
 			}
 		},
 		{
@@ -1318,19 +1318,21 @@ export function createMainSubtitles(
 		{ 
 			text: '3次以上访问的，可以把快捷方式移动到高频文件夹',
 			callback: function* () {
-				// 移动到高频文件夹（索引3）
+				// 移动到高频文件夹内部（索引3）
 				const 高频FolderRef = 文件夹FolderRefs[3];
-				const 高频Position = 高频FolderRef().position();
-				yield* 新游戏PaperRef().position([高频Position.x, 高频Position.y ], 0.8, easeOutCubic);
+				// 使用 contentPosition 获取文件夹内容区中心位置
+				const contentPos = 高频FolderRef().contentPosition();
+				yield* 新游戏PaperRef().position(contentPos, 0.8, easeOutCubic);
 			}
 		},
 		{ 
 			text: '如果资源质量极其优秀，可以直接移动到典藏区，永不降级',
 			callback: function* () {
-				// 移动到典藏区（索引4）
+				// 移动到典藏区内部（索引4）
 				const 典藏区FolderRef = 文件夹FolderRefs[4];
-				const 典藏区Position = 典藏区FolderRef().position();
-				yield* 新游戏PaperRef().position([典藏区Position.x, 典藏区Position.y ], 0.8, easeOutCubic);
+				// 使用 contentPosition 获取文件夹内容区中心位置
+				const contentPos = 典藏区FolderRef().contentPosition();
+				yield* 新游戏PaperRef().position(contentPos, 0.8, easeOutCubic);
 			}
 		},
 		{ text: '这种管理方式也可以解决备份问题' },
@@ -1524,7 +1526,7 @@ export function createMainSubtitles(
 					<TreeNodeComponent
 						ref={developerTreeRef}
 						refs={developerTreeRefs}
-						root={rootData}
+						roots={[rootData]}
 						theme={{
 							fontSize: 32,
 						}}
