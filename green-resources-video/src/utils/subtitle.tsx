@@ -15,6 +15,8 @@ import {
 	SimpleSignal,
 } from '@motion-canvas/core';
 import { VideoScript } from '../interface/VideoScript';
+import ProgressSegmentConfig from '../interface/ProgressSegmentConfig';
+import { ProgressSegment } from '../nodes/ProgressBar';
 
 export type SubtitleItem = string | VideoScript;
 
@@ -32,6 +34,7 @@ export interface SubtitleProps extends LayoutProps {
 	backgroundColor?: SignalValue<string>;
 	backgroundOpacity?: SignalValue<number>;
 	borderRadius?: SignalValue<number>;
+	progressBarRef?: { setProgressByIndex: (index: number, total: number, duration?: number) => ThreadGenerator };  // 进度条引用，用于同步进度
 }
 
 /**
@@ -96,6 +99,8 @@ export class Subtitle extends Layout {
 	private readonly backgroundRef = createRef<Rect>();
 	// 容器引用
 	private readonly containerRef = createRef<Layout>();
+	// 进度条引用（可选，用于同步进度）
+	private progressBarRef?: { setProgressByIndex: (index: number, total: number, duration?: number) => ThreadGenerator };
 
 	public constructor(props?: SubtitleProps) {
 		super({
@@ -107,6 +112,11 @@ export class Subtitle extends Layout {
 			composite: true,
 			...props,
 		});
+
+		// 保存进度条引用
+		if (props?.progressBarRef) {
+			this.progressBarRef = props.progressBarRef;
+		}
 
 		const subtitlePosition = this.subtitlePosition();
 		const subtitlePadding = this.subtitlePadding();
@@ -198,10 +208,15 @@ export class Subtitle extends Layout {
 			const eventName = script.text.substring(0, 7);
 			yield* waitUntil(eventName);
 			
-			// 并行执行回调动画（如果有）和字幕淡入
+			// 并行执行回调动画（如果有）、字幕淡入和进度条更新
 			const animations: ThreadGenerator[] = [
 				this.containerRef().opacity(1, fadeInDuration)
 			];
+			
+			// 添加进度条更新动画
+			if (this.progressBarRef) {
+				animations.push(this.progressBarRef.setProgressByIndex(index, texts.length, fadeInDuration));
+			}
 			
 			// 添加回调动画（如果有）
 			if (script.callback) {
@@ -225,6 +240,87 @@ export class Subtitle extends Layout {
 			// 淡出
 			yield* this.containerRef().opacity(0, fadeOutDuration);
 		}
+	}
+}
+
+/**
+ * 进度条分段配置转换器
+ * 负责将基于文本的分段配置转换为基于索引的分段配置
+ */
+export class ProgressSegmentConverter {
+	/**
+	 * 通过文本查找字幕索引
+	 * @param subtitles 字幕数组
+	 * @param text 要查找的文本
+	 * @returns 找到的索引，如果未找到返回 -1
+	 */
+	private static findIndexByText(subtitles: VideoScript[], text: string): number {
+		for (let i = 0; i < subtitles.length; i++) {
+			const item = subtitles[i];
+			const itemText = typeof item === 'string' ? item : item.text;
+			if (itemText.includes(text)) {
+				return i;
+			}
+		}
+		return -1;
+	}
+
+	/**
+	 * 将基于文本的分段配置转换为基于索引的分段配置
+	 * @param configs 基于文本的分段配置数组
+	 * @param subtitles 字幕数组
+	 * @returns 基于索引的分段配置数组
+	 */
+	public static convert(
+		configs: ProgressSegmentConfig[],
+		subtitles: VideoScript[]
+	): ProgressSegment[] {
+		return configs.map((config, index) => {
+			const startIndex = this.findIndexByText(subtitles, config.startText);
+			let endIndex: number;
+
+			if (config.endText) {
+				endIndex = this.findIndexByText(subtitles, config.endText);
+				// 如果找到结束文本，使用它之前的索引
+				if (endIndex >= 0) {
+					endIndex = endIndex - 1;
+				} else {
+					// 如果找不到结束文本，使用下一个分段的开始索引
+					const nextConfig = configs[index + 1];
+					if (nextConfig) {
+						const nextStartIndex = this.findIndexByText(subtitles, nextConfig.startText);
+						endIndex = nextStartIndex >= 0 ? nextStartIndex - 1 : subtitles.length - 1;
+					} else {
+						endIndex = subtitles.length - 1;
+					}
+				}
+			} else {
+				// 最后一个分段，使用字幕数组的最后一个索引
+				endIndex = subtitles.length - 1;
+			}
+
+			// 确保索引有效
+			if (startIndex < 0) {
+				console.warn(`无法找到分段 "${config.title}" 的起始文本: "${config.startText}"`);
+				return {
+					title: config.title,
+					startIndex: 0,
+					endIndex: subtitles.length - 1,
+					color: config.color
+				};
+			}
+
+			if (endIndex < startIndex) {
+				endIndex = startIndex;
+			}
+
+			return {
+				title: config.title,
+				startIndex,
+				endIndex,
+				color: config.color
+			};
+		});
 	}
 }
 

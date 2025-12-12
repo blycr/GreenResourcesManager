@@ -12,6 +12,5 @@ import test from './scenes/test?scene';
 import folderTest from './scenes/folderTest?scene';
 
 export default makeProject({
-  scenes: [main],
-  audio: bgm,
+  scenes: [main,logo],
 });

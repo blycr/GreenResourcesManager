@@ -3,6 +3,8 @@ import { Layout, Rect, Txt, Line, Video } from '@motion-canvas/2d';
 import { all, easeOutCubic, waitFor, ThreadGenerator, createRef } from '@motion-canvas/core';
 import { fadeInNodes, moveAndShow, blackHoleEffect, showTreeNodesByLevel, showNodeChildren, showNode, hideNode, showCircleImages, fallAndDisappearCircleImages, hideAndRemove } from '../utils/animationsUtil';
 import ProgressSegmentConfig from '../interface/ProgressSegmentConfig';
+import { ProgressSegment } from '../nodes/ProgressBar';
+import { ProgressSegmentConverter } from '../utils/subtitle';
 import VideoPostion from '../utils/VideoPostion';
 import { createImage, createTexts, createCircleImages } from '../utils/creatorUtil';
 import { TreeNodeComponent, createTreeNodeRefs, addNodeTo, addNodesTo, removeNode, NodeRenderer } from '../nodes/TreeNode';
@@ -65,12 +67,13 @@ export function createMainSubtitles(
 	const 硬盘Gallery = (
 		<SequentialImageGallery
 			ref={硬盘GalleryRef}
-			imagePaths={['/imgs/4t硬盘.png', '/imgs/16t硬盘.png', '/imgs/32t硬盘.jpg', '/imgs/72t硬盘.jpg']}
-			view={view}
-			initialScale={0.5}
+			imagePaths={['/imgs/4t硬盘.png', '/imgs/16t硬盘2.png', '/imgs/32t硬盘.png', '/imgs/72t硬盘.png']}
+			view={view}	
+			initialScale={0.7}
 			finalScale={0.3}
 			topOffset={170}
 			duration={1}
+			zIndex={300}
 		/>
 	);
 	view.add(硬盘Gallery);
@@ -478,7 +481,7 @@ export function createMainSubtitles(
 			}
 		},
 		{
-			text: '到16TB企业级硬盘盒……',
+			text: '到16TB企业级硬盘+硬盘盒……',
 			callback: function* () {
 				// 显示第二个图片（第一个会自动缩小并移动到左上角）
 				yield* 硬盘GalleryRef().showNext();
@@ -543,10 +546,13 @@ export function createMainSubtitles(
 		},
 
 		{
-			text: "当资源量极其庞大的时候，如何快速索引所需的资源？或者说如何建立合理的分类系统？",
+			text: "当资源量极其庞大的时候，如何快速索引所需的资源？",
 			callback: function* () {
 				yield* persistentKeywordsRef().addContent('1. 数据索引问题', '当资源量极其庞大的时候，如何快速索引所需的资源？\n或者说如何建立合理的分类系统？');
 			}
+		},
+		{
+			text: '或者说如何建立合理的分类系统？',
 		},
 		{
 			text: '第二，数据统计问题',
@@ -600,12 +606,12 @@ export function createMainSubtitles(
 			}
 		},
 		{
-			text: '以游戏为例，我按游戏类型分为NV、JRPG、SLG、SIM、ACT等文件夹',
+			text: '以游戏为例，我按游戏类型分为GalGame、JRPG、SLG、SIM、ACT等文件夹',
 			callback: function* () {
 				// 使用组件方法动态添加子节点到根节点（自动显示）
 				yield* folderTreeRef().addNodesTo(
 					'root',
-					['NV', 'JRPG', 'SLG', 'SIM', 'ACT'],
+					['GalGame', 'JRPG', 'SLG', 'SIM', 'ACT'],
 					{
 						childSpacing: 180,  // 子节点之间的水平间距
 						childVerticalOffset: 200,  // 子节点相对于父节点的垂直偏移
@@ -697,7 +703,7 @@ export function createMainSubtitles(
 			text: "然而实际上这个游戏是Galgame",
 			callback: function* () {
 				// 将《粽子精模拟器》从ACT移动到NV（带动画，使用组件方法）
-				yield* folderTreeRef().moveNode('粽子精模拟器', 'ACT', 'NV');
+				yield* folderTreeRef().moveNode('粽子精模拟器', 'ACT', 'GalGame');
 			}
 		},
 		{
@@ -710,8 +716,8 @@ export function createMainSubtitles(
 				// 删除《粽子精模拟器》节点（使用组件方法）
 				yield* folderTreeRef().removeNode('粽子精模拟器');
 
-				// 给NV添加多个游戏节点（使用组件方法）
-				yield* folderTreeRef().addNodesTo('NV', [
+				// 给GalGame添加多个游戏节点（使用组件方法）
+				yield* folderTreeRef().addNodesTo('GalGame', [
 					'游戏1',
 					'粽子精',
 					'…………',
@@ -1731,7 +1737,7 @@ export function createMainSubtitles(
 		{ text: '这样既可以快速找到你常玩的游戏，也可以找到最近添加的游戏进行管理' },
 
 		{
-			text: '好的，管理器的冰山一角已经介绍完了，接下来才是重点功能',
+			text: '然而这些只是管理器的冰山一角，更有趣的功能还在后面',
 			callback: function* () {
 				// 删除截图键位修改图片（如果还存在）
 
@@ -2080,10 +2086,7 @@ export function createMainSubtitles(
 		},
 		{ text: "但是请各位稍安勿躁" },
 		{
-			text: "在它成为各位心中完美的资源管理器之前，我会不断更新的"
-		},
-		{
-			text: '这个是本管理器的qq群，如果有什么意见和建议，欢迎进群讨论！',
+			text: "在它成为各位心中完美的资源管理器之前，我会不断更新的",
 			callback: function* () {
 				// 隐藏功能列表文本Refs
 				yield* all(
@@ -2102,6 +2105,9 @@ export function createMainSubtitles(
 			}
 		},
 		{
+			text: '这个是本管理器的qq群，如果有什么意见和建议，欢迎进群讨论！'
+		},
+		{
 			text: '那么，各位，我们下次再见'
 		}
 	];
@@ -2109,22 +2115,25 @@ export function createMainSubtitles(
 
 
 /**
- * 获取进度条分段配置
- * @param totalSubtitles 字幕总数
- * @returns 进度条分段配置数组
+ * 进度条分段配置（基于文本匹配）
  */
-export function getProgressSegments(totalSubtitles: number): ProgressSegmentConfig[] {
-	return [
-		{ title: '开场介绍', startIndex: 0, endIndex: 9, color: '#4CAF50' },
-		{ title: '问题提出', startIndex: 10, endIndex: 14, color: '#F44336' },
-		{ title: '传统方法', startIndex: 15, endIndex: 28, color: '#FF9800' },
-		{ title: '解决方案', startIndex: 29, endIndex: 47, color: '#2196F3' },
-		{ title: '方案缺陷', startIndex: 48, endIndex: 73, color: '#9C27B0' },
-		{ title: '绿色管理器', startIndex: 74, endIndex: 92, color: '#4CAF50' },
-		{ title: '核心功能', startIndex: 93, endIndex: 118, color: '#00BCD4' },
-		{ title: '数据统计', startIndex: 119, endIndex: 148, color: '#FF5722' },
-		{ title: '其他功能', startIndex: 149, endIndex: 172, color: '#795548' },
-		{ title: '结尾', startIndex: 173, endIndex: totalSubtitles - 1, color: '#607D8B' }
-	];
+export const segmentConfigs: ProgressSegmentConfig[] = [
+	{ title: '问题提出', startText: '我是一只资深的仓鼠', endText: '而令人遗憾的是', color: '#4CAF50' },
+	{ title: '传统方法', startText: '而令人遗憾的是', endText: '于是某一天，我突然冷静了下来', color: '#FF9800' },
+	{ title: '解决方案', startText: '于是某一天，我突然冷静了下来', endText: '这两个模式其实蕴含了2个前提', color: '#2196F3' },
+	{ title: '方案缺陷', startText: '这两个模式其实蕴含了2个前提', endText: '所以，在一次冷静的思考后，我制作了"绿色资源管理器"', color: '#9C27B0' },
+	{ title: '绿色管理器的核心功能', startText: '所以，在一次冷静的思考后，我制作了"绿色资源管理器"', endText: '接下来我们将解决第二朵乌云——数据统计问题', color: '#4CAF50' },
+	{ title: '数据统计功能', startText: '接下来我们将解决第二朵乌云——数据统计问题', endText: '然而这些只是管理器的冰山一角，更有趣的功能还在后面', color: '#00BCD4' },
+	{ title: '其他功能', startText: '然而这些只是管理器的冰山一角，更有趣的功能还在后面', endText: '最后我需要声明', color: '#795548' },
+	{ title: '结尾', startText: '最后我需要声明', color: '#607D8B' }
+];
+
+/**
+ * 获取进度条分段配置
+ * @param subtitles 字幕数组
+ * @returns 进度条分段配置数组（包含计算后的索引）
+ */
+export function getProgressSegments(subtitles: VideoScript[]): ProgressSegment[] {
+	return ProgressSegmentConverter.convert(segmentConfigs, subtitles);
 }
 

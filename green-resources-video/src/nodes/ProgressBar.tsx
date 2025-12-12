@@ -13,6 +13,7 @@ import {
 	linear,
 	SignalValue,
 	SimpleSignal,
+	waitFor,
 } from '@motion-canvas/core';
 
 /**
@@ -215,5 +216,49 @@ export class ProgressBar extends Layout {
 		if (this.titleRefs[segIndex]) {
 			this.titleRefs[segIndex]().text(newTitle);
 		}
+	}
+
+	/**
+	 * 根据字幕索引设置进度条位置（平滑动画）
+	 * @param index 当前字幕索引（从0开始）
+	 * @param total 总字幕数量
+	 * @param duration 动画时长（秒），默认0.3秒
+	 * @returns ThreadGenerator 可以 yield* 来等待动画完成
+	 */
+	public *setProgressByIndex(index: number, total: number, duration: number = 0.3): ThreadGenerator {
+		if (total <= 0) return;
+		
+		// 计算目标进度百分比（使用 (index + 0.5) / total 让进度条在字幕中间位置）
+		const targetProgress = (index + 0.5) / total;
+		const startProgress = this.progressPercent / 100;
+		
+		// 如果目标进度小于等于当前进度，直接设置（避免倒退）
+		if (targetProgress <= startProgress) {
+			return;
+		}
+		
+		// 平滑过渡到目标进度
+		yield* tween(duration, (value) => {
+			const progress = startProgress + (targetProgress - startProgress) * value;
+			
+			const barPadding = this.barPadding();
+			const segmentsWidth = this.segmentsLayoutRef().width() || (this.width() - barPadding * 2);
+			const segmentsX = this.segmentsLayoutRef().position.x();
+			const segmentsY = this.segmentsLayoutRef().position.y();
+			
+			// 计算当前进度条的宽度
+			const currentProgressWidth = segmentsWidth * progress;
+			
+			// 计算进度条位置
+			const leftEdge = segmentsX - segmentsWidth / 2;
+			const progressCenterX = leftEdge + currentProgressWidth / 2;
+			
+			// 更新进度条的宽度和位置
+			this.progressRef().width(currentProgressWidth);
+			this.progressRef().position([progressCenterX, segmentsY]);
+			
+			// 更新进度百分比
+			this.progressPercent = progress * 100;
+		}, linear);
 	}
 }

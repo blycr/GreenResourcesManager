@@ -1,9 +1,9 @@
-import {makeScene2D, Layout} from '@motion-canvas/2d';
+import {makeScene2D, Layout, Rect} from '@motion-canvas/2d';
 import {createMouseRef, Mouse} from '../nodes/Mouse';
 import {Subtitle} from '../utils/subtitle';
 import {createMainSubtitles, getProgressSegments} from '../data/mainSubtitles';
 import {ProgressBar} from '../nodes/ProgressBar';
-import {all, createRef} from '@motion-canvas/core';
+import {all, createRef, finishScene} from '@motion-canvas/core';
 
 export default makeScene2D(function* (view) {
   // 创建鼠标引用
@@ -14,16 +14,7 @@ export default makeScene2D(function* (view) {
   const subtitles = createMainSubtitles(view);
 
   // 获取进度条分段配置
-  const progressSegments = getProgressSegments(subtitles.length);
-
-  // 创建字幕组件
-  const subtitleRef = createRef<Subtitle>();
-  view.add(
-    <Subtitle
-      ref={subtitleRef}
-      texts={subtitles}
-    />
-  );
+  const progressSegments = getProgressSegments(subtitles);
 
   // 创建进度条组件
   const progressBarRef = createRef<ProgressBar>();
@@ -36,19 +27,34 @@ export default makeScene2D(function* (view) {
     />
   );
 
-  // 计算整个动画的总时长（用于进度条动画）
-  let totalDuration = 0;
-  for (const item of subtitles) {
-    const text = typeof item === 'string' ? item : item.text;
-    const duration = Math.max(2, text.length * 0.1); // minDisplayDuration = 2, charsPerSecond = 0.1
-    totalDuration += 0.5 + duration + 0.5; // fadeInDuration + duration + fadeOutDuration
-  }
-
-  // 并行执行字幕显示和进度条动画
-  yield* all(
-    // 字幕显示
-    subtitleRef().show(),
-    // 进度条动画
-    progressBarRef().animateProgress(totalDuration)
+  // 创建字幕组件，传入进度条引用用于同步进度
+  const subtitleRef = createRef<Subtitle>();
+  view.add(
+    <Subtitle
+      ref={subtitleRef}
+      texts={subtitles}
+      progressBarRef={progressBarRef()}
+    />
   );
+
+  // 只执行字幕显示，进度条会通过字幕组件同步更新
+  yield* subtitleRef().show();
+
+  // 创建黑色遮罩，用于转场效果
+  const fadeOutRect = createRef<Rect>();
+  view.add(
+    <Rect
+      ref={fadeOutRect}
+      size={view.size()}
+      fill={'black'}
+      opacity={0}
+      zIndex={99999}
+    />
+  );
+
+  // main 场景逐渐变黑（1秒）
+  yield* fadeOutRect().opacity(1, 1);
+  
+  // 提前触发转场，让转场在变黑过程中进行
+  finishScene();
 });
