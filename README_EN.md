@@ -10,19 +10,19 @@
 
 ## 📑 Table of Contents
 
-* [Product Introduction](#-product-introduction)
+* [📖 Product Introduction](#product-introduction)
   * [Development Background](#development-background)
   * [Target Users](#target-users)
   * [Features](#features)
   * [Tech Stack](#tech-stack)
   * [Screenshots](#screenshots)
-* [Download for Users](#-download-for-users)
-* [Developer Environment Setup](#️-developer-environment-setup)
+* [💾 Download for Users](#download-for-users)
+* [🛠️ Developer Environment Setup](#developer-environment-setup)
   * [Prerequisites](#prerequisites)
   * [Building Green Resources Manager](#building-green-resources-manager)
   * [Building Promotional Video](#building-promotional-video)
-* [Future Plans](#-future-plans)
-* [Join Us](#-join-us)
+* [🚀 Future Plans](#future-plans)
+* [🤝 Join Us](#join-us)
 
 ## 📖 Product Introduction
 
@@ -177,5 +177,5 @@ Hat Soft is a community focused on experimental game development and game theory
 
 <div align="center">Made by YanChenXiang ❤️</div>
 
-[⬆ Back to Top](#-table-of-contents)
+[⬆ Back to Top](#table-of-contents)
 
