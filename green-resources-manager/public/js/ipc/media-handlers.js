@@ -30,8 +30,6 @@ function registerIpcHandlers(ipcMain, shell, pathUtils) {
   // 打开文件夹
   ipcMain.handle('open-folder', async (event, folderPath) => {
     try {
-      console.log('尝试打开文件夹:', folderPath)
-
       // 处理空路径或无效路径
       if (!folderPath || folderPath.trim() === '' || folderPath === '.') {
         return { success: false, error: '无效的文件夹路径' }
@@ -56,7 +54,6 @@ function registerIpcHandlers(ipcMain, shell, pathUtils) {
         absolutePath = absolutePath.replace(/\//g, '\\')
       }
 
-      console.log('解析后的绝对路径:', absolutePath)
 
       // 确保文件夹存在
       if (!fs.existsSync(absolutePath)) {
@@ -70,8 +67,6 @@ function registerIpcHandlers(ipcMain, shell, pathUtils) {
         return { success: false, error: '指定路径不是文件夹' }
       }
 
-      // 打开文件夹
-      console.log('正在打开文件夹:', absolutePath)
 
       // 在 Windows 上，使用 explorer 命令确保正确定位文件夹
       if (process.platform === 'win32') {
@@ -92,11 +87,10 @@ function registerIpcHandlers(ipcMain, shell, pathUtils) {
   // 专门用于读取伪装图片的 API
   ipcMain.handle('read-disguise-images', async () => {
     try {
-      console.log('=== 读取伪装图片 ===')
+
 
       // 使用根目录下的 disguise 文件夹
       const disguiseDir = path.join(process.cwd(), 'disguise')
-      console.log('伪装图片目录:', disguiseDir)
 
       // 检查目录是否存在，如果不存在则创建
       if (!fs.existsSync(disguiseDir)) {
@@ -112,8 +106,6 @@ function registerIpcHandlers(ipcMain, shell, pathUtils) {
 
       // 读取目录内容
       const files = fs.readdirSync(disguiseDir)
-      console.log('disguise 目录中的文件数量:', files.length)
-      console.log('文件列表:', files)
 
       // 过滤出图片文件
       const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.svg']
@@ -124,7 +116,6 @@ function registerIpcHandlers(ipcMain, shell, pathUtils) {
         return isImage
       })
 
-      console.log(`✅ 找到 ${imageFiles.length} 张伪装图片:`, imageFiles)
 
       // 尝试读取 disguise.txt 文件
       let disguiseTexts = []
