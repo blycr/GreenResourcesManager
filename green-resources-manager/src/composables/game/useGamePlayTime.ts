@@ -1,6 +1,6 @@
 import { type Ref } from 'vue'
-import { formatPlayTime } from '../utils/formatters'
-import notify from '../utils/NotificationService.ts'
+import { formatPlayTime } from '../../utils/formatters'
+import notify from '../../utils/NotificationService.ts'
 import type { Game } from './useGameManagement'
 
 /**

@@ -1,6 +1,6 @@
 import { ref, type Ref } from 'vue'
-import saveManager from '../utils/SaveManager.ts'
-import notify from '../utils/NotificationService.ts'
+import saveManager from '../../utils/SaveManager.ts'
+import notify from '../../utils/NotificationService.ts'
 
 /**
  * 游戏截图功能的 composable

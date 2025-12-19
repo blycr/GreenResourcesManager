@@ -38,11 +38,11 @@
         <p class="media-description" v-if="item.description">{{ item.description }}</p>
         <div class="media-tags" v-if="displayTags.length > 0">
           <span 
-            v-for="tag in displayTags.slice(0, 3)" 
+            v-for="tag in displayTags.slice(0, 9)" 
             :key="tag" 
             class="media-tag"
           >{{ tag }}</span>
-          <span v-if="displayTags.length > 3" class="media-tag-more">+{{ displayTags.length - 3 }}</span>
+          <span v-if="displayTags.length > 9" class="media-tag-more">+{{ displayTags.length - 9 }}</span>
         </div>
         <div class="media-stats">
           <span class="stat-item">{{ formatPlayTime(item.playTime) }}</span>

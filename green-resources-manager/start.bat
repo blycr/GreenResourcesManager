@@ -1,9 +1,0 @@
-@echo off
-echo 启动Butter Manager Vue...
-echo.
-echo 正在安装依赖...
-call npm install
-echo.
-echo 启动开发服务器...
-call npm run electron-dev
-pause

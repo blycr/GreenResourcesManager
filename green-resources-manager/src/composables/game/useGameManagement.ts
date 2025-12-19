@@ -1,7 +1,7 @@
 import { ref, type Ref } from 'vue'
-import saveManager from '../utils/SaveManager.ts'
-import notify from '../utils/NotificationService.ts'
-import { unlockAchievement } from '../pages/user/AchievementView.vue'
+import saveManager from '../../utils/SaveManager.ts'
+import notify from '../../utils/NotificationService.ts'
+import { unlockAchievement } from '../../pages/user/AchievementView.vue'
 
 export interface Game {
   id: string

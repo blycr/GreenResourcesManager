@@ -342,9 +342,9 @@ export default {
       const game = {
         id: Date.now().toString(),
         name: gameName,
-        developer: this.formData.developer.trim() || '未知开发商',
-        publisher: this.formData.publisher.trim() || '未知发行商',
-        description: this.formData.description.trim() || '',
+        developer: (this.formData.developer || '').trim(),
+        publisher: (this.formData.publisher || '').trim(),
+        description: (this.formData.description || '').trim(),
         tags: [...this.formData.tags],
         executablePath: this.formData.executablePath.trim(),
         image: this.formData.imagePath.trim(),

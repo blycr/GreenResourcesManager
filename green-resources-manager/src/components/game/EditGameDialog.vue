@@ -287,9 +287,9 @@ export default {
       const updatedGame = {
         id: this.formData.id,
         name: this.formData.name.trim() || this.game.name,
-        developer: this.formData.developer.trim() || this.game.developer,
-        publisher: this.formData.publisher.trim() || this.game.publisher,
-        description: this.formData.description.trim(),
+        developer: (this.formData.developer || '').trim(),
+        publisher: (this.formData.publisher || '').trim(),
+        description: (this.formData.description || '').trim(),
         tags: [...this.formData.tags],
         executablePath: this.formData.executablePath.trim() || this.game.executablePath,
         image: (this.formData.imagePath || '').trim()

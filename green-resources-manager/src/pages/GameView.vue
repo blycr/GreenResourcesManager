@@ -7,7 +7,7 @@
     @context-menu-click="handleContextMenuClick" @page-change="handleGamePageChange">
     <!-- 主内容区域 -->
     <div class="game-content" @drop="handleDrop" @dragover="handleDragOver" @dragenter="handleDragEnter"
-      @dragleave="handleDragLeave" :class="{ 'drag-over': isDragOver }">
+      @dragleave="handleDragLeave" :class="{ 'drag-over': dragDropComposable?.isDragOver || false }">
 
 
       <!-- 游戏网格 -->
@@ -93,11 +93,13 @@ import { formatPlayTime, formatLastPlayed, formatDateTime, formatDate, formatFir
 import saveManager from '../utils/SaveManager.ts'
 import notify from '../utils/NotificationService.ts'
 import { ref, toRefs } from 'vue'
-import { useGameFilter } from '../composables/useGameFilter'
-import { useGameManagement } from '../composables/useGameManagement'
-import { useGameScreenshot } from '../composables/useGameScreenshot'
-import { useGameRunning } from '../composables/useGameRunning'
-import { useGamePlayTime } from '../composables/useGamePlayTime'
+import { useGameFilter } from '../composables/game/useGameFilter'
+import { useGameManagement } from '../composables/game/useGameManagement'
+import { useGameScreenshot } from '../composables/game/useGameScreenshot'
+import { useGameRunning } from '../composables/game/useGameRunning'
+import { useGamePlayTime } from '../composables/game/useGamePlayTime'
+import { usePagination } from '../composables/usePagination'
+import { useGameDragAndDrop } from '../composables/game/useGameDragAndDrop'
 
 export default {
   name: 'GameView',
@@ -160,6 +162,21 @@ export default {
       (gameId) => removeRunningGameFn(gameId)
     )
 
+    // 使用分页 composable
+    const paginationComposable = usePagination(
+      filterComposable.filteredGames,
+      20,
+      '游戏'
+    )
+
+    // 拖拽相关函数（需要在组件实例化后设置）
+    let showPathUpdateDialogFn: (info: { existingGame: any; newPath: string; newFileName: string }) => void = () => {}
+    let extractGameNameFromPathFn: (filePath: string) => string = () => ''
+    let addGameFn: (game: any) => Promise<void> = async () => {}
+
+    // 使用拖拽 composable（延迟初始化，因为需要访问组件方法）
+    const dragDropComposable = ref<ReturnType<typeof useGameDragAndDrop> | null>(null)
+
     return {
       // 数据
       games,
@@ -179,7 +196,30 @@ export default {
       ...runningComposable,
       // 游戏时长相关
       ...playTimeComposable,
+      // 分页相关
+      ...toRefs(paginationComposable),
+      ...paginationComposable,
+      // 拖拽相关（延迟初始化）
+      dragDropComposable,
       // 内部函数设置器（供 mounted 使用）
+      _setDragDropFunctions: (functions: {
+        showPathUpdateDialog: (info: { existingGame: any; newPath: string; newFileName: string }) => void
+        extractGameNameFromPath: (filePath: string) => string
+        addGame: (game: any) => Promise<void>
+      }) => {
+        showPathUpdateDialogFn = functions.showPathUpdateDialog
+        extractGameNameFromPathFn = functions.extractGameNameFromPath
+        addGameFn = functions.addGame
+        
+        // 初始化拖拽 composable（传入响应式的 games）
+        dragDropComposable.value = useGameDragAndDrop({
+          games: games, // 传入 ref，composable 内部会处理
+          onAddGame: addGameFn,
+          onShowPathUpdateDialog: showPathUpdateDialogFn,
+          extractGameNameFromPath: extractGameNameFromPathFn,
+          isElectronEnvironment: isElectronEnvironment.value
+        })
+      },
       _setParentFunctions: (functions: {
         getRunningGames: () => Map<string, any>
         addRunningGame: (gameInfo: any) => void
@@ -221,8 +261,7 @@ export default {
         { key: 'remove', icon: '🗑️', label: '删除游戏' }
       ],
       // 标签和开发商筛选相关已移至 composables
-      // 拖拽相关
-      isDragOver: false,
+      // 拖拽相关已移至 useGameDragAndDrop composable
       // 路径更新确认对话框
       showPathUpdateDialog: false,
       pathUpdateInfo: {
@@ -233,10 +272,7 @@ export default {
       // 强制结束游戏确认对话框
       showTerminateConfirmDialog: false,
       gameToTerminate: null,
-      // 游戏列表分页相关
-      currentGamePage: 1,
-      gamePageSize: 20, // 默认每页显示20个游戏
-      totalGamePages: 0,
+      // 分页相关已移至 useGamePagination composable
       // 空状态配置
       gameEmptyStateConfig: {
         emptyIcon: '🎮',
@@ -267,24 +303,18 @@ export default {
   },
   computed: {
     // filteredGames 已移至 useGameFilter composable
-    // 分页显示的游戏列表
+    // 分页相关已移至 useGamePagination composable
+    // paginatedGames 现在通过 paginationComposable.paginatedItems 访问
     paginatedGames() {
-      if (!this.filteredGames || this.filteredGames.length === 0) return []
-      const start = (this.currentGamePage - 1) * this.gamePageSize
-      const end = start + this.gamePageSize
-      return this.filteredGames.slice(start, end)
+      return this.paginatedItems || []
     },
-    // 当前游戏页的起始索引
-    currentGamePageStartIndex() {
-      return (this.currentGamePage - 1) * this.gamePageSize
-    },
-    // 动态更新分页配置
+    // gamePaginationConfig 现在通过 paginationComposable.paginationConfig 访问
     gamePaginationConfig() {
-      return {
-        currentPage: this.currentGamePage,
-        totalPages: this.totalGamePages,
-        pageSize: this.gamePageSize,
-        totalItems: this.filteredGames.length,
+      return this.paginationConfig || {
+        currentPage: 1,
+        totalPages: 0,
+        pageSize: 20,
+        totalItems: 0,
         itemType: '游戏'
       }
     }
@@ -511,8 +541,9 @@ export default {
       // 为现有游戏计算文件夹大小（如果还没有的话）
       await this.updateExistingGamesFolderSize()
 
-      // 计算游戏列表总页数
-      this.updateGamePagination()
+      // 分页信息会自动更新（usePagination composable 会监听 filteredGames 的变化）
+      // 如果需要手动触发，可以使用 this.updatePagination()
+
       await this.checkGameCollectionAchievements()
       await this.checkGameTimeAchievements()
     },
@@ -576,6 +607,18 @@ export default {
       this.clearDeveloperFilter()
       this.updateFilterData()
     },
+    handleFilterByOther(otherName: string) {
+      this.filterByOther(otherName)
+      this.updateFilterData()
+    },
+    handleExcludeByOther(otherName: string) {
+      this.excludeByOther(otherName)
+      this.updateFilterData()
+    },
+    handleClearOtherFilter() {
+      this.clearOtherFilter()
+      this.updateFilterData()
+    },
     // 处理来自 App.vue 的筛选器事件
     handleFilterEvent(event, data) {
       console.log('GameView handleFilterEvent:', event, data)
@@ -585,6 +628,8 @@ export default {
             this.handleFilterByTag(data.itemName)
           } else if (data.filterKey === 'developers') {
             this.handleFilterByDeveloper(data.itemName)
+          } else if (data.filterKey === 'others') {
+            this.handleFilterByOther(data.itemName)
           }
           break
         case 'filter-exclude':
@@ -592,6 +637,8 @@ export default {
             this.handleExcludeByTag(data.itemName)
           } else if (data.filterKey === 'developers') {
             this.handleExcludeByDeveloper(data.itemName)
+          } else if (data.filterKey === 'others') {
+            this.handleExcludeByOther(data.itemName)
           }
           break
         case 'filter-clear':
@@ -599,6 +646,8 @@ export default {
             this.handleClearTagFilter()
           } else if (data === 'developers') {
             this.handleClearDeveloperFilter()
+          } else if (data === 'others') {
+            this.handleClearOtherFilter()
           }
           break
       }
@@ -805,210 +854,32 @@ export default {
       await this.openGameScreenshotFolder(game)
     },
     // 拖拽处理方法
+    // 拖拽相关方法已移至 useGameDragAndDrop composable
     handleDragOver(event) {
-      event.preventDefault()
-      event.dataTransfer.dropEffect = 'copy'
+      if (this.dragDropComposable?.handleDragOver) {
+        this.dragDropComposable.handleDragOver(event)
+      }
     },
 
     handleDragEnter(event) {
-      event.preventDefault()
-      // 防止子元素触发 dragenter 时重复设置状态
-      if (!this.isDragOver) {
-        this.isDragOver = true
+      if (this.dragDropComposable?.handleDragEnter) {
+        this.dragDropComposable.handleDragEnter(event)
       }
     },
 
     handleDragLeave(event) {
-      event.preventDefault()
-      // 只有当离开整个拖拽区域时才取消高亮
-      // 检查 relatedTarget 是否存在且不在当前元素内
-      if (!event.relatedTarget || !event.currentTarget.contains(event.relatedTarget)) {
-        this.isDragOver = false
+      if (this.dragDropComposable?.handleDragLeave) {
+        this.dragDropComposable.handleDragLeave(event)
       }
     },
 
     async handleDrop(event) {
-      event.preventDefault()
-      this.isDragOver = false
-
-      try {
-        const files = Array.from(event.dataTransfer.files) as File[]
-
-        console.log('=== 拖拽调试信息 ===')
-        console.log('拖拽文件数量:', files.length)
-        console.log('拖拽文件详细信息:', files.map(f => ({
-          name: f.name,
-          path: f.path,
-          type: f.type,
-          size: f.size
-        })))
-        console.log('当前游戏库状态:')
-        this.games.forEach((game, index) => {
-          console.log(`  ${index + 1}. ${game.name}`)
-          console.log(`     路径: ${game.executablePath}`)
-          console.log(`     文件存在: ${game.fileExists}`)
-        })
-
-        if (files.length === 0) {
-          notify.native('拖拽失败', '请拖拽游戏可执行文件到此处')
-          return
-        }
-
-        // 筛选出可执行文件
-        const executableFiles = files.filter(file => {
-          const fileName = file.name.toLowerCase()
-          return fileName.endsWith('.exe') || fileName.endsWith('.app')
-        })
-
-        if (executableFiles.length === 0) {
-          notify.native('拖拽失败', '没有检测到可执行文件，请拖拽 .exe 或 .app 文件')
-          return
-        }
-
-        console.log('检测到可执行文件数量:', executableFiles.length)
-
-        // 批量添加游戏文件
-        let addedCount = 0
-        let failedCount = 0
-
-        for (const executableFile of executableFiles) {
-          try {
-            // 检查是否已经存在相同的文件路径
-            const existingGameByPath = this.games.find(game => game.executablePath === executableFile.path)
-            if (existingGameByPath) {
-              console.log(`游戏文件已存在: ${executableFile.name}`)
-              failedCount++
-              continue
-            }
-
-            // 检查是否存在同名但路径不同的丢失文件
-            const existingGameByName = this.games.find(game => {
-              const gameFileName = game.executablePath.split(/[\\/]/).pop().toLowerCase()
-              const newFileName = executableFile.name.toLowerCase()
-              const isSameName = gameFileName === newFileName
-              const isFileMissing = !game.fileExists
-
-              console.log(`检查游戏: ${game.name}`)
-              console.log(`  文件名: ${gameFileName} vs ${newFileName}`)
-              console.log(`  是否同名: ${isSameName}`)
-              console.log(`  文件存在: ${game.fileExists}`)
-              console.log(`  是否丢失: ${isFileMissing}`)
-              console.log(`  匹配条件: ${isSameName && isFileMissing}`)
-
-              return isSameName && isFileMissing
-            })
-
-            if (existingGameByName) {
-              console.log(`发现同名丢失文件: ${executableFile.name}`)
-              console.log(`现有游戏路径: ${existingGameByName.executablePath}`)
-              console.log(`新文件路径: ${executableFile.path}`)
-              // 显示路径更新确认对话框
-              this.pathUpdateInfo = {
-                existingGame: existingGameByName,
-                newPath: executableFile.path,
-                newFileName: executableFile.name
-              }
-              this.showPathUpdateDialog = true
-              // 暂停处理，等待用户确认
-              return
-            }
-
-            // 创建新的游戏对象
-            const game = {
-              id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
-              name: this.extractGameNameFromPath(executableFile.name),
-              developer: '未知开发商',
-              publisher: '未知发行商',
-              description: '',
-              tags: [],
-              executablePath: executableFile.path,
-              image: '',
-              folderSize: 0,
-              playTime: 0,
-              playCount: 0,
-              lastPlayed: null,
-              firstPlayed: null,
-              addedDate: new Date().toISOString(),
-              fileExists: true // 拖拽添加的游戏默认文件存在
-            }
-
-            console.log('创建游戏对象:', game)
-
-            // 获取游戏文件夹大小
-            if (this.isElectronEnvironment && window.electronAPI && window.electronAPI.getFolderSize) {
-              try {
-                const result = await window.electronAPI.getFolderSize(executableFile.path)
-                if (result.success) {
-                  game.folderSize = result.size
-                  console.log(`游戏 ${game.name} 文件夹大小: ${result.size} 字节`)
-                }
-              } catch (error) {
-                console.error('获取文件夹大小失败:', error)
-              }
-            }
-
-            // 添加到游戏列表（使用 composable 的 addGame 方法）
-            // 注意：addGame 已经包含了保存、成就检查和标签提取
-            await this.addGame(game)
-            addedCount++
-
-          } catch (error) {
-            console.error(`添加游戏文件失败: ${executableFile.name}`, error)
-            failedCount++
-          }
-        }
-
-        // 注意：addGame 已经包含了保存、成就检查和标签提取
-
-        // 显示结果通知
-        if (addedCount > 0) {
-          notify.toast(
-            'success',
-            '添加成功',
-            `成功添加 ${addedCount} 个游戏${failedCount > 0 ? `，${failedCount} 个文件添加失败` : ''}`
-          )
-        } else {
-          // 详细分析失败原因
-          let failureReason = ''
-          if (executableFiles.length === 0) {
-            failureReason = '没有检测到可执行文件（.exe 或 .app）'
-          } else if (files.length === 0) {
-            failureReason = '没有检测到任何文件'
-          } else {
-            failureReason = `所有 ${executableFiles.length} 个可执行文件都已存在于游戏库中`
-          }
-
-          notify.toast(
-            'error',
-            '添加失败',
-            `没有成功添加任何游戏文件\n原因：${failureReason}\n\n提示：\n• 请确保拖拽的是 .exe 或 .app 文件\n• 检查文件是否已存在于游戏库中\n• 尝试重新拖拽文件`
-          )
-        }
-
-      } catch (error) {
-        console.error('拖拽添加游戏失败:', error)
-
-        // 根据错误类型提供更详细的错误信息
-        let errorMessage = ''
-        if (error.name === 'SecurityError') {
-          errorMessage = '安全错误：浏览器阻止了文件访问\n请尝试使用"添加游戏"按钮手动选择文件'
-        } else if (error.name === 'NotAllowedError') {
-          errorMessage = '权限错误：无法访问拖拽的文件\n请检查文件权限或尝试重新拖拽'
-        } else if (error.message.includes('path')) {
-          errorMessage = `文件路径错误：${error.message}\n请确保文件路径有效且可访问`
-        } else if (error.message.includes('size')) {
-          errorMessage = `文件大小错误：${error.message}\n请检查文件是否损坏或过大`
-        } else {
-          errorMessage = `未知错误：${error.message}\n请尝试重新拖拽文件或使用"添加游戏"按钮`
-        }
-
-        notify.toast(
-          'error',
-          '添加失败',
-          `拖拽添加游戏时发生错误\n\n${errorMessage}\n\n建议：\n• 重新拖拽文件\n• 使用"添加游戏"按钮手动选择\n• 检查文件是否完整且可访问`
-        )
+      if (this.dragDropComposable?.handleDrop) {
+        await this.dragDropComposable.handleDrop(event)
       }
     },
+
+    // 旧的 handleDrop 方法已移除，现在使用 useGameDragAndDrop composable
 
     // 检查是否在 Electron 环境中
     checkElectronEnvironment() {
@@ -1107,50 +978,11 @@ export default {
       }
     },
 
-    // 处理分页组件的事件
+    // 分页相关方法已移至 useGamePagination composable
+    // handleGamePageChange 现在通过 handlePageChange 访问
     handleGamePageChange(pageNum) {
-      this.currentGamePage = pageNum
-    },
-
-    // 更新游戏列表分页信息
-    updateGamePagination() {
-      this.totalGamePages = Math.ceil(this.filteredGames.length / this.gamePageSize)
-      // 确保当前页不超过总页数
-      if (this.currentGamePage > this.totalGamePages && this.totalGamePages > 0) {
-        this.currentGamePage = this.totalGamePages
-      }
-      // 如果当前页为0且没有数据，重置为1
-      if (this.currentGamePage === 0 && this.filteredGames.length > 0) {
-        this.currentGamePage = 1
-      }
-    },
-
-    // 从设置中加载游戏分页配置
-    async loadGamePaginationSettings() {
-      try {
-        const settings = await saveManager.loadSettings()
-
-        if (settings && settings.game) {
-          const newGamePageSize = parseInt(settings.game.listPageSize) || 20
-
-          // 更新游戏列表分页大小
-          if (this.gamePageSize !== newGamePageSize) {
-            this.gamePageSize = newGamePageSize
-
-            // 重新计算游戏列表分页
-            this.updateGamePagination()
-
-            console.log('游戏列表分页设置已更新:', {
-              listPageSize: this.gamePageSize,
-              totalGamePages: this.totalGamePages,
-              currentGamePage: this.currentGamePage
-            })
-          }
-        }
-      } catch (error) {
-        console.error('加载游戏分页设置失败:', error)
-        // 使用默认值
-        this.gamePageSize = 20
+      if (this.handlePageChange) {
+        this.handlePageChange(pageNum)
       }
     },
 
@@ -1173,20 +1005,18 @@ export default {
     }
   },
   watch: {
-    // 监听筛选结果变化，更新分页信息
-    filteredGames: {
-      handler() {
-        this.updateGamePagination()
-      },
-      immediate: false
-    },
+    // 分页相关监听已移至 useGamePagination composable
     // 监听搜索查询变化，重置到第一页
     searchQuery() {
-      this.currentGamePage = 1
+      if (this.resetToFirstPage) {
+        this.resetToFirstPage()
+      }
     },
     // 监听排序变化，重置到第一页
     sortBy() {
-      this.currentGamePage = 1
+      if (this.resetToFirstPage) {
+        this.resetToFirstPage()
+      }
     }
   },
   async mounted() {
@@ -1219,8 +1049,26 @@ export default {
 
     // 游戏运行状态现在由 App.vue 全局管理，无需在此处处理
 
-    // 加载游戏分页设置
-    await this.loadGamePaginationSettings()
+    // 加载游戏分页设置（使用 composable 的方法）
+    if (this.loadPaginationSettings) {
+      await this.loadPaginationSettings('game')
+    }
+
+    // 初始化拖拽 composable
+    if (this._setDragDropFunctions) {
+      this._setDragDropFunctions({
+        showPathUpdateDialog: (info) => {
+          this.pathUpdateInfo = {
+            existingGame: info.existingGame,
+            newPath: info.newPath,
+            newFileName: info.newFileName
+          }
+          this.showPathUpdateDialog = true
+        },
+        extractGameNameFromPath: this.extractGameNameFromPath,
+        addGame: this.addGame
+      })
+    }
 
     // 加载排序设置
     await this.loadSortSetting()

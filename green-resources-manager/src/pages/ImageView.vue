@@ -24,7 +24,7 @@
       @dragover="handleDragOver"
       @dragenter="handleDragEnter"
       @dragleave="handleDragLeave"
-      :class="{ 'drag-over': isDragOver }"
+      :class="{ 'drag-over': isDragOver || false }"
     >
 
 
@@ -319,6 +319,10 @@ import PathUpdateDialog from '../components/PathUpdateDialog.vue'
 
 import notify from '../utils/NotificationService.ts'
 import { unlockAchievement } from './user/AchievementView.vue'
+import { ref, computed, toRefs, watch } from 'vue'
+import { usePagination } from '../composables/usePagination'
+import { useDragAndDrop } from '../composables/useDragAndDrop'
+import { useImageFilter } from '../composables/image/useImageFilter'
 
 const IMAGE_COLLECTION_ACHIEVEMENTS = [
   { threshold: 50, id: 'image_collector_50' },
@@ -339,13 +343,53 @@ export default {
     PathUpdateDialog
   },
   emits: ['filter-data-updated'],
+  setup() {
+    // 响应式数据
+    const albums = ref([])
+    
+    // 使用筛选 composable
+    const imageFilterComposable = useImageFilter(albums)
+    
+    // 创建一个 ref 用于存储筛选后的专辑列表（用于分页）
+    const filteredAlbumsRef = ref([])
+    
+    // 监听筛选结果变化，更新 filteredAlbumsRef
+    watch(imageFilterComposable.filteredAlbums, (newValue) => {
+      filteredAlbumsRef.value = newValue
+    }, { immediate: true })
+
+    // 使用分页 composable（专辑列表分页）
+    const albumPaginationComposable = usePagination(
+      filteredAlbumsRef,
+      20,
+      '漫画'
+    )
+
+    // 使用拖拽 composable（基础拖拽状态管理）
+    const dragDropComposable = useDragAndDrop({
+      enabled: true
+      // onDrop 将在 methods 中处理，因为逻辑复杂
+    })
+
+    return {
+      albums,
+      filteredAlbumsRef,
+      // 筛选相关
+      ...toRefs(imageFilterComposable),
+      ...imageFilterComposable,
+      // 分页相关
+      ...toRefs(albumPaginationComposable),
+      ...albumPaginationComposable,
+      // 拖拽相关
+      ...toRefs(dragDropComposable),
+      ...dragDropComposable
+    }
+  },
   data() {
     return {
-      albums: [],
-      searchQuery: '',
-      sortBy: 'name',
+      // albums, searchQuery, sortBy 已移至 setup()
       showAddDialog: false,
-      isDragOver: false,
+      // isDragOver 已移至 useDragAndDrop composable
       // 路径更新确认对话框
       showPathUpdateDialog: false,
       pathUpdateInfo: {
@@ -419,10 +463,7 @@ export default {
       pageSize: 50, // 默认值，将从设置中加载
       totalPages: 0,
       jumpToPageInput: 1,
-      // 漫画列表分页相关
-      currentAlbumPage: 1,
-      albumPageSize: 20, // 默认每页显示20个漫画
-      totalAlbumPages: 0,
+      // 漫画列表分页相关已移至 usePagination composable
       // 空状态配置
       albumEmptyStateConfig: {
         emptyIcon: '🖼️',
@@ -449,62 +490,29 @@ export default {
         ],
         pageType: 'images'
       },
-      // 标签筛选相关
-      allTags: [],
-      selectedTags: [],
-      excludedTags: [],
-      // 作者筛选相关
-      allAuthors: [],
-      selectedAuthors: [],
-      excludedAuthors: []
     }
   },
   computed: {
+    // filteredAlbums 已移至 useImageFilter composable
     filteredAlbums() {
-      let filtered = this.albums.filter(album => {
-        // 搜索筛选
-        const matchesSearch = (album.name || '').toLowerCase().includes(this.searchQuery.toLowerCase()) ||
-                            (album.author || '').toLowerCase().includes(this.searchQuery.toLowerCase()) ||
-                            (album.folderPath || '').toLowerCase().includes(this.searchQuery.toLowerCase())
-        
-        // 标签筛选 - 必须包含所有选中的标签（AND逻辑）
-        const matchesTag = this.selectedTags.length === 0 || (album.tags && this.selectedTags.every(tag => album.tags.includes(tag)))
-        const notExcludedTag = this.excludedTags.length === 0 || !(album.tags && this.excludedTags.some(tag => album.tags.includes(tag)))
-        
-        // 作者筛选 - 作者是"或"逻辑（一个相册只能有一个作者）
-        const matchesAuthor = this.selectedAuthors.length === 0 || this.selectedAuthors.includes(album.author)
-        const notExcludedAuthor = this.excludedAuthors.length === 0 || !this.excludedAuthors.includes(album.author)
-        
-        return matchesSearch && matchesTag && notExcludedTag && matchesAuthor && notExcludedAuthor
-      })
-      
-      // 排序
-      filtered.sort((a, b) => {
-        switch (this.sortBy) {
-          case 'name':
-            return (a.name || '').localeCompare(b.name || '')
-          case 'count':
-            return (b.pagesCount || 0) - (a.pagesCount || 0)
-          case 'added':
-            return new Date(b.addedDate || 0).getTime() - new Date(a.addedDate || 0).getTime()
-          case 'lastViewed':
-            return new Date(b.lastViewed || 0).getTime() - new Date(a.lastViewed || 0).getTime()
-          default:
-            return 0
-        }
-      })
-      
-      return filtered
+      return this.filteredAlbumsRef || []
     },
     canAddAlbum() {
       return this.newAlbum.folderPath && this.newAlbum.folderPath.trim()
     },
-    // 动态更新分页配置
+    // 动态更新分页配置（使用 composable 的 paginationConfig）
     albumPaginationConfig() {
+      // 使用 composable 的 paginationConfig，但需要更新 totalItems
+      if (this.paginationConfig) {
+        return {
+          ...this.paginationConfig,
+          totalItems: this.filteredAlbums.length
+        }
+      }
       return {
-        currentPage: this.currentAlbumPage,
-        totalPages: this.totalAlbumPages,
-        pageSize: this.albumPageSize,
+        currentPage: 1,
+        totalPages: 0,
+        pageSize: 20,
         totalItems: this.filteredAlbums.length,
         itemType: '漫画'
       }
@@ -530,33 +538,38 @@ export default {
     currentPageStartIndex() {
       return (this.currentPage - 1) * this.pageSize
     },
-    // 分页显示的漫画列表
+    // 分页显示的漫画列表（使用 composable 的 paginatedItems）
     paginatedAlbums() {
-      if (!this.filteredAlbums || this.filteredAlbums.length === 0) return []
-      const start = (this.currentAlbumPage - 1) * this.albumPageSize
-      const end = start + this.albumPageSize
-      return this.filteredAlbums.slice(start, end)
+      // 使用 composable 的 paginatedItems，它基于 filteredAlbumsRef
+      return this.paginatedItems || []
     },
-    // 当前漫画页的起始索引
+    // 当前漫画页的起始索引（使用 composable 的 currentPageStartIndex）
     currentAlbumPageStartIndex() {
-      return (this.currentAlbumPage - 1) * this.albumPageSize
+      return this.currentPageStartIndex || 0
     }
   },
   watch: {
-    // 监听筛选结果变化，更新分页信息
+    // 监听筛选结果变化，更新分页信息（使用 composable 的 updatePagination）
     filteredAlbums: {
-      handler() {
-        this.updateAlbumPagination()
+      handler(newValue) {
+        // 手动触发分页更新
+        if (this.updatePagination) {
+          this.updatePagination()
+        }
       },
-      immediate: false
+      immediate: true
     },
-    // 监听搜索查询变化，重置到第一页
+    // 监听搜索查询变化，重置到第一页（使用 composable 的 resetToFirstPage）
     searchQuery() {
-      this.currentAlbumPage = 1
+      if (this.resetToFirstPage) {
+        this.resetToFirstPage()
+      }
     },
-    // 监听排序变化，重置到第一页
+    // 监听排序变化，重置到第一页（使用 composable 的 resetToFirstPage）
     sortBy() {
-      this.currentAlbumPage = 1
+      if (this.resetToFirstPage) {
+        this.resetToFirstPage()
+      }
     }
   },
   methods: {
@@ -588,7 +601,8 @@ export default {
         this.$parent.markFileLossChecked()
       }
       
-      // 计算漫画列表总页数
+      // 计算漫画列表总页数（使用 composable 的 updatePagination）
+      // 注意：需要手动更新，因为 filteredAlbums 不是 composable 的依赖
       this.updateAlbumPagination()
       await this.checkImageCollectionAchievements()
     },
@@ -679,29 +693,32 @@ export default {
       })
     },
     
-    // 拖拽处理方法
+    // 拖拽处理方法（使用 composable 的方法）
     handleDragOver(event) {
-      event.preventDefault()
-      event.dataTransfer.dropEffect = 'copy'
+      if (this.handleDragOver) {
+        this.handleDragOver(event)
+      }
     },
     
     handleDragEnter(event) {
-      event.preventDefault()
-      this.isDragOver = true
+      if (this.handleDragEnter) {
+        this.handleDragEnter(event)
+      }
     },
     
     handleDragLeave(event) {
-      event.preventDefault()
-      // 只有当离开整个拖拽区域时才取消高亮
-      if (!event.currentTarget.contains(event.relatedTarget)) {
-        this.isDragOver = false
+      if (this.handleDragLeave) {
+        this.handleDragLeave(event)
       }
     },
     
     async handleDrop(event) {
       console.log('=== 拖拽事件开始 ===')
       event.preventDefault()
-      this.isDragOver = false
+      // 更新拖拽状态（使用 composable 的状态）
+      if (this.isDragOver !== undefined) {
+        this.isDragOver = false
+      }
       
       try {
         const files = Array.from(event.dataTransfer.files) as File[]
@@ -2256,180 +2273,36 @@ export default {
       }
     },
     
-    // 处理分页组件的事件
+    // 处理分页组件的事件（使用 composable 的 handlePageChange）
     handleAlbumPageChange(pageNum) {
-      this.currentAlbumPage = pageNum
+      if (this.handlePageChange) {
+        this.handlePageChange(pageNum)
+      }
     },
     
-    // 更新漫画列表分页信息
+    // 更新漫画列表分页信息（composable 会自动更新，这里只需要同步 filteredAlbumsRef）
     updateAlbumPagination() {
-      this.totalAlbumPages = Math.ceil(this.filteredAlbums.length / this.albumPageSize)
-      // 确保当前页不超过总页数
-      if (this.currentAlbumPage > this.totalAlbumPages && this.totalAlbumPages > 0) {
-        this.currentAlbumPage = this.totalAlbumPages
-      }
-      // 如果当前页为0且没有数据，重置为1
-      if (this.currentAlbumPage === 0 && this.filteredAlbums.length > 0) {
-        this.currentAlbumPage = 1
+      // 同步 filteredAlbums 到 filteredAlbumsRef，composable 会自动更新分页
+      if (this.filteredAlbumsRef && this.filteredAlbums) {
+        this.filteredAlbumsRef = this.filteredAlbums
       }
     },
     
     
     
-    // 提取标签和作者信息
+    // 提取标签和作者信息（已移至 useImageFilter composable，此方法保留用于兼容）
     extractAllTags() {
-      // 从所有漫画中提取标签并统计数量
-      const tagCount = {}
-      const authorCount = {}
-      
-      this.albums.forEach(album => {
-        // 提取标签
-        if (album.tags && Array.isArray(album.tags)) {
-          album.tags.forEach(tag => {
-            tagCount[tag] = (tagCount[tag] || 0) + 1
-          })
-        }
-        
-        // 提取作者
-        if (album.author) {
-          authorCount[album.author] = (authorCount[album.author] || 0) + 1
-        }
-      })
-      
-      // 转换为数组并按名称排序
-      this.allTags = Object.entries(tagCount)
-        .map(([name, count]) => ({ name, count }))
-        .sort((a, b) => a.name.localeCompare(b.name))
-        
-      this.allAuthors = Object.entries(authorCount)
-        .map(([name, count]) => ({ name, count }))
-        .sort((a, b) => a.name.localeCompare(b.name))
-      
-      // 提取完标签后更新筛选器数据
+      // 标签和作者信息已由 useImageFilter composable 自动提取
+      // 只需要更新筛选器数据
       this.updateFilterData()
-    },
-    
-    // 筛选方法
-    filterByTag(tagName) {
-      if (this.selectedTags.indexOf(tagName) !== -1) {
-        // 如果当前是选中状态，则取消选择
-        this.selectedTags = this.selectedTags.filter(tag => tag !== tagName)
-      } else if (this.excludedTags.indexOf(tagName) !== -1) {
-        // 如果当前是排除状态，则切换为选中状态
-        this.excludedTags = this.excludedTags.filter(tag => tag !== tagName)
-        this.selectedTags = [...this.selectedTags, tagName]
-      } else {
-        // 否则直接设置为选中状态
-        this.selectedTags = [...this.selectedTags, tagName]
-      }
-      this.updateFilterData()
-    },
-    
-    clearTagFilter() {
-      this.selectedTags = []
-      this.excludedTags = []
-      this.updateFilterData()
-    },
-    
-    filterByAuthor(authorName) {
-      if (this.selectedAuthors.indexOf(authorName) !== -1) {
-        // 如果当前是选中状态，则取消选择
-        this.selectedAuthors = this.selectedAuthors.filter(author => author !== authorName)
-      } else if (this.excludedAuthors.indexOf(authorName) !== -1) {
-        // 如果当前是排除状态，则切换为选中状态
-        this.excludedAuthors = this.excludedAuthors.filter(author => author !== authorName)
-        this.selectedAuthors = [...this.selectedAuthors, authorName]
-      } else {
-        // 否则直接设置为选中状态
-        this.selectedAuthors = [...this.selectedAuthors, authorName]
-      }
-      this.updateFilterData()
-    },
-    
-    clearAuthorFilter() {
-      this.selectedAuthors = []
-      this.excludedAuthors = []
-      this.updateFilterData()
-    },
-    
-    // 排除方法
-    excludeByTag(tagName) {
-      if (this.excludedTags.indexOf(tagName) !== -1) {
-        // 如果已经是排除状态，则取消排除
-        this.excludedTags = this.excludedTags.filter(tag => tag !== tagName)
-      } else if (this.selectedTags.indexOf(tagName) !== -1) {
-        // 如果当前是选中状态，则切换为排除状态
-        this.selectedTags = this.selectedTags.filter(tag => tag !== tagName)
-        this.excludedTags = [...this.excludedTags, tagName]
-      } else {
-        // 否则直接设置为排除状态
-        this.excludedTags = [...this.excludedTags, tagName]
-      }
-      this.updateFilterData()
-    },
-    
-    excludeByAuthor(authorName) {
-      if (this.excludedAuthors.indexOf(authorName) !== -1) {
-        // 如果已经是排除状态，则取消排除
-        this.excludedAuthors = this.excludedAuthors.filter(author => author !== authorName)
-      } else if (this.selectedAuthors.indexOf(authorName) !== -1) {
-        // 如果当前是选中状态，则切换为排除状态
-        this.selectedAuthors = this.selectedAuthors.filter(author => author !== authorName)
-        this.excludedAuthors = [...this.excludedAuthors, authorName]
-      } else {
-        // 否则直接设置为排除状态
-        this.excludedAuthors = [...this.excludedAuthors, authorName]
-      }
-      this.updateFilterData()
-    },
-    
-    // 处理来自 App.vue 的筛选器事件
-    handleFilterEvent(event, data) {
-      switch (event) {
-        case 'filter-select':
-          if (data.filterKey === 'tags') {
-            this.filterByTag(data.itemName)
-          } else if (data.filterKey === 'authors') {
-            this.filterByAuthor(data.itemName)
-          }
-          break
-        case 'filter-exclude':
-          if (data.filterKey === 'tags') {
-            this.excludeByTag(data.itemName)
-          } else if (data.filterKey === 'authors') {
-            this.excludeByAuthor(data.itemName)
-          }
-          break
-        case 'filter-clear':
-          if (data === 'tags') {
-            this.clearTagFilter()
-          } else if (data === 'authors') {
-            this.clearAuthorFilter()
-          }
-          break
-      }
     },
     
     // 更新筛选器数据到 App.vue
     updateFilterData() {
-      this.$emit('filter-data-updated', {
-        filters: [
-          {
-            key: 'tags',
-            title: '标签筛选',
-            items: this.allTags,
-            selected: this.selectedTags,
-            excluded: this.excludedTags
-          },
-          {
-            key: 'authors',
-            title: '作者筛选',
-            items: this.allAuthors,
-            selected: this.selectedAuthors,
-            excluded: this.excludedAuthors
-          }
-        ]
-      })
+      // composable 的 getFilterData 方法已通过 setup 返回并可直接使用
+      if (this.getFilterData) {
+        this.$emit('filter-data-updated', this.getFilterData())
+      }
     },
 
     // 从设置中加载图片配置
@@ -2464,17 +2337,17 @@ export default {
             })
           }
           
-          // 更新漫画列表分页大小
-          if (this.albumPageSize !== newAlbumPageSize) {
-            this.albumPageSize = newAlbumPageSize
+          // 更新漫画列表分页大小（使用 composable 的 pageSize）
+          if (this.pageSize && this.pageSize.value !== newAlbumPageSize) {
+            this.pageSize = newAlbumPageSize
             
             // 重新计算漫画列表分页
             this.updateAlbumPagination()
             
             console.log('漫画列表分页设置已更新:', {
-              listPageSize: this.albumPageSize,
-              totalAlbumPages: this.totalAlbumPages,
-              currentAlbumPage: this.currentAlbumPage
+              listPageSize: this.pageSize,
+              totalPages: this.totalPages,
+              currentPage: this.currentPage
             })
           }
         }
@@ -2482,7 +2355,7 @@ export default {
         console.error('加载图片设置失败:', error)
         // 使用默认值
         this.pageSize = 50
-        this.albumPageSize = 20
+        // albumPageSize 已移至 composable，通过 loadPaginationSettings 加载
       }
     },
     
@@ -2594,6 +2467,11 @@ export default {
     
     // 加载图片设置
     await this.loadImageSettings()
+    
+    // 加载分页设置（使用 composable 的方法）
+    if (this.loadPaginationSettings) {
+      await this.loadPaginationSettings('image')
+    }
     
     // 加载排序设置
     await this.loadSortSetting()

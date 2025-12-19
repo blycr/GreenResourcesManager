@@ -28,10 +28,13 @@ export function useGameFilter(games: Ref<Game[]>, searchQuery: Ref<string>, sort
   const excludedTags = ref<string[]>([])
   const selectedDevelopers = ref<string[]>([])
   const excludedDevelopers = ref<string[]>([])
+  const selectedOthers = ref<string[]>([])
+  const excludedOthers = ref<string[]>([])
 
   // 筛选选项
   const allTags = ref<FilterItem[]>([])
   const allDevelopers = ref<FilterItem[]>([])
+  const allOthers = ref<FilterItem[]>([])
 
   /**
    * 从所有游戏中提取标签和开发商
@@ -39,6 +42,7 @@ export function useGameFilter(games: Ref<Game[]>, searchQuery: Ref<string>, sort
   function extractAllTags() {
     const tagCount: Record<string, number> = {}
     const developerCount: Record<string, number> = {}
+    let missingResourcesCount = 0
 
     games.value.forEach(game => {
       // 提取标签
@@ -52,6 +56,11 @@ export function useGameFilter(games: Ref<Game[]>, searchQuery: Ref<string>, sort
       if (game.developer) {
         developerCount[game.developer] = (developerCount[game.developer] || 0) + 1
       }
+
+      // 统计丢失的资源
+      if (game.fileExists === false) {
+        missingResourcesCount++
+      }
     })
 
     // 转换为数组并按名称排序
@@ -62,6 +71,15 @@ export function useGameFilter(games: Ref<Game[]>, searchQuery: Ref<string>, sort
     allDevelopers.value = Object.entries(developerCount)
       .map(([name, count]) => ({ name, count }))
       .sort((a, b) => a.name.localeCompare(b.name))
+
+    // 其他筛选选项
+    allOthers.value = []
+    if (missingResourcesCount > 0) {
+      allOthers.value.push({
+        name: '丢失的资源',
+        count: missingResourcesCount
+      })
+    }
   }
 
   /**
@@ -85,7 +103,25 @@ export function useGameFilter(games: Ref<Game[]>, searchQuery: Ref<string>, sort
       const notExcludedDeveloper = excludedDevelopers.value.length === 0 || 
         !excludedDevelopers.value.includes(game.developer || '')
 
-      return matchesSearch && matchesTag && notExcludedTag && matchesDeveloper && notExcludedDeveloper
+      // 其他筛选
+      let matchesOther = true
+      if (selectedOthers.value.length > 0) {
+        matchesOther = selectedOthers.value.some(other => {
+          if (other === '丢失的资源') {
+            return game.fileExists === false
+          }
+          return false
+        })
+      }
+      const notExcludedOther = excludedOthers.value.length === 0 || 
+        !excludedOthers.value.some(other => {
+          if (other === '丢失的资源') {
+            return game.fileExists === false
+          }
+          return false
+        })
+
+      return matchesSearch && matchesTag && notExcludedTag && matchesDeveloper && notExcludedDeveloper && matchesOther && notExcludedOther
     })
 
     // 排序
@@ -196,6 +232,48 @@ export function useGameFilter(games: Ref<Game[]>, searchQuery: Ref<string>, sort
   }
 
   /**
+   * 其他筛选方法
+   */
+  function filterByOther(otherName: string) {
+    if (selectedOthers.value.includes(otherName)) {
+      // 如果当前是选中状态，则取消选择
+      selectedOthers.value = selectedOthers.value.filter(other => other !== otherName)
+    } else if (excludedOthers.value.includes(otherName)) {
+      // 如果当前是排除状态，则切换为选中状态
+      excludedOthers.value = excludedOthers.value.filter(other => other !== otherName)
+      selectedOthers.value = [...selectedOthers.value, otherName]
+    } else {
+      // 否则直接设置为选中状态
+      selectedOthers.value = [...selectedOthers.value, otherName]
+    }
+  }
+
+  /**
+   * 排除其他筛选
+   */
+  function excludeByOther(otherName: string) {
+    if (excludedOthers.value.includes(otherName)) {
+      // 如果已经是排除状态，则取消排除
+      excludedOthers.value = excludedOthers.value.filter(other => other !== otherName)
+    } else if (selectedOthers.value.includes(otherName)) {
+      // 如果当前是选中状态，则切换为排除状态
+      selectedOthers.value = selectedOthers.value.filter(other => other !== otherName)
+      excludedOthers.value = [...excludedOthers.value, otherName]
+    } else {
+      // 否则直接设置为排除状态
+      excludedOthers.value = [...excludedOthers.value, otherName]
+    }
+  }
+
+  /**
+   * 清除其他筛选
+   */
+  function clearOtherFilter() {
+    selectedOthers.value = []
+    excludedOthers.value = []
+  }
+
+  /**
    * 获取筛选器数据（用于 FilterSidebar）
    */
   function getFilterData() {
@@ -214,6 +292,13 @@ export function useGameFilter(games: Ref<Game[]>, searchQuery: Ref<string>, sort
           items: allDevelopers.value,
           selected: selectedDevelopers.value,
           excluded: excludedDevelopers.value
+        },
+        {
+          key: 'others',
+          title: '其他筛选',
+          items: allOthers.value,
+          selected: selectedOthers.value,
+          excluded: excludedOthers.value
         }
       ]
     }
@@ -225,8 +310,11 @@ export function useGameFilter(games: Ref<Game[]>, searchQuery: Ref<string>, sort
     excludedTags,
     selectedDevelopers,
     excludedDevelopers,
+    selectedOthers,
+    excludedOthers,
     allTags,
     allDevelopers,
+    allOthers,
     
     // 计算属性
     filteredGames,
@@ -239,6 +327,9 @@ export function useGameFilter(games: Ref<Game[]>, searchQuery: Ref<string>, sort
     filterByDeveloper,
     excludeByDeveloper,
     clearDeveloperFilter,
+    filterByOther,
+    excludeByOther,
+    clearOtherFilter,
     getFilterData
   }
 }
