@@ -151,6 +151,30 @@ export function createMainSubtitles(
 	);
 	view.add(粽子精IMG);
 
+	// 创建魔男的夜宴图片引用
+	const 魔男的夜宴IMGRef = createRef<MyImg>();
+	const 魔男的夜宴IMG = (
+		<MyImg
+			ref={魔男的夜宴IMGRef}
+			src="/imgs/魔男的夜宴.png"
+			scale={0.5}
+			initialPosition={() => VideoPostion.center(view)}
+			initialOpacity={0}
+		/>
+	);
+
+	// 创建魔女的侵袭图片引用
+	const 魔女的侵袭IMGRef = createRef<MyImg>();
+	const 魔女的侵袭IMG = (
+		<MyImg
+			ref={魔女的侵袭IMGRef}
+			src="/imgs/魔女的侵袭.png"
+			scale={1.5}
+			initialPosition={() => VideoPostion.center(view)}
+			initialOpacity={0}
+		/>
+	);
+
 	// 创建游戏统计问题文本
 	const 游戏统计问题文本Refs = createTexts(view, ['是否浏览过？', '我玩过几次？', '总时长多少？'], {
 		centerPosition: () => VideoPostion.center(view),
@@ -739,14 +763,48 @@ export function createMainSubtitles(
 		{
 			text: "那么每次想玩的时候，都得从这上百个游戏中去查找",
 		},
-		{ text: '这种方式不仅速率非常低效' },
-		{ text: "而且还要求管理者对游戏的文件夹位置和游戏名记忆准确" },
+		{ text: '这种方式不仅会导致查找效率低下' },
+		{ text: "还会导致管理者不得不记忆每个游戏的路径和文件名" },
 		{
-			text: "常常导致本来想找《魔男的夜宴》，最后却只能找到《魔男的侵袭》"
+			text: "常常导致本来想找《魔男的夜宴》，最后却只能找到《魔女的侵袭》",
+			callback: function* () {
+				// 将魔男的夜宴图片添加到view
+				view.add(魔男的夜宴IMG);
+				
+				// 显示魔男的夜宴图片
+				yield* 魔男的夜宴IMGRef().show({
+					position: VideoPostion.center(view),
+					duration: 0.5,
+					zIndex: 150
+				});
+				
+				// 等待2秒
+				yield* waitFor(2);
+				
+				// 隐藏并删除魔男的夜宴图片
+				yield* 魔男的夜宴IMGRef().hide({
+					duration: 0.5
+				});
+				
+				// 将魔女的侵袭图片添加到view
+				view.add(魔女的侵袭IMG);
+				
+				// 显示魔女的侵袭图片
+				yield* 魔女的侵袭IMGRef().show({
+					position: VideoPostion.center(view),
+					duration: 0.5,
+					zIndex: 150
+				});
+			}
 		},
 		{
 			text: '于是某一天，我突然冷静了下来，开始仔细思考这个问题的本质',
 			callback: function* () {
+				// 删除魔女的侵袭图片
+		
+				yield* 魔女的侵袭IMGRef().hide({ duration: 0.5 });
+				
+				
 				// 清除整个树（隐藏并删除所有节点，使用组件方法）
 				yield* folderTreeRef().removeTree();
 			}
@@ -785,7 +843,7 @@ export function createMainSubtitles(
 		},
 		//////////////////3.基于频度的分布式归类法///////////////////////////
 		{
-			text: '整体算法类似操作系统的LFU（Least Frequently Used）和C#的GC',
+			text: '整体算法类似操作系统的LFU和C#的GC',
 			callback: function* () {
 				// 将标题移动到顶部
 				yield* 归类法标题文本Ref().moveToTopPosition();
@@ -1038,7 +1096,7 @@ export function createMainSubtitles(
 			}
 		},
 		{
-			text: '标签文件夹则是根据游戏内容、题材、主角、风格等分类的文件夹',
+			text: '标签文件夹则是根据游戏题材、主角、风格等分类的文件夹',
 			callback: function* () {
 				// 使用组件方法动态添加子节点到标签文件夹
 				const 标签子文件夹列表 = ['巫女', '天使', '3D', '像素'];
@@ -1271,7 +1329,7 @@ export function createMainSubtitles(
 		},
 
 
-		{ text: '在这两个模式的配合下，不仅可以完成常见的资源分类' },
+		{ text: '通过这种方式，不仅可以完成常见的资源分类' },
 
 		{ text: '还可以为典藏区提供额外的备份' },
 		{ text: '并标记没玩过的游戏和可能不好玩的低频资源，方便后续删除' },
@@ -1490,7 +1548,7 @@ export function createMainSubtitles(
 				]);
 			}
 		},
-		{ text: '不仅比打黑工做人工标注都累，还会导致根目录越来越庞大' },
+		{ text: '这种方式，不仅比打黑工做人工标注都累，还会导致根目录越来越庞大' },
 		{
 			text: '因此，我意识到windows本地的文件夹是不适合做标签管理和数据记录的',
 			callback: function* () {
@@ -1556,8 +1614,7 @@ export function createMainSubtitles(
 		{
 			text: "所有的复杂步骤都由管理器帮你完成",
 		},
-		// { text: '开发商是tag，发行商是tag，内容、题材、主角、风格——统统都是tag' },
-		// { text: '万物皆可标签化管理' },
+
 		{
 			text: '我们以《unity》这个游戏为例',
 			callback: function* () {
@@ -1987,7 +2044,7 @@ export function createMainSubtitles(
 			}
 		},
 		{
-			text: '运行游戏时，只要按下ESC，管理器会立刻最小化',
+			text: '运行游戏时，只要按下ESC，管理器和运行的游戏会立刻最小化',
 			callback: function* () {
 				// 隐藏之前的安全键Img
 				if (安全键Img && 安全键Img()) {
@@ -2046,7 +2103,7 @@ export function createMainSubtitles(
 		{
 			text: '最后，为了让各位的仓鼠之路加一些仪式感，'
 		},
-		{
+		{  
 			text: "我还开发了成就功能和统计功能",
 			callback: function* () {
 
@@ -2081,7 +2138,7 @@ export function createMainSubtitles(
 				}
 			}
 		},
-		{ text: '目前收录了21个成就，未来预计会不断更新' },
+		{ text: '成就在未来预计会不断更新' },
 		{ text: '顺带一提，我还设计了一些隐藏成就' },
 		{ text: '需要各位探索管理器才能解锁' },
 
