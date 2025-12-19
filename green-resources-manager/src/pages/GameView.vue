@@ -11,124 +11,41 @@
 
 
       <!-- 游戏网格 -->
-      <div class="games-grid" v-if="paginatedGames.length > 0">
-        <MediaCard v-for="game in paginatedGames" :key="game.id" :item="game" type="game"
-          :is-running="isGameRunning(game)" :is-electron-environment="isElectronEnvironment"
-          :file-exists="game.fileExists" @click="showGameDetail"
-          @contextmenu="(event) => ($refs.baseView as any).showContextMenuHandler(event, game)" @action="launchGame" />
-      </div>
+      <GameGrid 
+        :games="paginatedGames"
+        :is-game-running="isGameRunning"
+        :is-electron-environment="isElectronEnvironment"
+        @game-click="showGameDetail"
+        @game-contextmenu="handleGameContextMenu"
+        @game-action="launchGame"
+      />
 
 
       <!-- 添加游戏对话框 -->
-      <div v-if="showAddDialog" class="modal-overlay" @click="closeAddGameDialog">
-        <div class="modal-content" @click.stop>
-          <div class="modal-header">
-            <h3>添加游戏</h3>
-            <button class="modal-close" @click="closeAddGameDialog">✕</button>
-          </div>
-          <div class="modal-body">
-            <FormField label="游戏名称 (可选)" type="text" v-model="newGame.name" placeholder="留空将自动从文件名提取" />
-            <FormField label="开发商 (可选)" type="text" v-model="newGame.developer" placeholder="输入开发商名称" />
-            <FormField label="发行商 (可选)" type="text" v-model="newGame.publisher" placeholder="输入发行商名称" />
-            <FormField label="游戏简介 (可选)" type="textarea" v-model="newGame.description" placeholder="输入游戏简介或描述..."
-              :rows="3" />
-            <FormField label="游戏标签 (可选)" type="tags" v-model="newGame.tags" v-model:tagInput="tagInput"
-              @add-tag="addTag" @remove-tag="removeTag" />
-            <FormField label="游戏可执行文件" type="file" v-model="newGame.executablePath" placeholder="选择游戏可执行文件"
-              @browse="browseForExecutable" />
-            <!-- 封面图片选择区域 -->
-            <div class="form-group">
-              <label class="form-label">游戏封面 (可选)</label>
-              <div class="cover-selection-container">
-                <div class="cover-preview" v-if="newGame.imagePath">
-                  <img :src="resolveImage(newGame.imagePath)" :alt="'封面预览'" @error="handleImageError">
-                  <div class="cover-preview-info">
-                    <span class="cover-filename">{{ getImageFileName(newGame.imagePath) }}</span>
-                  </div>
-                </div>
-                <div class="cover-actions">
-                  <button type="button" class="btn-cover-action" @click="useScreenshotAsCoverNew"
-                    :disabled="!newGame.executablePath">
-                    <span class="btn-icon">📸</span>
-                    使用截图作为封面
-                  </button>
-                  <button type="button" class="btn-cover-action" @click="browseForImageNew">
-                    <span class="btn-icon">📁</span>
-                    选择自定义封面
-                  </button>
-                  <button type="button" class="btn-cover-action btn-clear" @click="clearCoverNew"
-                    v-if="newGame.imagePath">
-                    <span class="btn-icon">🗑️</span>
-                    清除封面
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div class="modal-footer">
-            <button class="btn-cancel" @click="closeAddGameDialog">取消</button>
-            <button class="btn-confirm" @click="addGame" :disabled="!canAddGame">添加游戏</button>
-          </div>
-        </div>
-      </div>
+      <AddGameDialog 
+        :visible="showAddDialog" 
+        :is-electron-environment="isElectronEnvironment"
+        @close="closeAddGameDialog"
+        @confirm="handleAddGameConfirm"
+      />
 
       <!-- 编辑游戏对话框 -->
-      <div v-if="showEditDialog" class="modal-overlay" @click="closeEditGameDialog">
-        <div class="modal-content" @click.stop>
-          <div class="modal-header">
-            <h3>编辑游戏</h3>
-            <button class="modal-close" @click="closeEditGameDialog">✕</button>
-          </div>
-          <div class="modal-body">
-            <FormField label="游戏名称" type="text" v-model="editGameForm.name" placeholder="输入游戏名称" />
-            <FormField label="开发商" type="text" v-model="editGameForm.developer" placeholder="输入开发商名称" />
-            <FormField label="发行商" type="text" v-model="editGameForm.publisher" placeholder="输入发行商名称" />
-            <FormField label="游戏简介" type="textarea" v-model="editGameForm.description" placeholder="输入游戏简介或描述..."
-              :rows="3" />
-            <FormField label="游戏标签" type="tags" v-model="editGameForm.tags" v-model:tagInput="editTagInput"
-              @add-tag="addEditTag" @remove-tag="removeEditTag" />
-            <FormField label="游戏可执行文件" type="file" v-model="editGameForm.executablePath" placeholder="选择游戏可执行文件"
-              @browse="browseForExecutableEdit" />
-            <!-- 封面图片选择区域 -->
-            <div class="form-group">
-              <label class="form-label">游戏封面</label>
-              <div class="cover-selection-container">
-                <div class="cover-preview" v-if="editGameForm.imagePath">
-                  <img :src="resolveImage(editGameForm.imagePath)" :alt="'封面预览'" @error="handleImageError">
-                  <div class="cover-preview-info">
-                    <span class="cover-filename">{{ getImageFileName(editGameForm.imagePath) }}</span>
-                  </div>
-                </div>
-                <div class="cover-actions">
-                  <button type="button" class="btn-cover-action" @click="useScreenshotAsCover">
-                    <span class="btn-icon">📸</span>
-                    使用截图作为封面
-                  </button>
-                  <button type="button" class="btn-cover-action" @click="browseForImageEdit">
-                    <span class="btn-icon">📁</span>
-                    选择自定义封面
-                  </button>
-                  <button type="button" class="btn-cover-action btn-clear" @click="clearCover"
-                    v-if="editGameForm.imagePath">
-                    <span class="btn-icon">🗑️</span>
-                    清除封面
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div class="modal-footer">
-            <button class="btn-cancel" @click="closeEditGameDialog">取消</button>
-            <button class="btn-confirm" @click="saveEditedGame">保存修改</button>
-          </div>
-        </div>
-      </div>
+      <EditGameDialog 
+        :visible="showEditDialog" 
+        :game="currentGame"
+        :is-electron-environment="isElectronEnvironment"
+        @close="closeEditGameDialog"
+        @confirm="handleEditGameConfirm"
+      />
 
       <!-- 游戏详情页面 -->
-      <DetailPanel :visible="showDetailModal" :item="currentGame" type="game" 
+      <GameDetailPanel 
+        :visible="showDetailModal" 
+        :game="currentGame"
         :is-running="currentGame ? isGameRunning(currentGame) : false"
         @close="closeGameDetail"
-        @action="handleDetailAction" />
+        @action="handleDetailAction" 
+      />
 
 
       <!-- 路径更新确认对话框 -->
@@ -166,30 +83,21 @@ import BaseView from '../components/BaseView.vue'
 import EmptyState from '../components/EmptyState.vue'
 import MediaCard from '../components/MediaCard.vue'
 import FormField from '../components/FormField.vue'
-import DetailPanel from '../components/DetailPanel.vue'
 import PathUpdateDialog from '../components/PathUpdateDialog.vue'
+import AddGameDialog from '../components/game/AddGameDialog.vue'
+import EditGameDialog from '../components/game/EditGameDialog.vue'
+import GameDetailPanel from '../components/game/GameDetailPanel.vue'
+import GameGrid from '../components/game/GameGrid.vue'
 import { formatPlayTime, formatLastPlayed, formatDateTime, formatDate, formatFirstPlayed } from '../utils/formatters'
 
 import saveManager from '../utils/SaveManager.ts'
 import notify from '../utils/NotificationService.ts'
-import { unlockAchievement } from './user/AchievementView.vue'
-
-const GAME_COLLECTION_ACHIEVEMENTS = [
-  { threshold: 50, id: 'game_collector_50' },
-  { threshold: 100, id: 'game_collector_100' },
-  { threshold: 500, id: 'game_collector_500' },
-  { threshold: 1000, id: 'game_collector_1000' }
-]
-
-const GAME_TIME_ACHIEVEMENTS = [
-  { threshold: 1, id: 'game_time_1' },
-  { threshold: 10, id: 'game_time_10' },
-  { threshold: 20, id: 'game_time_20' },
-  { threshold: 50, id: 'game_time_50' },
-  { threshold: 100, id: 'game_time_100' },
-  { threshold: 500, id: 'game_time_500' },
-  { threshold: 1000, id: 'game_time_1000' }
-]
+import { ref, toRefs } from 'vue'
+import { useGameFilter } from '../composables/useGameFilter'
+import { useGameManagement } from '../composables/useGameManagement'
+import { useGameScreenshot } from '../composables/useGameScreenshot'
+import { useGameRunning } from '../composables/useGameRunning'
+import { useGamePlayTime } from '../composables/useGamePlayTime'
 
 export default {
   name: 'GameView',
@@ -198,46 +106,103 @@ export default {
     EmptyState,
     MediaCard,
     FormField,
-    DetailPanel,
-    PathUpdateDialog
+    PathUpdateDialog,
+    AddGameDialog,
+    EditGameDialog,
+    GameDetailPanel,
+    GameGrid
   },
   emits: ['filter-data-updated'],
+  setup() {
+    // 响应式数据
+    const games = ref([])
+    const isElectronEnvironment = ref(false)
+    const searchQuery = ref('')
+    const sortBy = ref<'name' | 'lastPlayed' | 'playTime' | 'added'>('name')
+
+    // 使用筛选 composable
+    const filterComposable = useGameFilter(games, searchQuery, sortBy)
+
+    // 使用管理 composable
+    const managementComposable = useGameManagement(
+      games,
+      filterComposable.extractAllTags,
+      isElectronEnvironment
+    )
+
+    // 获取父组件方法的辅助函数（在 Options API 中通过 this.$parent 访问）
+    // 注意：这些函数会在组件实例化后通过 methods 中的包装方法设置
+    let getRunningGamesFn: () => Map<string, any> = () => new Map()
+    let addRunningGameFn: (gameInfo: any) => void = () => {}
+    let removeRunningGameFn: (gameId: string) => void = () => {}
+    let isGameRunningFn: (gameId: string) => boolean = () => false
+
+    // 使用截图 composable
+    const screenshotComposable = useGameScreenshot(
+      isElectronEnvironment,
+      () => getRunningGamesFn()
+    )
+
+    // 使用运行状态 composable
+    const runningComposable = useGameRunning(
+      games,
+      () => getRunningGamesFn(),
+      (gameInfo) => addRunningGameFn(gameInfo),
+      (gameId) => removeRunningGameFn(gameId)
+    )
+
+    // 使用游戏时长 composable
+    const playTimeComposable = useGamePlayTime(
+      games,
+      managementComposable.updateGamePlayTime,
+      managementComposable.updateGame,
+      managementComposable.checkGameTimeAchievements,
+      (gameId) => removeRunningGameFn(gameId)
+    )
+
+    return {
+      // 数据
+      games,
+      isElectronEnvironment,
+      searchQuery,
+      sortBy,
+      // 筛选相关
+      ...toRefs(filterComposable),
+      ...filterComposable,
+      // 管理相关
+      ...toRefs(managementComposable),
+      ...managementComposable,
+      // 截图相关
+      ...toRefs(screenshotComposable),
+      ...screenshotComposable,
+      // 运行状态相关
+      ...runningComposable,
+      // 游戏时长相关
+      ...playTimeComposable,
+      // 内部函数设置器（供 mounted 使用）
+      _setParentFunctions: (functions: {
+        getRunningGames: () => Map<string, any>
+        addRunningGame: (gameInfo: any) => void
+        removeRunningGame: (gameId: string) => void
+        isGameRunning: (gameId: string) => boolean
+      }) => {
+        getRunningGamesFn = functions.getRunningGames
+        addRunningGameFn = functions.addRunningGame
+        removeRunningGameFn = functions.removeRunningGame
+        isGameRunningFn = functions.isGameRunning
+      }
+    }
+  },
   data() {
     return {
-      games: [],
-      isElectronEnvironment: false,
-      searchQuery: '',
-      sortBy: 'name',
       showAddDialog: false,
       selectedGame: null,
       showDetailModal: false,
       currentGame: null,
       // runningGames 现在由 App.vue 全局管理
-      newGame: {
-        name: '',
-        developer: '',
-        publisher: '',
-        description: '',
-        tags: [],
-        executablePath: '',
-        imagePath: ''
-      },
-      isScreenshotInProgress: false, // 防止重复截图
-      lastScreenshotTime: 0, // 记录上次截图时间
-      tagInput: '', // 标签输入框的值
+      // isScreenshotInProgress 和 lastScreenshotTime 已移至 useGameScreenshot composable
       // 编辑相关状态
       showEditDialog: false,
-      editGameForm: {
-        id: '',
-        name: '',
-        developer: '',
-        publisher: '',
-        description: '',
-        tags: [],
-        executablePath: '',
-        imagePath: ''
-      },
-      editTagInput: '',
       // 排序选项
       gameSortOptions: [
         { value: 'name', label: '按名称排序' },
@@ -255,14 +220,7 @@ export default {
         { key: 'edit', icon: '✏️', label: '编辑信息' },
         { key: 'remove', icon: '🗑️', label: '删除游戏' }
       ],
-      // 标签筛选相关
-      allTags: [],
-      selectedTags: [],
-      excludedTags: [],
-      // 开发商筛选相关
-      allDevelopers: [],
-      selectedDevelopers: [],
-      excludedDevelopers: [],
+      // 标签和开发商筛选相关已移至 composables
       // 拖拽相关
       isDragOver: false,
       // 路径更新确认对话框
@@ -308,41 +266,7 @@ export default {
     }
   },
   computed: {
-    filteredGames() {
-      let filtered = this.games.filter(game => {
-        // 搜索筛选
-        const matchesSearch = game.name.toLowerCase().includes(this.searchQuery.toLowerCase()) ||
-          game.developer.toLowerCase().includes(this.searchQuery.toLowerCase())
-
-        // 标签筛选 - 必须包含所有选中的标签（AND逻辑）
-        const matchesTag = this.selectedTags.length === 0 || (game.tags && this.selectedTags.every(tag => game.tags.includes(tag)))
-        const notExcludedTag = this.excludedTags.length === 0 || !(game.tags && this.excludedTags.some(tag => game.tags.includes(tag)))
-
-        // 开发商筛选 - 开发商是"或"逻辑（一个游戏只能有一个开发商）
-        const matchesDeveloper = this.selectedDevelopers.length === 0 || this.selectedDevelopers.includes(game.developer)
-        const notExcludedDeveloper = this.excludedDevelopers.length === 0 || !this.excludedDevelopers.includes(game.developer)
-
-        return matchesSearch && matchesTag && notExcludedTag && matchesDeveloper && notExcludedDeveloper
-      })
-
-      // 排序
-      filtered.sort((a, b) => {
-        switch (this.sortBy) {
-          case 'name':
-            return a.name.localeCompare(b.name)
-          case 'lastPlayed':
-            return new Date(b.lastPlayed).getTime() - new Date(a.lastPlayed).getTime()
-          case 'playTime':
-            return b.playTime - a.playTime
-          case 'added':
-            return new Date(b.addedDate).getTime() - new Date(a.addedDate).getTime()
-          default:
-            return 0
-        }
-      })
-
-      return filtered
-    },
+    // filteredGames 已移至 useGameFilter composable
     // 分页显示的游戏列表
     paginatedGames() {
       if (!this.filteredGames || this.filteredGames.length === 0) return []
@@ -353,9 +277,6 @@ export default {
     // 当前游戏页的起始索引
     currentGamePageStartIndex() {
       return (this.currentGamePage - 1) * this.gamePageSize
-    },
-    canAddGame() {
-      return this.newGame.executablePath.trim()
     },
     // 动态更新分页配置
     gamePaginationConfig() {
@@ -369,205 +290,15 @@ export default {
     }
   },
   methods: {
-    async checkGameCollectionAchievements() {
-      if (!Array.isArray(this.games)) return
-
-      const totalGames = this.games.length
-      const unlockPromises = GAME_COLLECTION_ACHIEVEMENTS
-        .filter(config => totalGames >= config.threshold)
-        .map(config => unlockAchievement(config.id))
-
-      if (unlockPromises.length === 0) {
-        return
-      }
-
-      try {
-        await Promise.all(unlockPromises)
-      } catch (error) {
-        console.warn('触发游戏收藏成就时出错:', error)
-      }
-    },
-    async checkGameTimeAchievements() {
-      if (!Array.isArray(this.games) || this.games.length === 0) return
-
-      const totalSeconds = this.games.reduce((sum, game) => {
-        const playTime = Number(game?.playTime) || 0
-        return sum + playTime
-      }, 0)
-
-      if (totalSeconds <= 0) {
-        return
-      }
-
-      const totalHours = totalSeconds / 3600
-      const unlockPromises = GAME_TIME_ACHIEVEMENTS
-        .filter(config => totalHours >= config.threshold)
-        .map(config => unlockAchievement(config.id))
-
-      if (unlockPromises.length === 0) {
-        return
-      }
-
-      try {
-        await Promise.all(unlockPromises)
-      } catch (error) {
-        console.warn('触发游戏时长成就时出错:', error)
-      }
-    },
+    // checkGameCollectionAchievements 和 checkGameTimeAchievements 已移至 useGameManagement composable
     showAddGameDialog() {
       this.showAddDialog = true
-      this.newGame = {
-        name: '',
-        developer: '',
-        publisher: '',
-        description: '',
-        tags: [],
-        executablePath: '',
-        imagePath: ''
-      }
-      this.tagInput = ''
     },
     closeAddGameDialog() {
       this.showAddDialog = false
     },
-    addTag() {
-      const tag = this.tagInput.trim()
-      if (tag && !this.newGame.tags.includes(tag)) {
-        this.newGame.tags.push(tag)
-        this.tagInput = ''
-      }
-    },
-    removeTag(index) {
-      this.newGame.tags.splice(index, 1)
-    },
-    async browseForExecutable() {
-      try {
-        if (this.isElectronEnvironment && window.electronAPI && window.electronAPI.selectExecutableFile) {
-          console.log('使用Electron API选择可执行文件')
-          const filePath = await window.electronAPI.selectExecutableFile()
-          if (filePath) {
-            this.newGame.executablePath = filePath
-            console.log('选择的文件路径:', filePath)
-
-            // 自动提取游戏名称（如果名称字段为空）
-            if (!this.newGame.name.trim()) {
-              this.newGame.name = this.extractGameNameFromPath(filePath)
-            }
-          }
-        } else {
-          console.log('Electron API不可用，使用HTML5文件选择器')
-          // 降级处理：使用HTML5文件选择器
-          this.showFileInput('executable')
-        }
-      } catch (error) {
-        console.error('选择可执行文件失败:', error)
-        alert(`选择文件失败: ${error.message}`)
-      }
-    },
-    async browseForImage() {
-      try {
-        if (this.isElectronEnvironment && window.electronAPI && window.electronAPI.selectImageFile) {
-          console.log('使用Electron API选择图片文件')
-          const filePath = await window.electronAPI.selectImageFile()
-          if (filePath) {
-            this.newGame.imagePath = filePath
-            console.log('选择的图片路径:', filePath)
-          }
-        } else {
-          console.log('Electron API不可用，使用HTML5文件选择器')
-          // 降级处理：使用HTML5文件选择器
-          this.showFileInput('image')
-        }
-      } catch (error) {
-        console.error('选择图片文件失败:', error)
-        alert(`选择文件失败: ${error.message}`)
-      }
-    },
-    showFileInput(type) {
-      // 创建隐藏的文件输入元素
-      const input = document.createElement('input')
-      input.type = 'file'
-      input.accept = type === 'executable' ? '.exe,.app' : 'image/*'
-      input.onchange = (e) => {
-        const file = (e.target as HTMLInputElement).files[0]
-        if (file) {
-          if (type === 'executable') {
-            this.newGame.executablePath = file.path || file.name
-            // 自动提取游戏名称（如果名称字段为空）
-            if (!this.newGame.name.trim()) {
-              this.newGame.name = this.extractGameNameFromPath(file.path || file.name)
-            }
-          } else {
-            this.newGame.imagePath = file.path || file.name
-          }
-        }
-      }
-      input.click()
-    },
-    extractGameNameFromPath(filePath) {
-      // 从文件路径中提取游戏名称
-      const fileName = filePath.split(/[\\/]/).pop() // 获取文件名
-      const nameWithoutExt = fileName.replace(/\.[^/.]+$/, '') // 移除扩展名
-
-      // 清理名称：移除常见的后缀和前缀
-      let cleanName = nameWithoutExt
-        .replace(/\.exe$/i, '') // 移除 .exe
-        .replace(/\.app$/i, '') // 移除 .app
-        .replace(/^game[-_\s]*/i, '') // 移除开头的 "game"
-        .replace(/[-_\s]+/g, ' ') // 将下划线和连字符替换为空格
-        .trim()
-
-      // 如果清理后为空，使用原始文件名
-      if (!cleanName) {
-        cleanName = nameWithoutExt
-      }
-
-      // 首字母大写
-      return cleanName.charAt(0).toUpperCase() + cleanName.slice(1)
-    },
-    async addGame() {
-      if (!this.canAddGame) return
-
-      // 如果没有输入名称，从文件路径自动提取
-      let gameName = this.newGame.name.trim()
-      if (!gameName) {
-        gameName = this.extractGameNameFromPath(this.newGame.executablePath)
-      }
-
-      // 获取游戏文件夹大小
-      let folderSize = 0
-      if (this.isElectronEnvironment && window.electronAPI && window.electronAPI.getFolderSize) {
-        try {
-          const result = await window.electronAPI.getFolderSize(this.newGame.executablePath)
-          if (result.success) {
-            folderSize = result.size
-          }
-        } catch (error) {
-          console.error('获取文件夹大小失败:', error)
-        }
-      }
-
-      const game = {
-        id: Date.now().toString(),
-        name: gameName,
-        developer: this.newGame.developer.trim() || '未知开发商',
-        publisher: this.newGame.publisher.trim() || '未知发行商',
-        description: this.newGame.description.trim() || '',
-        tags: [...this.newGame.tags], // 复制标签数组
-        executablePath: this.newGame.executablePath.trim(),
-        image: this.newGame.imagePath.trim(),
-        folderSize: folderSize,
-        playTime: 0,
-        playCount: 0,
-        lastPlayed: null,
-        firstPlayed: null,
-        addedDate: new Date().toISOString(),
-        fileExists: true // 新添加的游戏默认文件存在
-      }
-
-      this.games.push(game)
-      await this.saveGames()
-      await this.checkGameCollectionAchievements()
+    async handleAddGameConfirm(game) {
+      await this.addGame(game)
       this.closeAddGameDialog()
     },
     async launchGame(game) {
@@ -585,19 +316,20 @@ export default {
         console.log('更新前 - playCount:', game.playCount)
 
         // 更新游戏统计（启动时也更新 lastPlayed，记录开始游玩的时间）
-        game.lastPlayed = new Date().toISOString()
-        game.playCount = (game.playCount || 0) + 1
+        const updates: any = {
+          lastPlayed: new Date().toISOString(),
+          playCount: (game.playCount || 0) + 1
+        }
 
         // 如果是第一次启动，记录第一次游玩时间
         if (!game.firstPlayed) {
-          game.firstPlayed = new Date().toISOString()
-          console.log(`游戏 ${game.name} 第一次启动，记录时间:`, game.firstPlayed)
+          updates.firstPlayed = new Date().toISOString()
+          console.log(`游戏 ${game.name} 第一次启动，记录时间:`, updates.firstPlayed)
         }
 
-        console.log('更新后 - lastPlayed:', game.lastPlayed)
-        console.log('更新后 - playCount:', game.playCount)
-
-        await this.saveGames()
+        await this.updateGame(game.id, updates)
+        console.log('更新后 - lastPlayed:', updates.lastPlayed)
+        console.log('更新后 - playCount:', updates.playCount)
         console.log('游戏数据已保存')
 
         if (this.isElectronEnvironment && window.electronAPI && window.electronAPI.launchGame) {
@@ -611,7 +343,7 @@ export default {
             console.log('------------------------------')
 
             // 将游戏添加到全局运行列表中（包含完整信息）
-            this.$parent.addRunningGame({
+            this.addRunningGame({
               id: game.id,
               pid: result.pid,
               windowTitles: result.windowTitles || [],
@@ -660,6 +392,9 @@ export default {
     closeGameDetail() {
       this.showDetailModal = false
       this.currentGame = null
+    },
+    handleGameContextMenu(event, game) {
+      (this.$refs.baseView as any).showContextMenuHandler(event, game)
     },
     handleDetailAction(actionKey, game) {
       switch (actionKey) {
@@ -715,293 +450,30 @@ export default {
       }
     },
     editGame(game) {
-      // 打开编辑对话框并填充表单
       this.showContextMenu = false
       this.showDetailModal = false
       if (!game) return
-      this.editGameForm = {
-        id: game.id,
-        name: game.name || '',
-        developer: game.developer || '',
-        publisher: game.publisher || '',
-        description: game.description || '',
-        tags: Array.isArray(game.tags) ? [...game.tags] : [],
-        executablePath: game.executablePath || '',
-        imagePath: game.image || ''
-      }
-      this.editTagInput = ''
+      this.currentGame = game
       this.showEditDialog = true
     },
     closeEditGameDialog() {
       this.showEditDialog = false
+      this.currentGame = null
     },
-    addEditTag() {
-      const tag = this.editTagInput.trim()
-      if (tag && !this.editGameForm.tags.includes(tag)) {
-        this.editGameForm.tags.push(tag)
-        this.editTagInput = ''
-      }
-    },
-    removeEditTag(index) {
-      this.editGameForm.tags.splice(index, 1)
-    },
-    async browseForExecutableEdit() {
+    async handleEditGameConfirm(updatedGame) {
       try {
-        if (this.isElectronEnvironment && window.electronAPI && window.electronAPI.selectExecutableFile) {
-          const filePath = await window.electronAPI.selectExecutableFile()
-          if (filePath) {
-            this.editGameForm.executablePath = filePath
-            if (!this.editGameForm.name.trim()) {
-              this.editGameForm.name = this.extractGameNameFromPath(filePath)
-            }
-          }
-        }
-      } catch (error) {
-        console.error('选择可执行文件失败:', error)
-        alert(`选择文件失败: ${error.message}`)
-      }
-    },
-    async browseForImageEdit() {
-      try {
-        if (this.isElectronEnvironment && window.electronAPI && window.electronAPI.selectImageFile) {
-          const filePath = await window.electronAPI.selectImageFile()
-          if (filePath) {
-            this.editGameForm.imagePath = filePath
-          }
-        }
-      } catch (error) {
-        console.error('选择图片文件失败:', error)
-        alert(`选择文件失败: ${error.message}`)
-      }
-    },
-    async useScreenshotAsCover() {
-      try {
-        if (!this.editGameForm.name) {
-          alert('请先输入游戏名称')
-          return
-        }
-
-        // 获取用户设置的截图选项
-        const settings = await saveManager.loadSettings()
-
-        // 根据截图位置设置确定基础路径
-        let baseScreenshotsPath = ''
-        if (settings.screenshotLocation === 'default') {
-          // 使用默认路径，跟随存档位置
-          baseScreenshotsPath = `${saveManager.dataDirectory}/Game/Screenshots`
-        } else if (settings.screenshotLocation === 'custom') {
-          baseScreenshotsPath = settings.screenshotsPath || ''
-        } else {
-          baseScreenshotsPath = settings.screenshotsPath || `${saveManager.dataDirectory}/Game/Screenshots`
-        }
-
-        if (!baseScreenshotsPath || baseScreenshotsPath.trim() === '') {
-          baseScreenshotsPath = `${saveManager.dataDirectory}/Game/Screenshots`
-        }
-
-        // 为每个游戏创建单独的文件夹（与截图功能保持一致）
-        let gameFolderName = 'Screenshots'
-        if (this.editGameForm.name && this.editGameForm.name !== 'Screenshot') {
-          gameFolderName = this.editGameForm.name.replace(/[<>:"/\\|?*]/g, '_').trim()
-          if (!gameFolderName) {
-            gameFolderName = 'Screenshots'
-          }
-        }
-
-        // 构建完整的游戏截图文件夹路径
-        const gameScreenshotPath = `${baseScreenshotsPath}/${gameFolderName}`.replace(/\\/g, '/')
-
-        console.log('尝试从截图文件夹选择封面:', gameScreenshotPath)
-        console.log('基础截图路径:', baseScreenshotsPath)
-        console.log('游戏文件夹名:', gameFolderName)
-
-        // 确保截图文件夹存在
-        if (this.isElectronEnvironment && window.electronAPI && window.electronAPI.ensureDirectory) {
-          try {
-            const ensureResult = await window.electronAPI.ensureDirectory(gameScreenshotPath)
-            if (ensureResult.success) {
-              console.log('截图文件夹已确保存在:', gameScreenshotPath)
-            } else {
-              console.warn('创建截图文件夹失败:', ensureResult.error)
-            }
-          } catch (error) {
-            console.warn('确保截图文件夹存在时出错:', error)
-          }
-        }
-
-        if (this.isElectronEnvironment && window.electronAPI) {
-          // 使用专门的截图图片选择器
-          if (window.electronAPI.selectScreenshotImage) {
-            const filePath = await window.electronAPI.selectScreenshotImage(gameScreenshotPath)
-            if (filePath) {
-              this.editGameForm.imagePath = filePath
-              notify.native('设置成功', '已选择截图作为封面')
-            }
-          } else if (window.electronAPI.selectImageFile) {
-            // 降级到普通图片选择器
-            const filePath = await window.electronAPI.selectImageFile(gameScreenshotPath)
-            if (filePath) {
-              this.editGameForm.imagePath = filePath
-              notify.native('设置成功', '已选择截图作为封面')
-            }
-          }
-        } else {
-          alert('当前环境不支持选择图片功能')
-        }
-      } catch (error) {
-        console.error('选择截图作为封面失败:', error)
-        alert(`选择截图失败: ${error.message}`)
-      }
-    },
-    clearCover() {
-      this.editGameForm.imagePath = ''
-    },
-    async browseForImageNew() {
-      try {
-        if (this.isElectronEnvironment && window.electronAPI && window.electronAPI.selectImageFile) {
-          const filePath = await window.electronAPI.selectImageFile()
-          if (filePath) {
-            this.newGame.imagePath = filePath
-          }
-        }
-      } catch (error) {
-        console.error('选择图片文件失败:', error)
-        alert(`选择文件失败: ${error.message}`)
-      }
-    },
-    async useScreenshotAsCoverNew() {
-      try {
-        if (!this.newGame.name && !this.newGame.executablePath) {
-          alert('请先输入游戏名称或选择可执行文件')
-          return
-        }
-
-        // 获取游戏名称
-        let gameName = this.newGame.name.trim()
-        if (!gameName && this.newGame.executablePath) {
-          gameName = this.extractGameNameFromPath(this.newGame.executablePath)
-        }
-
-        if (!gameName) {
-          alert('无法确定游戏名称')
-          return
-        }
-
-        // 获取用户设置的截图选项
-        const settings = await saveManager.loadSettings()
-
-        // 根据截图位置设置确定基础路径
-        let baseScreenshotsPath = ''
-        if (settings.screenshotLocation === 'default') {
-          // 使用默认路径，跟随存档位置
-          baseScreenshotsPath = `${saveManager.dataDirectory}/Game/Screenshots`
-        } else if (settings.screenshotLocation === 'custom') {
-          baseScreenshotsPath = settings.screenshotsPath || ''
-        } else {
-          baseScreenshotsPath = settings.screenshotsPath || `${saveManager.dataDirectory}/Game/Screenshots`
-        }
-
-        if (!baseScreenshotsPath || baseScreenshotsPath.trim() === '') {
-          baseScreenshotsPath = `${saveManager.dataDirectory}/Game/Screenshots`
-        }
-
-        // 为每个游戏创建单独的文件夹（与截图功能保持一致）
-        let gameFolderName = 'Screenshots'
-        if (gameName && gameName !== 'Screenshot') {
-          gameFolderName = gameName.replace(/[<>:"/\\|?*]/g, '_').trim()
-          if (!gameFolderName) {
-            gameFolderName = 'Screenshots'
-          }
-        }
-
-        // 构建完整的游戏截图文件夹路径
-        const gameScreenshotPath = `${baseScreenshotsPath}/${gameFolderName}`.replace(/\\/g, '/')
-
-        console.log('尝试从截图文件夹选择封面:', gameScreenshotPath)
-        console.log('基础截图路径:', baseScreenshotsPath)
-        console.log('游戏文件夹名:', gameFolderName)
-
-        // 确保截图文件夹存在
-        if (this.isElectronEnvironment && window.electronAPI && window.electronAPI.ensureDirectory) {
-          try {
-            const ensureResult = await window.electronAPI.ensureDirectory(gameScreenshotPath)
-            if (ensureResult.success) {
-              console.log('截图文件夹已确保存在:', gameScreenshotPath)
-            } else {
-              console.warn('创建截图文件夹失败:', ensureResult.error)
-            }
-          } catch (error) {
-            console.warn('确保截图文件夹存在时出错:', error)
-          }
-        }
-
-        if (this.isElectronEnvironment && window.electronAPI) {
-          // 使用专门的截图图片选择器
-          if (window.electronAPI.selectScreenshotImage) {
-            const filePath = await window.electronAPI.selectScreenshotImage(gameScreenshotPath)
-            if (filePath) {
-              this.newGame.imagePath = filePath
-              notify.native('设置成功', '已选择截图作为封面')
-            }
-          } else if (window.electronAPI.selectImageFile) {
-            // 降级到普通图片选择器
-            const filePath = await window.electronAPI.selectImageFile(gameScreenshotPath)
-            if (filePath) {
-              this.newGame.imagePath = filePath
-              notify.native('设置成功', '已选择截图作为封面')
-            }
-          }
-        } else {
-          alert('当前环境不支持选择图片功能')
-        }
-      } catch (error) {
-        console.error('选择截图作为封面失败:', error)
-        alert(`选择截图失败: ${error.message}`)
-      }
-    },
-    clearCoverNew() {
-      this.newGame.imagePath = ''
-    },
-    async saveEditedGame() {
-      try {
-        const index = this.games.findIndex(g => g.id === this.editGameForm.id)
-        if (index === -1) {
-          alert('未找到要编辑的游戏')
-          return
-        }
-        const target = this.games[index]
-        target.name = this.editGameForm.name.trim() || target.name
-        target.developer = this.editGameForm.developer.trim() || target.developer
-        target.publisher = this.editGameForm.publisher.trim() || target.publisher
-        target.description = this.editGameForm.description.trim()
-        target.tags = [...this.editGameForm.tags]
-        target.executablePath = this.editGameForm.executablePath.trim() || target.executablePath
-        target.image = (this.editGameForm.imagePath || '').trim()
-
-        // 如果可执行文件路径发生变化，重新计算文件夹大小
-        if (this.editGameForm.executablePath.trim() && this.editGameForm.executablePath.trim() !== target.executablePath) {
-          let folderSize = 0
-          if (this.isElectronEnvironment && window.electronAPI && window.electronAPI.getFolderSize) {
-            try {
-              const result = await window.electronAPI.getFolderSize(this.editGameForm.executablePath.trim())
-              if (result.success) {
-                folderSize = result.size
-              }
-            } catch (error) {
-              console.error('获取文件夹大小失败:', error)
-            }
-          }
-          target.folderSize = folderSize
-        }
-
-        await this.saveGames()
-        
-        // 重新提取标签和开发商信息，更新筛选器
-        this.extractAllTags()
-        
+        await this.updateGame(updatedGame.id, {
+          name: updatedGame.name,
+          developer: updatedGame.developer,
+          publisher: updatedGame.publisher,
+          description: updatedGame.description,
+          tags: updatedGame.tags,
+          executablePath: updatedGame.executablePath,
+          image: updatedGame.image
+        })
         notify.native('保存成功', '游戏信息已更新')
         this.closeEditGameDialog()
-      } catch (error) {
+      } catch (error: any) {
         console.error('保存编辑失败:', error)
         alert('保存编辑失败: ' + error.message)
       }
@@ -1010,71 +482,31 @@ export default {
       if (!confirm(`确定要删除游戏 "${game.name}" 吗？`)) return
 
       try {
-        const index = this.games.findIndex(g => g.id === game.id)
-        if (index > -1) {
-          this.games.splice(index, 1)
-          await this.saveGames()
-
-          // 显示删除成功通知
-          notify.toast('success', '删除成功', `已成功删除游戏 "${game.name}"`)
-          console.log('游戏删除成功:', game.name)
-        } else {
-          // 显示删除失败通知
-          notify.toast('error', '删除失败', `游戏 "${game.name}" 不存在`)
-          console.error('游戏不存在:', game.name)
-        }
-      } catch (error) {
-        // 显示删除失败通知
+        await this.removeGame(game.id)
+        this.showContextMenu = false
+      } catch (error: any) {
         notify.toast('error', '删除失败', `无法删除游戏 "${game.name}": ${error.message}`)
         console.error('删除游戏失败:', error)
       }
-
-      this.showContextMenu = false
     },
     formatDate,
     formatFirstPlayed,
     formatDateTime,
     formatPlayTime,
     formatLastPlayed,
-    resolveImage(imagePath) {
-      // 空值返回默认
-      if (!imagePath || (typeof imagePath === 'string' && imagePath.trim() === '')) {
-        return '/default-game.png'
+    // loadGames 已移至 useGameManagement composable
+    async loadGamesWithChecks() {
+      // 调用 composable 的 loadGames（从 setup 返回，方法名是 loadGames）
+      // 注意：由于 setup() 返回的方法会直接暴露到 this 上，可以直接调用
+      if (typeof (this as any).loadGames === 'function') {
+        await (this as any).loadGames()
       }
-      // 网络资源直接返回
-      if (typeof imagePath === 'string' && (imagePath.startsWith('http://') || imagePath.startsWith('https://'))) {
-        return imagePath
-      }
-      // 已是 data: 或 file: 直接返回
-      if (typeof imagePath === 'string' && (imagePath.startsWith('data:') || imagePath.startsWith('file:'))) {
-        return imagePath
-      }
-      // 回退：尝试 file://
-      const normalizedPath = String(imagePath).replace(/\\/g, '/')
-      const fileUrl = `file:///${normalizedPath}`
-      return fileUrl
-    },
-    handleImageError(event) {
-      event.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjI4MCIgdmlld0JveD0iMCAwIDIwMCAyODAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIyMDAiIGhlaWdodD0iMjgwIiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik0xMDAgMTIwSDgwVjE2MEgxMjBWMTIwWiIgZmlsbD0iIzlDQTNBRiIvPgo8cGF0aCBkPSJNODAgMTIwTDEwMCAxMDBMMTIwIDEyMEwxMDAgMTQwTDgwIDEyMFoiIGZpbGw9IiM5Q0EzQUYiLz4KPC9zdmc+'
-    },
-    getImageFileName(imagePath) {
-      if (!imagePath) return ''
-      // 从完整路径中提取文件名
-      const fileName = imagePath.split(/[\\/]/).pop()
-      return fileName || imagePath
-    },
-    async saveGames() {
-      return await saveManager.saveGames(this.games)
-    },
-    async loadGames() {
-      this.games = await saveManager.loadGames()
-      this.extractAllTags()
 
-        // 检测文件存在性（仅在应用启动时检测一次）
-        if (this.$parent.shouldCheckFileLoss && this.$parent.shouldCheckFileLoss()) {
-          await this.checkFileExistence()
-          this.$parent.markFileLossChecked()
-        }
+      // 检测文件存在性（仅在应用启动时检测一次）
+      if (this.$parent.shouldCheckFileLoss && this.$parent.shouldCheckFileLoss()) {
+        await this.checkFileExistence()
+        this.$parent.markFileLossChecked()
+      }
 
       // 为现有游戏计算文件夹大小（如果还没有的话）
       await this.updateExistingGamesFolderSize()
@@ -1084,107 +516,7 @@ export default {
       await this.checkGameCollectionAchievements()
       await this.checkGameTimeAchievements()
     },
-    async updateExistingGamesFolderSize() {
-      // 为没有folderSize字段的现有游戏计算文件夹大小
-      const gamesNeedingUpdate = this.games.filter(game =>
-        game.executablePath &&
-        (game.folderSize === undefined || game.folderSize === null || game.folderSize === 0)
-      )
-
-      if (gamesNeedingUpdate.length === 0) {
-        console.log('所有游戏都已包含文件夹大小信息')
-        return
-      }
-
-      console.log(`需要更新 ${gamesNeedingUpdate.length} 个游戏的文件夹大小`)
-
-      let updatedCount = 0
-      for (const game of gamesNeedingUpdate) {
-        try {
-          if (this.isElectronEnvironment && window.electronAPI && window.electronAPI.getFolderSize) {
-            const result = await window.electronAPI.getFolderSize(game.executablePath)
-            if (result.success) {
-              game.folderSize = result.size
-              updatedCount++
-              console.log(`更新游戏 ${game.name} 的文件夹大小: ${result.size} 字节`)
-            } else {
-              console.warn(`获取游戏 ${game.name} 文件夹大小失败:`, result.error)
-            }
-          }
-        } catch (error) {
-          console.error(`计算游戏 ${game.name} 文件夹大小失败:`, error)
-        }
-      }
-
-      if (updatedCount > 0) {
-        console.log(`成功更新了 ${updatedCount} 个游戏的文件夹大小`)
-        // 保存更新后的数据
-        await this.saveGames()
-      }
-    },
-    async checkFileExistence() {
-      console.log('🔍 开始检测游戏文件存在性...')
-      console.log(`🔍 当前游戏数量: ${this.games.length}`)
-
-      if (!this.isElectronEnvironment || !window.electronAPI || !window.electronAPI.checkFileExists) {
-        console.log('⚠️ Electron API 不可用，跳过文件存在性检测')
-        // 如果API不可用，默认设置为存在
-        this.games.forEach(game => {
-          game.fileExists = true
-        })
-        return
-      }
-
-      let checkedCount = 0
-      let missingCount = 0
-      const missingFiles = [] // 收集丢失的文件信息
-
-      for (const game of this.games) {
-        if (!game.executablePath) {
-          game.fileExists = false
-          missingCount++
-          missingFiles.push({
-            name: game.name,
-            path: '未设置路径'
-          })
-          continue
-        }
-
-        try {
-          const result = await window.electronAPI.checkFileExists(game.executablePath)
-          game.fileExists = result.exists
-          if (!result.exists) {
-            missingCount++
-            missingFiles.push({
-              name: game.name,
-              path: game.executablePath
-            })
-            console.log(`❌ 游戏文件不存在: ${game.name} - ${game.executablePath}`)
-          }
-        } catch (error) {
-          console.error(`❌ 检测游戏文件存在性失败: ${game.name}`, error)
-          game.fileExists = false
-          missingCount++
-          missingFiles.push({
-            name: game.name,
-            path: game.executablePath || '路径检测失败'
-          })
-        }
-
-        checkedCount++
-      }
-
-      console.log(`📊 文件存在性检测完成: 检查了 ${checkedCount} 个游戏，${missingCount} 个文件不存在`)
-
-      // 如果有丢失的文件，显示提醒
-      if (missingCount > 0) {
-        this.showMissingFilesAlert(missingFiles)
-        await this.saveGames()
-      }
-
-      // 强制更新视图
-      this.$forceUpdate()
-    },
+    // updateExistingGamesFolderSize 和 checkFileExistence 已移至 useGameManagement composable
 
     // 显示丢失文件提醒
     showMissingFilesAlert(missingFiles) {
@@ -1211,157 +543,37 @@ export default {
     },
 
     async updateGameFolderSize(game) {
-      if (!game || !game.executablePath) {
-        notify.toast('error', '更新失败', '游戏文件路径不存在')
-        return
-      }
-
-      console.log(`📊 开始更新游戏 "${game.name}" 的文件夹大小`)
-
       try {
-        if (this.isElectronEnvironment && window.electronAPI && window.electronAPI.getFolderSize) {
-          const result = await window.electronAPI.getFolderSize(game.executablePath)
-          if (result.success) {
-            const oldSize = game.folderSize || 0
-            game.folderSize = result.size
-
-            const oldSizeMB = (oldSize / 1024 / 1024).toFixed(2)
-            const newSizeMB = (result.size / 1024 / 1024).toFixed(2)
-
-            console.log(`✅ 游戏 ${game.name} 文件夹大小已更新:`)
-            console.log(`   旧大小: ${oldSizeMB} MB (${oldSize} 字节)`)
-            console.log(`   新大小: ${newSizeMB} MB (${result.size} 字节)`)
-
-            // 保存更新后的数据
-            await this.saveGames()
-
-            notify.toast(
-              'success',
-              '更新成功',
-              `"${game.name}" 文件夹大小已更新\n旧大小: ${oldSizeMB} MB\n新大小: ${newSizeMB} MB`
-            )
-          } else {
-            console.error(`❌ 获取游戏 ${game.name} 文件夹大小失败:`, result.error)
-            notify.toast('error', '更新失败', `无法获取 "${game.name}" 的文件夹大小: ${result.error}`)
-          }
-        } else {
-          console.error(`❌ Electron API 不可用，无法更新游戏 ${game.name}`)
-          notify.toast('error', '更新失败', '当前环境不支持文件夹大小计算功能')
-        }
-      } catch (error) {
-        console.error(`❌ 计算游戏 ${game.name} 文件夹大小失败:`, error)
-        notify.toast('error', '更新失败', `更新 "${game.name}" 文件夹大小时出错: ${error.message}`)
+        await this.updateGameFolderSize(game.id)
+      } catch (error: any) {
+        console.error(`❌ 更新游戏 ${game.name} 文件夹大小失败:`, error)
       }
     },
-    extractAllTags() {
-      // 从所有游戏中提取标签并统计数量
-      const tagCount = {}
-      const developerCount = {}
-
-      this.games.forEach(game => {
-        // 提取标签
-        if (game.tags && Array.isArray(game.tags)) {
-          game.tags.forEach(tag => {
-            tagCount[tag] = (tagCount[tag] || 0) + 1
-          })
-        }
-
-        // 提取开发商
-        if (game.developer) {
-          developerCount[game.developer] = (developerCount[game.developer] || 0) + 1
-        }
-      })
-
-      // 转换为数组并按名称排序
-      this.allTags = Object.entries(tagCount)
-        .map(([name, count]) => ({ name, count }))
-        .sort((a, b) => a.name.localeCompare(b.name))
-
-      this.allDevelopers = Object.entries(developerCount)
-        .map(([name, count]) => ({ name, count }))
-        .sort((a, b) => a.name.localeCompare(b.name))
-
-      // 提取完标签后更新筛选器数据
+    // extractAllTags 已移至 useGameFilter composable
+    // filterByTag, excludeByTag, clearTagFilter, filterByDeveloper, excludeByDeveloper, clearDeveloperFilter 已移至 useGameFilter composable
+    // 这些方法现在直接从 composable 中获取，只需要在调用后更新筛选器数据
+    handleFilterByTag(tagName: string) {
+      this.filterByTag(tagName)
       this.updateFilterData()
     },
-    filterByTag(tagName) {
-
-      if (this.selectedTags.indexOf(tagName) !== -1) {
-        // 如果当前是选中状态，则取消选择
-        console.log('Removing from selectedTags')
-        console.log('Before filter - selectedTags:', this.selectedTags)
-        this.selectedTags = this.selectedTags.filter(tag => tag !== tagName)
-        console.log('After filter - selectedTags:', this.selectedTags)
-      } else if (this.excludedTags.indexOf(tagName) !== -1) {
-        // 如果当前是排除状态，则切换为选中状态
-        console.log('Moving from excluded to selected')
-        this.excludedTags = this.excludedTags.filter(tag => tag !== tagName)
-        this.selectedTags = [...this.selectedTags, tagName]
-      } else {
-        // 否则直接设置为选中状态
-        console.log('Adding to selectedTags')
-        this.selectedTags = [...this.selectedTags, tagName]
-      }
-      console.log('GameView filterByTag END:', 'selectedTags:', this.selectedTags, 'excludedTags:', this.excludedTags)
+    handleExcludeByTag(tagName: string) {
+      this.excludeByTag(tagName)
       this.updateFilterData()
     },
-    clearTagFilter() {
-      this.selectedTags = []
-      this.excludedTags = []
+    handleClearTagFilter() {
+      this.clearTagFilter()
       this.updateFilterData()
     },
-    filterByDeveloper(developerName) {
-      if (this.selectedDevelopers.indexOf(developerName) !== -1) {
-        // 如果当前是选中状态，则取消选择
-        this.selectedDevelopers = this.selectedDevelopers.filter(dev => dev !== developerName)
-      } else if (this.excludedDevelopers.indexOf(developerName) !== -1) {
-        // 如果当前是排除状态，则切换为选中状态
-        this.excludedDevelopers = this.excludedDevelopers.filter(dev => dev !== developerName)
-        this.selectedDevelopers = [...this.selectedDevelopers, developerName]
-      } else {
-        // 否则直接设置为选中状态
-        this.selectedDevelopers = [...this.selectedDevelopers, developerName]
-      }
+    handleFilterByDeveloper(developerName: string) {
+      this.filterByDeveloper(developerName)
       this.updateFilterData()
     },
-    clearDeveloperFilter() {
-      this.selectedDevelopers = []
-      this.excludedDevelopers = []
+    handleExcludeByDeveloper(developerName: string) {
+      this.excludeByDeveloper(developerName)
       this.updateFilterData()
     },
-
-    // 排除方法
-    excludeByTag(tagName) {
-      if (this.excludedTags.indexOf(tagName) !== -1) {
-        // 如果已经是排除状态，则取消排除
-        console.log('Removing from excludedTags')
-        this.excludedTags = this.excludedTags.filter(tag => tag !== tagName)
-      } else if (this.selectedTags.indexOf(tagName) !== -1) {
-        // 如果当前是选中状态，则切换为排除状态
-        console.log('Moving from selected to excluded')
-        this.selectedTags = this.selectedTags.filter(tag => tag !== tagName)
-        this.excludedTags = [...this.excludedTags, tagName]
-      } else {
-        // 否则直接设置为排除状态
-        console.log('Adding to excludedTags')
-        this.excludedTags = [...this.excludedTags, tagName]
-      }
-      console.log('GameView excludeByTag after:', 'selectedTags:', this.selectedTags, 'excludedTags:', this.excludedTags)
-      this.updateFilterData()
-    },
-
-    excludeByDeveloper(developerName) {
-      if (this.excludedDevelopers.indexOf(developerName) !== -1) {
-        // 如果已经是排除状态，则取消排除
-        this.excludedDevelopers = this.excludedDevelopers.filter(dev => dev !== developerName)
-      } else if (this.selectedDevelopers.indexOf(developerName) !== -1) {
-        // 如果当前是选中状态，则切换为排除状态
-        this.selectedDevelopers = this.selectedDevelopers.filter(dev => dev !== developerName)
-        this.excludedDevelopers = [...this.excludedDevelopers, developerName]
-      } else {
-        // 否则直接设置为排除状态
-        this.excludedDevelopers = [...this.excludedDevelopers, developerName]
-      }
+    handleClearDeveloperFilter() {
+      this.clearDeveloperFilter()
       this.updateFilterData()
     },
     // 处理来自 App.vue 的筛选器事件
@@ -1370,84 +582,41 @@ export default {
       switch (event) {
         case 'filter-select':
           if (data.filterKey === 'tags') {
-            this.filterByTag(data.itemName)
+            this.handleFilterByTag(data.itemName)
           } else if (data.filterKey === 'developers') {
-            this.filterByDeveloper(data.itemName)
+            this.handleFilterByDeveloper(data.itemName)
           }
           break
         case 'filter-exclude':
           if (data.filterKey === 'tags') {
-            this.excludeByTag(data.itemName)
+            this.handleExcludeByTag(data.itemName)
           } else if (data.filterKey === 'developers') {
-            this.excludeByDeveloper(data.itemName)
+            this.handleExcludeByDeveloper(data.itemName)
           }
           break
         case 'filter-clear':
           if (data === 'tags') {
-            this.clearTagFilter()
+            this.handleClearTagFilter()
           } else if (data === 'developers') {
-            this.clearDeveloperFilter()
+            this.handleClearDeveloperFilter()
           }
           break
       }
     },
     // 更新筛选器数据到 App.vue
     updateFilterData() {
-      console.log('GameView updateFilterData START:', this.selectedTags, this.excludedTags, this.selectedDevelopers, this.excludedDevelopers)
-      console.log('selectedTags type in updateFilterData:', typeof this.selectedTags, 'isArray:', Array.isArray(this.selectedTags))
-      this.$emit('filter-data-updated', {
-        filters: [
-          {
-            key: 'tags',
-            title: '标签筛选',
-            items: this.allTags,
-            selected: this.selectedTags,
-            excluded: this.excludedTags
-          },
-          {
-            key: 'developers',
-            title: '开发商筛选',
-            items: this.allDevelopers,
-            selected: this.selectedDevelopers,
-            excluded: this.excludedDevelopers
-          }
-        ]
-      })
-      console.log('GameView updateFilterData END')
+      const filterData = this.getFilterData()
+      this.$emit('filter-data-updated', filterData)
     },
+    // updateGamePlayTime 已移至 useGamePlayTime composable
     async updateGamePlayTime(data) {
-      console.log(`[DEBUG] 🎮 updateGamePlayTime 被调用，数据:`, data)
-      // 根据可执行文件路径找到对应的游戏
-      const game = this.games.find(g => g.executablePath === data.executablePath)
-      if (game) {
-        console.log(`[DEBUG] ✅ 找到游戏 ${game.name}，进程结束，时长:`, data.playTime, '秒')
-
-        // 先更新上一次游玩时间（游戏结束时的时间，这样 lastPlayed 会记录最后一次活动）
-        game.lastPlayed = new Date().toISOString()
-        console.log(`[DEBUG] 📅 游戏 ${game.name} 上一次游玩时间已更新为:`, game.lastPlayed)
-
-        // 从全局运行列表中移除（这会自动更新游戏时长并保存）
-        // removeRunningGame 会调用 updateGamePlayTime(..., true) 并保存整个 games 数组
-        // 由于我们已经在上面更新了 lastPlayed，所以 removeRunningGame 保存时会包含 lastPlayed
-        // 因此不需要再次保存
-        console.log(`[DEBUG] 🔄 调用 $parent.removeRunningGame(${game.id})`)
-        this.$parent.removeRunningGame(game.id)
-
-        await this.checkGameTimeAchievements()
-
-        // 显示通知
-        notify.native(
-          '游戏已结束',
-          `${game.name} 本次游玩 ${this.formatPlayTime(data.playTime)}，总时长 ${this.formatPlayTime(game.playTime)}`
-        )
-
-        console.log(`[DEBUG] ✅ 游戏 ${game.name} 进程结束处理完成`)
-      } else {
-        console.warn(`[DEBUG] ⚠️ 未找到对应的游戏，executablePath: ${data.executablePath}`)
-      }
+      // 调用 composable 的方法（注意：方法名相同，但 this.updateGamePlayTime 指向 composable 的方法）
+      await (this as any).updateGamePlayTime(data)
     },
+    // isGameRunning 已移至 useGameRunning composable
     isGameRunning(game) {
-      return this.$parent.isGameRunning(game.id)
+      // 调用 composable 的方法
+      return (this as any).isGameRunning(game)
     },
     async terminateGame(game) {
       try {
@@ -1464,12 +633,54 @@ export default {
           console.log('[DEBUG] ✅ 游戏已强制结束，PID:', result.pid, '运行时长:', result.playTime, '秒')
           notify.toast('success', '游戏已结束', `${game.name} 已强制结束`)
         } else {
-          console.error('[DEBUG] ❌ 强制结束游戏失败:', result.error)
-          notify.toast('error', '操作失败', `强制结束游戏失败: ${result.error}`)
+          console.warn('[DEBUG] ⚠️ 强制结束游戏失败:', result.error)
+          
+          // 检查错误信息是否包含"未找到运行中的游戏进程"
+          const isProcessNotFound = result.error && (
+            result.error.includes('未找到') || 
+            result.error.includes('运行中的游戏进程') ||
+            result.error.includes('not found') ||
+            result.error.includes('process not found')
+          )
+          
+          if (isProcessNotFound) {
+            // 如果未找到进程，显示警告并从运行列表中移除
+            console.warn('[DEBUG] ⚠️ 游戏进程未找到，从运行列表中移除:', game.id)
+            notify.toast('warning', '游戏已停止', `未找到 ${game.name} 的运行进程，已将其标记为已停止`)
+            
+            // 检查游戏是否在运行列表中，如果在则移除
+            if (this.isGameRunning(game)) {
+              this.removeRunningGame(game.id)
+              console.log('[DEBUG] ✅ 已从运行列表中移除游戏:', game.id)
+            }
+          } else {
+            // 其他错误，显示错误提示
+            notify.toast('error', '操作失败', `强制结束游戏失败: ${result.error}`)
+          }
         }
       } catch (error) {
         console.error('[DEBUG] ❌ 强制结束游戏异常:', error)
-        notify.toast('error', '操作失败', `强制结束游戏失败: ${error.message}`)
+        
+        // 检查错误信息是否包含"未找到运行中的游戏进程"
+        const errorMessage = error.message || String(error)
+        const isProcessNotFound = errorMessage.includes('未找到') || 
+          errorMessage.includes('运行中的游戏进程') ||
+          errorMessage.includes('not found') ||
+          errorMessage.includes('process not found')
+        
+        if (isProcessNotFound) {
+          // 如果未找到进程，显示警告并从运行列表中移除
+          console.warn('[DEBUG] ⚠️ 游戏进程未找到，从运行列表中移除:', game.id)
+          notify.toast('warning', '游戏已停止', `未找到 ${game.name} 的运行进程，已将其标记为已停止`)
+          
+          // 检查游戏是否在运行列表中，如果在则移除
+          if (this.isGameRunning(game)) {
+            this.removeRunningGame(game.id)
+            console.log('[DEBUG] ✅ 已从运行列表中移除游戏:', game.id)
+          }
+        } else {
+          notify.toast('error', '操作失败', `强制结束游戏失败: ${errorMessage}`)
+        }
       }
     },
     closeTerminateConfirmDialog() {
@@ -1485,173 +696,12 @@ export default {
 
 
 
+    // playScreenshotSound 和 takeScreenshot 已移至 useGameScreenshot composable
     playScreenshotSound() {
-      try {
-        const audio = new Audio('./camera.mp3')
-        audio.volume = 1 // 设置音量为100%，可以根据需要调整
-        audio.play().catch(error => {
-          console.warn('播放截图音效失败:', error)
-          // 忽略播放失败，不影响截图功能
-        })
-      } catch (error) {
-        console.warn('创建音频对象失败:', error)
-        // 忽略错误，不影响截图功能
-      }
+      this.playScreenshotSound()
     },
-        /*
-    **************************************************
-    * 截图功能
-    **************************************************
-    */
     async takeScreenshot() {
-      // 防止重复截图：检查是否正在截图或距离上次截图时间太短
-      const now = Date.now()
-      if (this.isScreenshotInProgress || (now - this.lastScreenshotTime < 1000)) {
-        console.log('截图请求被忽略：正在截图或距离上次截图时间太短')
-        return
-      }
-
-      this.isScreenshotInProgress = true
-      this.lastScreenshotTime = now
-
-      console.log('开始截图，时间戳:', now)
-
-      try {
-        // 直接从父组件获取正在运行的游戏信息（已经包含 gameName，无需重复查找）
-        const runningGamesMap = this.$parent.runningGames
-        // 转换为普通对象，包含完整的游戏信息（ID、PID、窗口标题数组、游戏名称等）
-        // 使用 JSON 序列化/反序列化确保对象可以被 IPC 正确传递
-        const runningGamesInfo = {}
-        for (const [gameId, runtimeGameData] of runningGamesMap) {
-          // 确保所有值都是可序列化的基本类型
-          const gameData = {
-            id: String(runtimeGameData.id),
-            pid: Number(runtimeGameData.pid),
-            windowTitles: Array.isArray(runtimeGameData.windowTitles) 
-              ? runtimeGameData.windowTitles.map(title => String(title)).filter(title => title)
-              : [],
-            gameName: runtimeGameData.gameName ? String(runtimeGameData.gameName) : null,
-            startTime: Number(runtimeGameData.startTime)
-          }
-          // 使用 JSON 序列化确保对象可传递
-          runningGamesInfo[String(gameId)] = JSON.parse(JSON.stringify(gameData))
-        }
-        // 获取用户设置的截图选项
-
-        const settings = await saveManager.loadSettings()
-        console.log('加载的设置:', settings)
-
-        // 根据截图位置设置确定实际路径
-        let screenshotsPath = ''
-        if (settings.screenshotLocation === 'default') {
-          // 使用默认路径，跟随存档位置
-          screenshotsPath = `${saveManager.dataDirectory}/Game/Screenshots`
-        } else if (settings.screenshotLocation === 'custom') {
-          // 使用自定义路径
-          screenshotsPath = settings.screenshotsPath || ''
-        } else {
-          // 兼容旧设置：如果没有screenshotLocation，使用screenshotsPath
-          screenshotsPath = settings.screenshotsPath || `${saveManager.dataDirectory}/Game/Screenshots`
-        }
-
-        const screenshotFormat = settings.screenshotFormat || 'png'
-        const screenshotQuality = settings.screenshotQuality || 90
-        const showNotification = settings.screenshotNotification !== false
-        const autoOpenFolder = settings.autoOpenScreenshotFolder || false
-        const smartWindowDetection = settings.smartWindowDetection !== false
-
-        console.log('截图设置:', {
-          runningGames: runningGamesInfo,
-          screenshotLocation: settings.screenshotLocation,
-          screenshotsPath,
-          customPath: settings.screenshotsPath,
-          format: screenshotFormat,
-          quality: screenshotQuality,
-          smartWindowDetection
-        })
-
-        if (this.isElectronEnvironment && window.electronAPI && window.electronAPI.takeScreenshot) {
-          // 确保截图目录存在
-          try {
-            if (window.electronAPI.ensureDirectory) {
-              const result = await window.electronAPI.ensureDirectory(screenshotsPath)
-              if (result.success) {
-                console.log('截图目录已确保存在:', screenshotsPath)
-              } else {
-                console.warn('创建截图目录失败:', result.error)
-              }
-            }
-          } catch (error) {
-            console.warn('创建截图目录失败:', error)
-            // 继续执行截图，让截图API自己处理目录创建
-          }
-
-          const result = await window.electronAPI.takeScreenshot(
-            screenshotsPath,
-            screenshotFormat,
-            screenshotQuality,
-            runningGamesInfo
-          )
-
-          if (result.success) {
-            console.log('截图成功:', result.filepath, '窗口:', result.windowName)
-
-            // 播放截图音效
-            this.playScreenshotSound()
-
-            if (showNotification) {
-              // 延迟显示通知，避免通知被包含在截图中
-              setTimeout(() => {
-                const folderInfo = result.matchedGame 
-                  ? `游戏文件夹: ${result.gameFolder}` 
-                  : `文件夹: ${result.gameFolder}`
-                notify.toast(
-                  'success',
-                  '截图成功',
-                  `截图已保存为: ${result.filepath}\n${folderInfo}\n窗口: ${result.windowName}`
-                )
-              }, 100) // 延迟100ms显示通知
-            }
-
-            // 自动打开截图文件夹
-            if (autoOpenFolder && this.isElectronEnvironment && window.electronAPI && window.electronAPI.openFolder) {
-              try {
-                await window.electronAPI.openFolder(result.filepath)
-              } catch (error) {
-                console.error('打开文件夹失败:', error)
-              }
-            }
-          } else {
-            console.error('截图失败:', result.error)
-            if (showNotification) {
-              // 延迟显示失败通知
-              setTimeout(() => {
-                notify.toast('error', '截图失败', result.error)
-              }, 100)
-            }
-          }
-        } else {
-          console.log('Electron API不可用，无法截图')
-          if (showNotification) {
-            // 延迟显示API不可用通知
-            setTimeout(() => {
-              notify.toast('error', '截图失败', '当前环境不支持截图功能')
-            }, 100)
-          }
-        }
-      } catch (error) {
-        console.error('截图过程中发生错误:', error)
-        const settings = JSON.parse(localStorage.getItem('butter-manager-settings') || '{}')
-        if (settings.screenshotNotification !== false) {
-          // 延迟显示异常通知
-          setTimeout(() => {
-            notify.toast('error', '截图失败', error.message)
-          }, 100)
-        }
-      } finally {
-        // 无论成功还是失败，都要重置截图状态
-        this.isScreenshotInProgress = false
-      }
+      await this.takeScreenshot()
     },
     // 应用内快捷键功能已禁用，只使用全局快捷键
     // handleKeyDown(event) {
@@ -1673,29 +723,9 @@ export default {
     //   
     //   return false
     // },
+    // initializeGlobalShortcut 已移至 useGameScreenshot composable
     async initializeGlobalShortcut() {
-      try {
-        // 获取用户设置的截图快捷键
-        const settings = JSON.parse(localStorage.getItem('butter-manager-settings') || '{}')
-        const screenshotKey = settings.screenshotKey || 'Ctrl+F12'
-
-        console.log('初始化全局快捷键:', screenshotKey)
-
-        if (this.isElectronEnvironment && window.electronAPI && window.electronAPI.updateGlobalShortcut) {
-          const result = await window.electronAPI.updateGlobalShortcut(screenshotKey)
-          if (result.success) {
-            console.log('全局快捷键更新成功:', result.key)
-          } else {
-            console.error('全局快捷键更新失败:', result.error)
-            notify.native(
-              '快捷键设置',
-              `全局快捷键注册失败: ${result.error}。请检查快捷键是否被其他应用占用。`
-            )
-          }
-        }
-      } catch (error) {
-        console.error('初始化全局快捷键失败:', error)
-      }
+      await this.initializeGlobalShortcut()
     },
 
     // SaveManager 相关方法
@@ -1770,79 +800,9 @@ export default {
         alert(`打开文件夹失败: ${error.message}`)
       }
     },
+    // openGameScreenshotFolder 已移至 useGameScreenshot composable
     async openGameScreenshotFolder(game) {
-      try {
-        if (!game || !game.name) {
-          alert('游戏信息不完整')
-          return
-        }
-
-        // 获取用户设置的截图选项
-
-        const settings = await saveManager.loadSettings()
-
-        // 根据截图位置设置确定基础路径
-        let baseScreenshotsPath = ''
-        if (settings.screenshotLocation === 'default') {
-          // 使用默认路径，跟随存档位置
-          baseScreenshotsPath = `${saveManager.dataDirectory}/Game/Screenshots`
-        } else if (settings.screenshotLocation === 'custom') {
-          // 使用自定义路径
-          baseScreenshotsPath = settings.screenshotsPath || ''
-        } else {
-          // 兼容旧设置：如果没有screenshotLocation，使用screenshotsPath
-          baseScreenshotsPath = settings.screenshotsPath || `${saveManager.dataDirectory}/Game/Screenshots`
-        }
-
-        // 如果自定义路径为空，回退到默认路径
-        if (!baseScreenshotsPath || baseScreenshotsPath.trim() === '') {
-          baseScreenshotsPath = `${saveManager.dataDirectory}/Game/Screenshots`
-        }
-
-        // 为每个游戏创建单独的文件夹（与截图功能保持一致）
-        let gameFolderName = 'Screenshots'
-        if (game.name && game.name !== 'Screenshot') {
-          // 清理游戏名称，移除非法字符
-          gameFolderName = game.name.replace(/[<>:"/\\|?*]/g, '_').trim()
-          if (!gameFolderName) {
-            gameFolderName = 'Screenshots'
-          }
-        }
-
-        // 构建完整的游戏截图文件夹路径
-        const gameScreenshotPath = `${baseScreenshotsPath}/${gameFolderName}`
-
-        console.log('尝试打开游戏截图文件夹:', gameScreenshotPath)
-
-        if (this.isElectronEnvironment && window.electronAPI && window.electronAPI.openFolder) {
-          // 确保目录存在
-          try {
-            if (window.electronAPI.ensureDirectory) {
-              const ensureResult = await window.electronAPI.ensureDirectory(gameScreenshotPath)
-              if (ensureResult.success) {
-                console.log('游戏截图目录已确保存在:', gameScreenshotPath)
-              }
-            }
-          } catch (error) {
-            console.warn('创建游戏截图目录失败:', error)
-          }
-
-          const result = await window.electronAPI.openFolder(gameScreenshotPath)
-          if (result.success) {
-            console.log('游戏截图文件夹已打开:', gameScreenshotPath)
-            notify.native('文件夹已打开', `已打开 ${game.name} 的截图文件夹`)
-          } else {
-            console.error('打开游戏截图文件夹失败:', result.error)
-            alert(`打开截图文件夹失败: ${result.error}`)
-          }
-        } else {
-          // 降级处理：在浏览器中显示路径信息
-          alert(`${game.name} 的截图文件夹路径:\n${gameScreenshotPath}\n\n在浏览器环境中无法直接打开文件夹，请手动导航到该路径`)
-        }
-      } catch (error) {
-        console.error('打开游戏截图文件夹失败:', error)
-        alert(`打开截图文件夹失败: ${error.message}`)
-      }
+      await this.openGameScreenshotFolder(game)
     },
     // 拖拽处理方法
     handleDragOver(event) {
@@ -1987,8 +947,9 @@ export default {
               }
             }
 
-            // 添加到游戏列表
-            this.games.push(game)
+            // 添加到游戏列表（使用 composable 的 addGame 方法）
+            // 注意：addGame 已经包含了保存、成就检查和标签提取
+            await this.addGame(game)
             addedCount++
 
           } catch (error) {
@@ -1997,12 +958,7 @@ export default {
           }
         }
 
-        // 保存游戏数据
-        if (addedCount > 0) {
-          await this.saveGames()
-          await this.checkGameCollectionAchievements()
-          this.extractAllTags()
-        }
+        // 注意：addGame 已经包含了保存、成就检查和标签提取
 
         // 显示结果通知
         if (addedCount > 0) {
@@ -2234,6 +1190,16 @@ export default {
     }
   },
   async mounted() {
+    // 设置父组件函数引用（在 Options API 中通过 this.$parent 访问）
+    if ((this as any)._setParentFunctions && this.$parent) {
+      (this as any)._setParentFunctions({
+        getRunningGames: () => (this.$parent as any).runningGames || new Map(),
+        addRunningGame: (gameInfo: any) => (this.$parent as any).addRunningGame(gameInfo),
+        removeRunningGame: (gameId: string) => (this.$parent as any).removeRunningGame(gameId),
+        isGameRunning: (gameId: string) => (this.$parent as any).isGameRunning(gameId)
+      })
+    }
+
     this.checkElectronEnvironment()
     
     // 等待父组件（App.vue）的存档系统初始化完成
@@ -2249,7 +1215,7 @@ export default {
       console.log('✅ 存档系统已初始化，开始加载游戏数据')
     }
     
-    await this.loadGames()
+    await this.loadGamesWithChecks()
 
     // 游戏运行状态现在由 App.vue 全局管理，无需在此处处理
 
@@ -2323,17 +1289,11 @@ export default {
 
 
 
-/* 游戏网格样式 */
-.games-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
-  gap: 20px;
-  padding: 20px;
-}
+/* 游戏网格样式已移至 GameGrid.vue 组件 */
 
 
 
-/* 模态框样式 */
+/* 强制结束游戏确认对话框样式 */
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -2389,164 +1349,6 @@ export default {
   padding: 20px;
 }
 
-.form-group {
-  margin-bottom: 20px;
-}
-
-.form-group label {
-  display: block;
-  color: var(--text-primary);
-  font-weight: 600;
-  margin-bottom: 8px;
-  transition: color 0.3s ease;
-}
-
-.required {
-  color: #ef4444;
-  font-weight: bold;
-}
-
-.form-input {
-  width: 100%;
-  padding: 10px 12px;
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-  background: var(--bg-tertiary);
-  color: var(--text-primary);
-  transition: all 0.3s ease;
-}
-
-.form-input:focus {
-  outline: none;
-  border-color: var(--accent-color);
-  box-shadow: 0 0 0 3px rgba(102, 192, 244, 0.1);
-}
-
-.form-textarea {
-  width: 100%;
-  padding: 10px 12px;
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-  background: var(--bg-tertiary);
-  color: var(--text-primary);
-  transition: all 0.3s ease;
-  resize: vertical;
-  min-height: 80px;
-  font-family: inherit;
-}
-
-.form-textarea:focus {
-  outline: none;
-  border-color: var(--accent-color);
-  box-shadow: 0 0 0 3px rgba(102, 192, 244, 0.1);
-}
-
-/* 标签输入样式 */
-.tags-input-container {
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-  background: var(--bg-tertiary);
-  padding: 8px;
-  transition: all 0.3s ease;
-}
-
-.tags-input-container:focus-within {
-  border-color: var(--accent-color);
-  box-shadow: 0 0 0 3px rgba(102, 192, 244, 0.1);
-}
-
-.tags-display {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-bottom: 8px;
-  min-height: 20px;
-}
-
-.tag-item {
-  display: inline-flex;
-  align-items: center;
-  background: var(--accent-color);
-  color: white;
-  padding: 4px 8px;
-  border-radius: 12px;
-  font-size: 0.8rem;
-  font-weight: 500;
-  gap: 4px;
-  transition: background 0.3s ease;
-}
-
-.tag-item:hover {
-  background: var(--accent-hover);
-}
-
-.tag-remove {
-  background: none;
-  border: none;
-  color: white;
-  cursor: pointer;
-  font-size: 1rem;
-  line-height: 1;
-  padding: 0;
-  margin-left: 4px;
-  border-radius: 50%;
-  width: 16px;
-  height: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background 0.3s ease;
-}
-
-.tag-remove:hover {
-  background: rgba(255, 255, 255, 0.2);
-}
-
-.tag-input {
-  width: 100%;
-  border: none;
-  background: transparent;
-  color: var(--text-primary);
-  font-size: 0.9rem;
-  padding: 4px 0;
-  outline: none;
-}
-
-.tag-input::placeholder {
-  color: var(--text-tertiary);
-}
-
-.tag-hint {
-  font-size: 0.8rem;
-  color: var(--text-tertiary);
-  margin-top: 6px;
-  line-height: 1.4;
-}
-
-.file-input-group {
-  display: flex;
-  gap: 10px;
-}
-
-.file-input-group .form-input {
-  flex: 1;
-}
-
-.btn-browse {
-  background: var(--accent-color);
-  color: white;
-  border: none;
-  padding: 10px 16px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-weight: 600;
-  transition: background 0.3s ease;
-}
-
-.btn-browse:hover {
-  background: var(--accent-hover);
-}
-
 .modal-footer {
   display: flex;
   justify-content: flex-end;
@@ -2584,113 +1386,8 @@ export default {
   background: var(--accent-hover);
 }
 
-.btn-confirm:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-/* 封面选择区域样式 */
-.cover-selection-container {
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
-}
-
-.cover-preview {
-  display: flex;
-  align-items: center;
-  gap: 15px;
-  padding: 15px;
-  background: var(--bg-tertiary);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  transition: background-color 0.3s ease;
-}
-
-.cover-preview img {
-  width: 80px;
-  height: 80px;
-  object-fit: cover;
-  border-radius: 6px;
-  border: 1px solid var(--border-color);
-}
-
-.cover-preview-info {
-  flex: 1;
-}
-
-.cover-filename {
-  color: var(--text-secondary);
-  font-size: 0.9rem;
-  word-break: break-all;
-  line-height: 1.4;
-}
-
-.cover-actions {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.btn-cover-action {
-  background: var(--accent-color);
-  color: white;
-  border: none;
-  padding: 10px 16px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-weight: 500;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  transition: background 0.3s ease;
-  font-size: 0.9rem;
-}
-
-.btn-cover-action:hover {
-  background: var(--accent-hover);
-}
-
-.btn-cover-action.btn-clear {
-  background: #ef4444;
-}
-
-.btn-cover-action.btn-clear:hover {
-  background: #dc2626;
-}
-
-.btn-cover-action .btn-icon {
-  font-size: 1rem;
-}
-
-.btn-cover-action:disabled {
-  background: var(--bg-secondary);
-  color: var(--text-secondary);
-  cursor: not-allowed;
-  opacity: 0.6;
-}
-
-.btn-cover-action:disabled:hover {
-  background: var(--bg-secondary);
-}
-
-
-.update-question {
-  color: var(--text-primary);
-  font-size: 1rem;
-  font-weight: 600;
-  text-align: center;
-  margin: 20px 0 10px 0;
-  transition: color 0.3s ease;
-}
-
 /* 响应式设计 */
 @media (max-width: 768px) {
-  .games-grid {
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-    gap: 15px;
-  }
-
   .modal-content {
     width: 95vw;
     margin: 20px;

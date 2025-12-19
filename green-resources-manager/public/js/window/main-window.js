@@ -130,7 +130,7 @@ function createMainWindow(isDev, getMinimizeToTrayEnabled, getSystemTray, displa
   // 处理窗口最小化事件 - 正常最小化到任务栏，不干预
   mainWindow.on('minimize', (event) => {
     // 允许正常的最小化行为，不干预
-    console.log('窗口已最小化到任务栏')
+    // console.log('窗口已最小化到任务栏')
   })
 
   // 处理窗口大小变化
