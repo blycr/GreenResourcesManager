@@ -87,3 +87,37 @@ export function formatFirstPlayed(dateString) {
   const date = new Date(dateString)
   return formatDateTime(date)
 }
+
+/**
+ * 格式化音频/视频时长（秒数）
+ * 超过1小时显示 HH:MM:SS，否则显示 MM:SS
+ * @param {number} seconds - 秒数
+ * @param {string} unknownText - 未知时长的显示文本，默认为 '未知时长'
+ * @returns {string} 格式化后的时长字符串
+ */
+export function formatDuration(seconds: number | undefined | null, unknownText: string = '未知时长'): string {
+  if (!seconds || seconds === 0 || isNaN(seconds)) return unknownText
+  
+  const hours = Math.floor(seconds / 3600)
+  const mins = Math.floor((seconds % 3600) / 60)
+  const secs = Math.floor(seconds % 60)
+  
+  // 如果超过1小时，显示时分秒格式 (HH:MM:SS)
+  // 如果不超过1小时，只显示分秒格式 (MM:SS)
+  if (hours > 0) {
+    return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+  }
+  return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+}
+
+/**
+ * 格式化视频时长（分钟数）
+ * 将分钟转换为秒后格式化
+ * @param {number} minutes - 分钟数
+ * @param {string} unknownText - 未知时长的显示文本，默认为 '未知时长'
+ * @returns {string} 格式化后的时长字符串
+ */
+export function formatVideoDuration(minutes: number | undefined | null, unknownText: string = '未知时长'): string {
+  if (!minutes || minutes === 0 || isNaN(minutes)) return unknownText
+  return formatDuration(minutes * 60, unknownText)
+}

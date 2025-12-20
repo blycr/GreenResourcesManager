@@ -180,7 +180,7 @@
 </template>
 
 <script>
-import { formatPlayTime, formatLastPlayed } from '../utils/formatters'
+import { formatPlayTime, formatLastPlayed, formatDuration, formatVideoDuration } from '../utils/formatters'
 
 import disguiseManager from '../utils/DisguiseManager'
 import { isDisguiseModeEnabled } from '../utils/disguiseMode'
@@ -292,7 +292,7 @@ export default {
       } else if (this.type === 'video') {
         return this.formatDuration(this.item.duration)
       } else if (this.type === 'audio') {
-        return this.formatDuration(this.item.duration)
+        return this.formatAudioDuration(this.item.duration)
       } else if (this.type === 'folder') {
         return `${this.item.videoCount || 0} 个视频`
       }
@@ -395,19 +395,10 @@ export default {
       return `${Math.ceil(diffDays / 365)}年前`
     },
     formatDuration(minutes) {
-      if (!minutes || minutes === 0) return '未知时长'
-      
-      // 将分钟转换为秒，然后格式化为时:分:秒
-      const totalSeconds = Math.floor(minutes * 60)
-      const hours = Math.floor(totalSeconds / 3600)
-      const mins = Math.floor((totalSeconds % 3600) / 60)
-      const secs = totalSeconds % 60
-      
-      if (hours > 0) {
-        return `${hours}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
-      } else {
-        return `${mins}:${secs.toString().padStart(2, '0')}`
-      }
+      return formatVideoDuration(minutes, '未知时长')
+    },
+    formatAudioDuration(seconds) {
+      return formatDuration(seconds, '未知时长')
     },
     formatDateTime(date) {
       const year = date.getFullYear()

@@ -30,19 +30,13 @@
       <!-- 主要内容区域 -->
       <div class="audio-main-content">
         <!-- 音频列表 -->
-        <div class="audios-grid" v-if="paginatedAudios.length > 0">
-          <MediaCard
-            v-for="audio in paginatedAudios" 
-            :key="audio.id"
-            :item="audio"
-            type="audio"
-            :isElectronEnvironment="true"
-            :file-exists="audio.fileExists"
-            @click="showAudioDetail"
-            @contextmenu="(event) => ($refs.baseView as any).showContextMenuHandler(event, audio)"
-            @action="playAudio"
-          />
-        </div>
+        <AudioGrid
+          :audios="paginatedAudios"
+          :isElectronEnvironment="true"
+          @audio-click="showAudioDetail"
+          @audio-contextmenu="(event, audio) => ($refs.baseView as any).showContextMenuHandler(event, audio)"
+          @audio-action="playAudio"
+        />
       </div>
     </div>
 
@@ -219,45 +213,110 @@
 import audioManager from '../utils/AudioManager.js'
 import BaseView from '../components/BaseView.vue'
 import FormField from '../components/FormField.vue'
-import MediaCard from '../components/MediaCard.vue'
+import AudioGrid from '../components/audio/AudioGrid.vue'
 import DetailPanel from '../components/DetailPanel.vue'
 import PathUpdateDialog from '../components/PathUpdateDialog.vue'
 
-
 import saveManager from '../utils/SaveManager.ts'
 import notify from '../utils/NotificationService.ts'
+import { useAudioDuration } from '../composables/audio/useAudioDuration'
+import { useAudioDragDrop } from '../composables/audio/useAudioDragDrop'
+import { useAudioManagement } from '../composables/audio/useAudioManagement'
+import { useAudioFilter } from '../composables/audio/useAudioFilter'
+import { useAudioPlayback } from '../composables/audio/useAudioPlayback'
+import { formatDuration as formatDurationUtil } from '../utils/formatters.ts'
+import { ref, computed } from 'vue'
 
 export default {
   name: 'AudioView',
   components: {
     BaseView,
     FormField,
-    MediaCard,
+    AudioGrid,
     DetailPanel,
     PathUpdateDialog,
   },
   emits: ['filter-data-updated'],
+  setup() {
+    // 初始化音频时长 composable
+    const { getAudioDuration } = useAudioDuration()
+    
+    // 初始化音频管理 composable
+    const audioManagement = useAudioManagement()
+    
+    // 初始化音频筛选 composable
+    // 注意：onFilterDataUpdated 需要在组件实例化后设置，所以先传一个占位函数
+    const audioFilter = useAudioFilter({
+      audios: audioManagement.audios,
+      onFilterDataUpdated: (data) => {
+        // 这个回调将在 mounted 中重新设置
+      }
+    })
+    
+    // 路径更新对话框状态（需要在 setup 中定义，以便传递给 composable）
+    const showPathUpdateDialog = ref(false)
+    const pathUpdateInfo = ref({
+      existingAudio: null,
+      newPath: '',
+      newFileName: ''
+    })
+    
+    // 音频拖拽 composable 将在 methods 中初始化（因为需要访问 this）
+    let audioDragDropComposable: ReturnType<typeof useAudioDragDrop> | null = null
+    
+    // 初始化音频播放 composable
+    const audioPlayback = useAudioPlayback({
+      audios: audioManagement.audios,
+      onIncrementPlayCount: audioManagement.incrementPlayCount
+    })
+    
+    return {
+      getAudioDuration,
+      showPathUpdateDialog,
+      pathUpdateInfo,
+      audioDragDropComposable,
+      // 音频管理相关（重命名避免冲突）
+      audios: audioManagement.audios,
+      isLoading: audioManagement.isLoading,
+      loadAudiosFromComposable: audioManagement.loadAudios,
+      saveAudios: audioManagement.saveAudios,
+      addAudioToManager: audioManagement.addAudio,
+      updateAudioInManager: audioManagement.updateAudio,
+      deleteAudioFromManager: audioManagement.deleteAudio,
+      incrementPlayCountInManager: audioManagement.incrementPlayCount,
+      checkFileExistence: audioManagement.checkFileExistence,
+      getAudioManager: audioManagement.getAudioManager,
+      // 音频筛选相关
+      searchQuery: audioFilter.searchQuery,
+      sortBy: audioFilter.sortBy,
+      selectedTags: audioFilter.selectedTags,
+      excludedTags: audioFilter.excludedTags,
+      selectedArtists: audioFilter.selectedArtists,
+      excludedArtists: audioFilter.excludedArtists,
+      allTags: audioFilter.allTags,
+      allArtists: audioFilter.allArtists,
+      filteredAudios: audioFilter.filteredAudios,
+      filterByTag: audioFilter.filterByTag,
+      excludeByTag: audioFilter.excludeByTag,
+      clearTagFilter: audioFilter.clearTagFilter,
+      filterByArtist: audioFilter.filterByArtist,
+      excludeByArtist: audioFilter.excludeByArtist,
+      clearArtistFilter: audioFilter.clearArtistFilter,
+      handleFilterEvent: audioFilter.handleFilterEvent,
+      updateFilterData: audioFilter.updateFilterData,
+      setFilterDataUpdatedCallback: audioFilter.setFilterDataUpdatedCallback,
+      // 音频播放相关
+      playAudio: audioPlayback.playAudio,
+      addToPlaylist: audioPlayback.addToPlaylist,
+      openAudioFolder: audioPlayback.openAudioFolder
+    }
+  },
   data() {
     return {
-      audios: [],
-      searchQuery: '',
-      sortBy: 'name',
-      // 筛选器相关数据
-      selectedTags: [],
-      selectedArtists: [],
-      excludedTags: [],
-      excludedArtists: [],
-      allTags: [],
-      allArtists: [],
+      // audios, searchQuery, sortBy, selectedTags, excludedTags, selectedArtists, excludedArtists, allTags, allArtists 已移至 composables
       showAddDialog: false,
-      isDragOver: false,
-      // 路径更新确认对话框
-      showPathUpdateDialog: false,
-      pathUpdateInfo: {
-        existingAudio: null,
-        newPath: '',
-        newFileName: ''
-      },
+      // isDragOver 已移至 useAudioDragDrop composable
+      // showPathUpdateDialog 和 pathUpdateInfo 已移至 setup()
       // 音频列表分页相关
       currentAudioPage: 1,
       audioPageSize: 20, // 默认每页显示20个音频
@@ -330,59 +389,7 @@ export default {
     }
   },
   computed: {
-    filteredAudios() {
-      // 使用组件内部的 audios 数据，而不是直接调用 audioManager
-      let filtered = this.audios
-      
-      // 标签筛选 - 必须包含所有选中的标签（AND逻辑）
-      if (this.selectedTags.length > 0) {
-        filtered = filtered.filter(audio => 
-          audio.tags && this.selectedTags.every(tag => audio.tags.includes(tag))
-        )
-      }
-      if (this.excludedTags.length > 0) {
-        filtered = filtered.filter(audio => 
-          !(audio.tags && this.excludedTags.some(tag => audio.tags.includes(tag)))
-        )
-      }
-      
-      // 艺术家筛选
-      if (this.selectedArtists.length > 0) {
-        filtered = filtered.filter(audio => 
-          this.selectedArtists.includes(audio.artist)
-        )
-      }
-      if (this.excludedArtists.length > 0) {
-        filtered = filtered.filter(audio => 
-          !this.excludedArtists.includes(audio.artist)
-        )
-      }
-      
-      // 搜索过滤
-      if (this.searchQuery) {
-        const query = this.searchQuery.toLowerCase()
-        filtered = filtered.filter(audio => 
-          audio.name.toLowerCase().includes(query) ||
-          (audio.artist && audio.artist.toLowerCase().includes(query)) ||
-          (audio.album && audio.album.toLowerCase().includes(query)) ||
-          (audio.genre && audio.genre.toLowerCase().includes(query))
-        )
-      }
-      
-      // 排序
-      switch (this.sortBy) {
-        case 'name':
-          return filtered.sort((a, b) => a.name.localeCompare(b.name))
-        case 'artist':
-          return filtered.sort((a, b) => (a.artist || '').localeCompare(b.artist || ''))
-        case 'playCount':
-          return filtered.sort((a, b) => (b.playCount || 0) - (a.playCount || 0))
-        case 'addedDate':
-          return filtered.sort((a, b) => new Date(b.addedDate || 0).getTime() - new Date(a.addedDate || 0).getTime())
-        default:
-          return filtered
-      }
-    },
+    // filteredAudios 已移至 useAudioFilter composable
     // 分页显示的音频列表
     paginatedAudios() {
       if (!this.filteredAudios || this.filteredAudios.length === 0) return []
@@ -429,13 +436,40 @@ export default {
         totalItems: this.filteredAudios.length,
         itemType: '音频'
       }
+    },
+    // 拖拽状态（从 composable 获取）
+    isDragOver() {
+      return this.audioDragDropComposable?.isDragOver?.value || false
     }
   },
   methods: {
+    // 初始化音频拖拽 composable（延迟初始化，因为需要访问 this）
+    initAudioDragDrop() {
+      if (this.audioDragDropComposable) return this.audioDragDropComposable
+      
+      this.audioDragDropComposable = useAudioDragDrop({
+        audios: computed(() => this.audios),
+        onAddAudio: async (audioData) => {
+          return await this.addAudioToManager(audioData)
+        },
+        onShowPathUpdateDialog: (info) => {
+          this.pathUpdateInfo = info
+          this.showPathUpdateDialog = true
+        },
+        onReloadData: async () => {
+          await this.loadAudios()
+        },
+        extractAudioNameFromPath: (filePath) => {
+          return this.extractNameFromPath(filePath)
+        }
+      })
+      return this.audioDragDropComposable
+    },
+    
     async loadAudios() {
       try {
-        this.audios = await audioManager.loadAudios()
-        console.log('音频数据加载完成:', this.audios.length, '个音频')
+        // 调用 composable 的 loadAudios 方法
+        await this.loadAudiosFromComposable()
         
         // 检测文件存在性（仅在应用启动时检测一次）
         if (this.$parent.shouldCheckFileLoss && this.$parent.shouldCheckFileLoss()) {
@@ -444,220 +478,18 @@ export default {
         }
         
         // 更新筛选器数据
-        this.updateFilterOptions()
         this.updateFilterData()
         
         // 计算音频列表总页数
         this.updateAudioPagination()
-      } catch (error) {
+      } catch (error: any) {
         console.error('加载音频数据失败:', error)
-        alert('加载音频数据失败: ' + error.message)
+        notify.toast('error', '加载失败', '加载音频数据失败: ' + error.message)
       }
     },
     
-    async checkFileExistence() {
-      console.log('🔍 开始检测音频文件存在性...')
-      
-      if (!window.electronAPI || !window.electronAPI.checkFileExists) {
-        console.log('⚠️ Electron API 不可用，跳过文件存在性检测')
-        // 如果API不可用，默认设置为存在
-        this.audios.forEach(audio => {
-          audio.fileExists = true
-        })
-        return
-      }
-      
-      let checkedCount = 0
-      let missingCount = 0
-      
-      for (const audio of this.audios) {
-        if (!audio.filePath) {
-          audio.fileExists = false
-          missingCount++
-          continue
-        }
-        
-        try {
-          const result = await window.electronAPI.checkFileExists(audio.filePath)
-          audio.fileExists = result.exists
-          console.log(`🔍 检测结果: ${audio.name} - fileExists=${audio.fileExists}`)
-          
-          if (!result.exists) {
-            missingCount++
-            console.log(`❌ 音频文件不存在: ${audio.name} - ${audio.filePath}`)
-          } else {
-            console.log(`✅ 音频文件存在: ${audio.name}`)
-          }
-        } catch (error) {
-          console.error(`❌ 检测音频文件存在性失败: ${audio.name}`, error)
-          audio.fileExists = false
-          missingCount++
-        }
-        
-        checkedCount++
-      }
-      
-      console.log(`📊 文件存在性检测完成: 检查了 ${checkedCount} 个音频，${missingCount} 个文件不存在`)
-      
-      // 强制更新视图
-      this.$forceUpdate()
-    },
-    
-    // 更新筛选器选项
-    updateFilterOptions() {
-      // 收集所有标签
-      const tagCount = {}
-      const artistCount = {}
-      
-      this.audios.forEach(audio => {
-        // 统计标签
-        if (audio.tags && Array.isArray(audio.tags)) {
-          audio.tags.forEach(tag => {
-            tagCount[tag] = (tagCount[tag] || 0) + 1
-          })
-        }
-        
-        // 统计艺术家
-        if (audio.artist) {
-          artistCount[audio.artist] = (artistCount[audio.artist] || 0) + 1
-        }
-      })
-      
-      this.allTags = Object.entries(tagCount)
-        .map(([name, count]) => ({ name, count }))
-        .sort((a, b) => a.name.localeCompare(b.name))
-        
-      this.allArtists = Object.entries(artistCount)
-        .map(([name, count]) => ({ name, count }))
-        .sort((a, b) => a.name.localeCompare(b.name))
-    },
-    
-    // 筛选方法
-    filterByTag(tagName) {
-      console.log('AudioView filterByTag:', tagName, 'selectedTags:', this.selectedTags, 'excludedTags:', this.excludedTags)
-      if (this.selectedTags.indexOf(tagName) !== -1) {
-        // 如果当前是选中状态，则取消选择
-        this.selectedTags = this.selectedTags.filter(tag => tag !== tagName)
-      } else if (this.excludedTags.indexOf(tagName) !== -1) {
-        // 如果当前是排除状态，则切换为选中状态
-        this.excludedTags = this.excludedTags.filter(tag => tag !== tagName)
-        this.selectedTags = [...this.selectedTags, tagName]
-      } else {
-        // 否则直接设置为选中状态
-        this.selectedTags = [...this.selectedTags, tagName]
-      }
-      console.log('AudioView filterByTag after:', 'selectedTags:', this.selectedTags, 'excludedTags:', this.excludedTags)
-      this.updateFilterData()
-    },
-    
-    clearTagFilter() {
-      this.selectedTags = []
-      this.excludedTags = []
-      this.updateFilterData()
-    },
-    
-    filterByArtist(artistName) {
-      if (this.selectedArtists.indexOf(artistName) !== -1) {
-        // 如果当前是选中状态，则取消选择
-        this.selectedArtists = this.selectedArtists.filter(artist => artist !== artistName)
-      } else if (this.excludedArtists.indexOf(artistName) !== -1) {
-        // 如果当前是排除状态，则切换为选中状态
-        this.excludedArtists = this.excludedArtists.filter(artist => artist !== artistName)
-        this.selectedArtists = [...this.selectedArtists, artistName]
-      } else {
-        // 否则直接设置为选中状态
-        this.selectedArtists = [...this.selectedArtists, artistName]
-      }
-      this.updateFilterData()
-    },
-    
-    clearArtistFilter() {
-      this.selectedArtists = []
-      this.excludedArtists = []
-      this.updateFilterData()
-    },
-    
-    // 排除方法
-    excludeByTag(tagName) {
-      console.log('AudioView excludeByTag:', tagName, 'selectedTags:', this.selectedTags, 'excludedTags:', this.excludedTags)
-      if (this.excludedTags.indexOf(tagName) !== -1) {
-        // 如果已经是排除状态，则取消排除
-        this.excludedTags = this.excludedTags.filter(tag => tag !== tagName)
-      } else if (this.selectedTags.indexOf(tagName) !== -1) {
-        // 如果当前是选中状态，则切换为排除状态
-        this.selectedTags = this.selectedTags.filter(tag => tag !== tagName)
-        this.excludedTags = [...this.excludedTags, tagName]
-      } else {
-        // 否则直接设置为排除状态
-        this.excludedTags = [...this.excludedTags, tagName]
-      }
-      console.log('AudioView excludeByTag after:', 'selectedTags:', this.selectedTags, 'excludedTags:', this.excludedTags)
-      this.updateFilterData()
-    },
-    
-    excludeByArtist(artistName) {
-      if (this.excludedArtists.indexOf(artistName) !== -1) {
-        // 如果已经是排除状态，则取消排除
-        this.excludedArtists = this.excludedArtists.filter(artist => artist !== artistName)
-      } else if (this.selectedArtists.indexOf(artistName) !== -1) {
-        // 如果当前是选中状态，则切换为排除状态
-        this.selectedArtists = this.selectedArtists.filter(artist => artist !== artistName)
-        this.excludedArtists = [...this.excludedArtists, artistName]
-      } else {
-        // 否则直接设置为排除状态
-        this.excludedArtists = [...this.excludedArtists, artistName]
-      }
-      this.updateFilterData()
-    },
-    
-    // 处理来自 App.vue 的筛选器事件
-    handleFilterEvent(event, data) {
-      switch (event) {
-        case 'filter-select':
-          if (data.filterKey === 'tags') {
-            this.filterByTag(data.itemName)
-          } else if (data.filterKey === 'artists') {
-            this.filterByArtist(data.itemName)
-          }
-          break
-        case 'filter-exclude':
-          if (data.filterKey === 'tags') {
-            this.excludeByTag(data.itemName)
-          } else if (data.filterKey === 'artists') {
-            this.excludeByArtist(data.itemName)
-          }
-          break
-        case 'filter-clear':
-          if (data === 'tags') {
-            this.clearTagFilter()
-          } else if (data === 'artists') {
-            this.clearArtistFilter()
-          }
-          break
-      }
-    },
-    
-    // 更新筛选器数据到 App.vue
-    updateFilterData() {
-      this.$emit('filter-data-updated', {
-        filters: [
-          {
-            key: 'tags',
-            title: '标签筛选',
-            items: this.allTags,
-            selected: this.selectedTags,
-            excluded: this.excludedTags
-          },
-          {
-            key: 'artists',
-            title: '艺术家筛选',
-            items: this.allArtists,
-            selected: this.selectedArtists,
-            excluded: this.excludedArtists
-          }
-        ]
-      })
-    },
+    // checkFileExistence, updateFilterOptions, filterByTag, excludeByTag, clearTagFilter, 
+    // filterByArtist, excludeByArtist, clearArtistFilter, handleFilterEvent, updateFilterData 已移至 composables
     
     async selectAudioFile() {
       try {
@@ -692,7 +524,7 @@ export default {
           tags: this.newAudio.tagsInput ? this.newAudio.tagsInput.split(',').map(tag => tag.trim()).filter(tag => tag) : []
         }
         
-        const audio = await audioManager.addAudio(audioData)
+        const audio = await this.addAudioToManager(audioData)
         // 重新加载音频列表，确保数据同步
         await this.loadAudios()
         this.closeAddDialog()
@@ -703,67 +535,13 @@ export default {
       }
     },
     
-    async playAudio(audio) {
-      try {
-        // 增加播放次数
-        await audioManager.incrementPlayCount(audio.id)
-        
-        // 更新本地数据
-        const index = this.audios.findIndex(a => a.id === audio.id)
-        if (index !== -1) {
-          this.audios[index] = await audioManager.audios.find(a => a.id === audio.id)
-        }
-        
-        // 使用全局音频播放器播放
-        console.log('🎵 通过全局播放器播放音频:', audio.name)
-        window.dispatchEvent(new CustomEvent('global-play-audio', { detail: audio }))
-        
-        notify.native('开始播放', `正在播放: ${audio.name}`)
-        
-      } catch (error) {
-        console.error('播放音频失败:', error)
-        notify.toast('error', '播放失败', '播放音频失败: ' + error.message)
-      }
-    },
-    
-    addToPlaylist(audio) {
-      console.log('➕ 添加音频到播放列表:', audio.name)
-      window.dispatchEvent(new CustomEvent('global-add-to-playlist', { detail: audio }))
-      notify.native('已添加', `已将 "${audio.name}" 添加到播放列表`)
-    },
-    
-    async openAudioFolder(audio) {
-      try {
-        if (!audio.filePath) {
-          notify.toast('error', '打开失败', '音频文件路径不存在')
-          return
-        }
-        
-        if (window.electronAPI && window.electronAPI.openFileFolder) {
-          const result = await window.electronAPI.openFileFolder(audio.filePath)
-          if (result.success) {
-            console.log('已打开音频文件夹:', result.folderPath)
-            notify.toast('success', '文件夹已打开', `已打开音频文件夹: ${result.folderPath}`)
-          } else {
-            console.error('打开文件夹失败:', result.error)
-            notify.toast('error', '打开失败', `打开文件夹失败: ${result.error}`)
-          }
-        } else {
-          // 降级处理：在浏览器中显示路径
-          notify.toast('info', '文件位置', `音频文件位置:\n${audio.filePath}`)
-        }
-      } catch (error) {
-        console.error('打开音频文件夹失败:', error)
-        notify.toast('error', '打开失败', `打开文件夹失败: ${error.message}`)
-      }
-    },
+    // playAudio, addToPlaylist, openAudioFolder 已移至 useAudioPlayback composable
     
     async deleteAudio(audio) {
       if (!confirm(`确定要删除音频 "${audio.name}" 吗？`)) return
       
       try {
-        await audioManager.deleteAudio(audio.id)
-        this.audios = this.audios.filter(a => a.id !== audio.id)
+        await this.deleteAudioFromManager(audio.id)
         
         // 显示删除成功通知
         notify.toast('success', '删除成功', `已成功删除音频 "${audio.name}"`)
@@ -1001,7 +779,7 @@ export default {
           notes: this.editAudioForm.notes.trim()
         }
         
-        await audioManager.updateAudio(this.editAudioForm.id, audioData)
+        await this.updateAudioInManager(this.editAudioForm.id, audioData)
         
         // 重新加载音频列表
         await this.loadAudios()
@@ -1017,15 +795,7 @@ export default {
     },
     
     formatDuration(seconds) {
-      if (!seconds || seconds === 0) return '未知时长'
-      const hours = Math.floor(seconds / 3600)
-      const mins = Math.floor((seconds % 3600) / 60)
-      const secs = Math.floor(seconds % 60)
-      
-      if (hours > 0) {
-        return `${hours}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
-      }
-      return `${mins}:${secs.toString().padStart(2, '0')}`
+      return formatDurationUtil(seconds, '未知时长')
     },
     formatDate(dateString) {
       if (!dateString) return '未知'
@@ -1049,7 +819,7 @@ export default {
         
         if (duration > 0) {
           // 更新音频数据
-          await audioManager.updateAudio(audio.id, { duration })
+          await this.updateAudioInManager(audio.id, { duration })
           
           // 更新本地数据
           const index = this.audios.findIndex(a => a.id === audio.id)
@@ -1073,133 +843,6 @@ export default {
       }
     },
 
-    // 获取音频时长
-    async getAudioDuration(filePath) {
-      return new Promise(async (resolve) => {
-        try {
-          console.log('🎵 开始获取音频时长:', filePath)
-          
-          // 创建音频元素
-          const audio = document.createElement('audio')
-          audio.preload = 'metadata'
-          audio.crossOrigin = 'anonymous'
-          
-          let audioSrc = ''
-          
-          // 优先尝试使用 readFileAsDataUrl 方法
-          if (window.electronAPI && window.electronAPI.readFileAsDataUrl) {
-            try {
-              console.log('🔄 尝试使用 readFileAsDataUrl 方法...')
-              const result = await window.electronAPI.readFileAsDataUrl(filePath)
-              if (result) {
-                audioSrc = result
-                console.log('✅ 使用 readFileAsDataUrl 成功')
-                audio.src = audioSrc
-              } else {
-                throw new Error('readFileAsDataUrl 失败')
-              }
-            } catch (error) {
-              console.warn('⚠️ readFileAsDataUrl 失败，尝试 getFileUrl:', error)
-              
-              // 降级到 getFileUrl 方法
-              if (window.electronAPI && window.electronAPI.getFileUrl) {
-                try {
-                  const urlResult = await window.electronAPI.getFileUrl(filePath)
-                  if (urlResult.success) {
-                    audioSrc = urlResult.url
-                    console.log('✅ 使用 getFileUrl 成功:', audioSrc)
-                    audio.src = audioSrc
-                  } else {
-                    throw new Error(urlResult.error || 'getFileUrl 失败')
-                  }
-                } catch (urlError) {
-                  console.warn('⚠️ getFileUrl 也失败，使用降级处理:', urlError)
-                  audioSrc = filePath.startsWith('file://') ? filePath : `file://${filePath}`
-                  console.log('🔗 使用降级 URL:', audioSrc)
-                  audio.src = audioSrc
-                }
-              } else {
-                audioSrc = filePath.startsWith('file://') ? filePath : `file://${filePath}`
-                console.log('🔗 使用降级 URL:', audioSrc)
-                audio.src = audioSrc
-              }
-            }
-          } else {
-            // 降级处理：直接使用文件路径
-            audioSrc = filePath.startsWith('file://') ? filePath : `file://${filePath}`
-            console.log('🔗 使用降级 URL:', audioSrc)
-            audio.src = audioSrc
-          }
-          
-          const cleanup = () => {
-            try {
-              audio.removeEventListener('error', onError)
-              audio.removeEventListener('loadedmetadata', onLoadedMeta)
-              if (document.body.contains(audio)) {
-                document.body.removeChild(audio)
-              }
-            } catch (e) {
-              console.warn('清理 audio 元素时出错:', e)
-            }
-          }
-          
-          const onError = (event) => {
-            console.warn('❌ 音频加载失败，无法获取时长')
-            console.warn('❌ 错误详情:', {
-              error: event,
-              src: audioSrc,
-              networkState: audio.networkState,
-              readyState: audio.readyState,
-              errorCode: audio.error ? audio.error.code : 'unknown'
-            })
-            cleanup()
-            resolve(0)
-          }
-          
-          const onLoadedMeta = () => {
-            try {
-              console.log('📊 音频元数据加载完成')
-              console.log('⏱️ 音频时长:', audio.duration)
-              
-              const duration = Math.max(0, Number(audio.duration) || 0)
-              
-              console.log('✅ 音频时长获取成功:', duration, '秒')
-              cleanup()
-              resolve(duration)
-            } catch (err) {
-              console.error('❌ 获取音频时长时出错:', err)
-              cleanup()
-              resolve(0)
-            }
-          }
-          
-          audio.addEventListener('error', onError)
-          audio.addEventListener('loadedmetadata', onLoadedMeta, { once: true })
-          
-          // 将元素附加到文档，确保某些浏览器能正确触发事件
-          audio.style.display = 'none'
-          document.body.appendChild(audio)
-          
-          // 设置超时，避免无限等待
-          setTimeout(() => {
-            if (audio.readyState === 0) {
-              console.warn('⏰ 音频加载超时')
-              console.warn('⏰ 超时详情:', {
-                src: audioSrc,
-                networkState: audio.networkState,
-                readyState: audio.readyState
-              })
-              cleanup()
-              resolve(0)
-            }
-          }, 10000) // 10秒超时
-          
-        } catch (error) {
-          console.error('❌ 创建音频元素失败:', error)
-          resolve(0)
-        }
-      })
-    },
     
     extractNameFromPath(filePath) {
       if (!filePath) return ''
@@ -1209,154 +852,25 @@ export default {
       return dotIndex > 0 ? filename.substring(0, dotIndex) : filename
     },
     
-    // 拖拽处理方法
+    // 拖拽处理方法（使用 composable）
     handleDragOver(event) {
-      event.preventDefault()
+      const composable = this.initAudioDragDrop()
+      return composable.handleDragOver(event)
     },
     
     handleDragEnter(event) {
-      event.preventDefault()
-      this.isDragOver = true
+      const composable = this.initAudioDragDrop()
+      return composable.handleDragEnter(event)
     },
     
     handleDragLeave(event) {
-      event.preventDefault()
-      this.isDragOver = false
+      const composable = this.initAudioDragDrop()
+      return composable.handleDragLeave(event)
     },
     
     async handleDrop(event) {
-      event.preventDefault()
-      this.isDragOver = false
-      
-      try {
-        const files = Array.from(event.dataTransfer.files) as File[]
-        
-        console.log('=== 拖拽调试信息 ===')
-        console.log('拖拽文件数量:', files.length)
-        console.log('拖拽文件详细信息:', files.map(f => ({
-          name: f.name,
-          path: f.path,
-          type: f.type,
-          size: f.size
-        })))
-        console.log('当前音频库状态:')
-        this.audios.forEach((audio, index) => {
-          console.log(`  ${index + 1}. ${audio.name}`)
-          console.log(`     路径: ${audio.filePath}`)
-          console.log(`     文件存在: ${audio.fileExists}`)
-        })
-        
-        if (files.length === 0) {
-          notify.toast('error', '拖拽失败', '请拖拽音频文件到此处')
-          return
-        }
-        
-        // 过滤出支持的音频文件
-        const supportedExtensions = ['.mp3', '.wav', '.flac', '.aac', '.ogg', '.m4a', '.wma']
-        const audioFiles = files.filter(file => {
-          const ext = file.name.toLowerCase().substring(file.name.lastIndexOf('.'))
-          return supportedExtensions.includes(ext)
-        })
-        
-        if (audioFiles.length === 0) {
-          notify.toast('error', '文件类型不支持', '请拖拽音频文件（.mp3、.wav、.flac等）')
-          return
-        }
-        
-        console.log('检测到音频文件数量:', audioFiles.length)
-        
-        let addedCount = 0
-        let failedCount = 0
-        let failedReasons = []
-        
-        for (const audioFile of audioFiles) {
-          try {
-            // 检查是否已经存在相同的文件路径
-            const existingAudioByPath = this.audios.find(audio => audio.filePath === audioFile.path)
-            if (existingAudioByPath) {
-              console.log(`音频文件已存在: ${audioFile.name}`)
-              failedReasons.push(`"${audioFile.name}" 已存在于库中`)
-              failedCount++
-              continue
-            }
-            
-            // 检查是否存在同名但路径不同的丢失文件
-            const existingAudioByName = this.audios.find(audio => {
-              const audioFileName = audio.filePath.split(/[\\/]/).pop().toLowerCase()
-              const newFileName = audioFile.name.toLowerCase()
-              const isSameName = audioFileName === newFileName
-              const isFileMissing = !audio.fileExists
-              
-              console.log(`检查音频: ${audio.name}`)
-              console.log(`  文件名: ${audioFileName} vs ${newFileName}`)
-              console.log(`  是否同名: ${isSameName}`)
-              console.log(`  文件存在: ${audio.fileExists}`)
-              console.log(`  是否丢失: ${isFileMissing}`)
-              console.log(`  匹配条件: ${isSameName && isFileMissing}`)
-              
-              return isSameName && isFileMissing
-            })
-            
-            if (existingAudioByName) {
-              console.log(`发现同名丢失文件: ${audioFile.name}`)
-              console.log(`现有音频路径: ${existingAudioByName.filePath}`)
-              console.log(`新文件路径: ${audioFile.path}`)
-              // 显示路径更新确认对话框
-              this.pathUpdateInfo = {
-                existingAudio: existingAudioByName,
-                newPath: audioFile.path,
-                newFileName: audioFile.name
-              }
-              this.showPathUpdateDialog = true
-              // 暂停处理，等待用户确认
-              return
-            }
-            
-            // 创建新的音频对象
-            const audioData = {
-              name: this.extractNameFromPath(audioFile.name),
-              artist: '未知艺术家',
-              filePath: audioFile.path,
-              thumbnailPath: '',
-              actors: [],
-              tags: [],
-              notes: '',
-              duration: 0,
-              addedDate: new Date().toISOString()
-            }
-            
-            console.log('创建音频对象:', audioData)
-            
-            // 添加到音频管理器
-            const audio = await audioManager.addAudio(audioData)
-            this.audios.push(audio)
-            addedCount++
-            
-          } catch (error) {
-            console.error(`添加音频文件失败: ${audioFile.name}`, error)
-            failedReasons.push(`"${audioFile.name}" 添加失败: ${error.message}`)
-            failedCount++
-          }
-        }
-        
-        // 重新加载音频列表
-        await this.loadAudios()
-        
-        // 显示结果通知
-        if (addedCount > 0 && failedCount === 0) {
-          notify.toast('success', '添加成功', `成功添加 ${addedCount} 个音频`)
-        } else if (addedCount > 0 && failedCount > 0) {
-          notify.toast('warning', '部分成功', `成功添加 ${addedCount} 个音频，${failedCount} 个文件添加失败：${failedReasons.join('；')}`)
-        } else if (addedCount === 0 && failedCount > 0) {
-          notify.toast('error', '添加失败', `${failedCount} 个文件添加失败：${failedReasons.join('；')}`)
-        }
-        
-        console.log(`拖拽处理完成: 成功 ${addedCount} 个，失败 ${failedCount} 个`)
-        
-      } catch (error) {
-        console.error('处理拖拽文件失败:', error)
-        notify.toast('error', '处理失败', `处理拖拽文件失败: ${error.message}`)
-      }
+      const composable = this.initAudioDragDrop()
+      return await composable.handleDrop(event)
     },
 
     // 路径更新相关方法
@@ -1402,7 +916,7 @@ export default {
         }
         
         // 保存更新后的数据
-        await audioManager.updateAudio(existingAudio.id, {
+        await this.updateAudioInManager(existingAudio.id, {
           filePath: newPath,
           fileExists: true,
           duration: existingAudio.duration
@@ -1531,6 +1045,11 @@ export default {
     // 加载排序设置
     await this.loadSortSetting()
     
+    // 设置筛选器数据更新回调
+    this.setFilterDataUpdatedCallback((data) => {
+      this.$emit('filter-data-updated', data)
+    })
+    
     // 初始化筛选器数据
     this.updateFilterData()
   }
@@ -1557,14 +1076,6 @@ export default {
   height: calc(100vh - 120px);
   padding: 20px;
   box-sizing: border-box;
-}
-
-/* 音频网格样式 */
-.audios-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
-  gap: 20px;
-  padding: 20px;
 }
 
 /* 拖拽状态样式 */
@@ -1617,14 +1128,6 @@ export default {
 .sort-select:focus {
   outline: none;
   border-color: var(--accent-color);
-}
-
-
-/* 音频网格样式 */
-.audios-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 20px;
 }
 
 /* 模态框样式 */
@@ -2109,11 +1612,6 @@ export default {
 
 /* 响应式设计 */
 @media (max-width: 768px) {
-  .audios-grid {
-    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-  }
-  
-  
   .audio-detail-content {
     grid-template-columns: 1fr;
     gap: 20px;

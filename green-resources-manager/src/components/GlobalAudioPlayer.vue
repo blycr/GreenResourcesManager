@@ -137,6 +137,7 @@
 
 <script>
 import { unlockAchievement } from '../pages/user/AchievementView.vue'
+import { formatDuration } from '../utils/formatters'
 
 export default {
   name: 'GlobalAudioPlayer',
@@ -567,16 +568,7 @@ export default {
     },
     
     formatTime(seconds) {
-      if (!seconds || isNaN(seconds)) return '0:00'
-      
-      const hours = Math.floor(seconds / 3600)
-      const mins = Math.floor((seconds % 3600) / 60)
-      const secs = Math.floor(seconds % 60)
-      
-      if (hours > 0) {
-        return `${hours}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
-      }
-      return `${mins}:${secs.toString().padStart(2, '0')}`
+      return formatDuration(seconds, '0:00')
     },
     
     formatDuration(seconds) {
