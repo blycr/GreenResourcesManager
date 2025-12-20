@@ -44,100 +44,56 @@
       </div>
     </div>
 
-    <!-- 添加视频对话框 -->
-    <AddVideoDialog 
-      :visible="showAddDialog" 
-      @close="closeAddVideoDialog"
-      @add-video="handleAddVideo"
+    <!-- 添加/编辑视频对话框 -->
+    <VideoFormDialog
+      :visible="showAddDialog || showEditDialog"
+      :mode="showAddDialog ? 'add' : 'edit'"
+      :form-data="showAddDialog ? newVideoForm : editVideoForm"
+      :actors-input="showAddDialog ? videoActorsInput : editActorsInput"
+      :tags-input="showAddDialog ? videoTagsInput : editTagsInput"
+      :get-thumbnail-url="getThumbnailUrl"
+      :handle-thumbnail-preview-error="handleThumbnailPreviewError"
+      :handle-thumbnail-preview-load="handleThumbnailPreviewLoad"
+      :extract-video-name="extractVideoName"
+      :get-video-duration="getVideoDuration"
+      :generate-thumbnail="generateThumbnail"
+      @update:visible="showAddDialog ? (showAddDialog = false) : (showEditDialog = false)"
+      @update:form-data="showAddDialog ? (newVideoForm = $event) : (editVideoForm = $event)"
+      @update:actors-input="showAddDialog ? (videoActorsInput = $event) : (editActorsInput = $event)"
+      @update:tags-input="showAddDialog ? (videoTagsInput = $event) : (editTagsInput = $event)"
+      @close="showAddDialog ? closeAddVideoDialog() : closeEditDialog()"
+      @submit="showAddDialog ? handleAddVideo($event) : saveEditedVideo($event)"
+      @browse-video-file="showAddDialog ? selectVideoFile() : browseEditVideoFile()"
+      @browse-thumbnail-file="showAddDialog ? selectThumbnailFile() : browseEditThumbnailFile()"
+      @randomize-thumbnail="randomizeThumbnail"
+      @parse-actors="showAddDialog ? parseVideoActors() : parseEditActors()"
+      @add-tag="showAddDialog ? addVideoTag() : addEditTag()"
+      @remove-tag="showAddDialog ? removeVideoTag($event) : removeEditTag($event)"
     />
 
-    <!-- 添加文件夹对话框 -->
-    <div v-if="showFolderDialog" class="modal-overlay" @click="closeAddFolderDialog">
-      <div class="modal-content" @click.stop>
-        <div class="modal-header">
-          <h3>添加文件夹</h3>
-          <button class="modal-close" @click="closeAddFolderDialog">✕</button>
-        </div>
-        <div class="modal-body">
-          <form @submit.prevent="addFolder">
-            <FormField
-              label="文件夹名称"
-              type="text"
-              v-model="newFolder.name"
-              placeholder="如：复仇者联盟系列"
-            />
-            
-            <FormField
-              label="系列名"
-              type="text"
-              v-model="newFolder.series"
-              placeholder="如：复仇者联盟"
-            />
-
-            <FormField
-              label="演员"
-              type="text"
-              v-model="folderActorsInput"
-              placeholder="用逗号分隔多个演员"
-              @blur="parseFolderActors"
-            />
-
-            <FormField
-              label="标签"
-              type="tags"
-              v-model="newFolder.tags"
-              v-model:tagInput="folderTagsInput"
-              @add-tag="addFolderTag"
-              @remove-tag="removeFolderTag"
-            />
-
-            <FormField
-              label="描述"
-              type="textarea"
-              v-model="newFolder.description"
-              placeholder="文件夹描述..."
-              :rows="3"
-            />
-
-            <FormField
-              label="文件夹路径"
-              type="file"
-              v-model="newFolder.folderPath"
-              placeholder="选择包含视频的文件夹"
-              @browse="selectNewFolderPath"
-            />
-
-            <div class="form-group">
-              <label>缩略图</label>
-              <div class="file-input-group">
-                <input type="text" v-model="newFolder.thumbnail" readonly>
-                <button type="button" class="btn-select-file" @click="selectFromNewFolderCovers" :disabled="!newFolder.folderPath">从封面文件夹选择</button>
-                <button type="button" class="btn-select-file" @click="selectFolderThumbnailFile">自定义选择</button>
-              </div>
-              <div class="thumb-preview-wrapper">
-                <img 
-                  v-if="newFolder.thumbnail"
-                  class="thumb-preview"
-                  :src="getThumbnailUrl(newFolder.thumbnail)"
-                  :alt="newFolder.name || 'thumbnail'"
-                  @error="handleThumbnailPreviewError"
-                  @load="handleThumbnailPreviewLoad"
-                >
-                <div v-else class="thumb-placeholder">无缩略图</div>
-              </div>
-            </div>
-          </form>
-        </div>
-        <div class="modal-footer">
-          <button type="button" @click="closeAddFolderDialog" class="btn-cancel">
-            取消
-          </button>
-          <button type="button" @click="addFolder" class="btn-confirm">
-            添加文件夹
-          </button>
-        </div>
-      </div>
-    </div>
+    <!-- 添加/编辑文件夹对话框 -->
+    <FolderFormDialog
+      :visible="showFolderDialog || showEditFolderDialog"
+      :mode="showFolderDialog ? 'add' : 'edit'"
+      :form-data="showFolderDialog ? newFolder : editFolderForm"
+      :actors-input="showFolderDialog ? folderActorsInput : editFolderActorsInput"
+      :tags-input="showFolderDialog ? folderTagsInput : editFolderTagsInput"
+      :get-thumbnail-url="getThumbnailUrl"
+      :handle-thumbnail-preview-error="handleThumbnailPreviewError"
+      :handle-thumbnail-preview-load="handleThumbnailPreviewLoad"
+      @update:visible="showFolderDialog ? (showFolderDialog = false) : (showEditFolderDialog = false)"
+      @update:form-data="showFolderDialog ? (newFolder = $event) : (editFolderForm = $event)"
+      @update:actors-input="showFolderDialog ? (folderActorsInput = $event) : (editFolderActorsInput = $event)"
+      @update:tags-input="showFolderDialog ? (folderTagsInput = $event) : (editFolderTagsInput = $event)"
+      @close="showFolderDialog ? closeAddFolderDialog() : closeEditFolderDialog()"
+      @submit="showFolderDialog ? addFolder($event) : saveEditedFolder($event)"
+      @browse-folder="showFolderDialog ? selectNewFolderPath() : selectEditFolderPath()"
+      @select-from-covers="showFolderDialog ? selectFromNewFolderCovers() : selectFromFolderCovers()"
+      @browse-thumbnail-file="showFolderDialog ? selectFolderThumbnailFile() : selectEditFolderThumbnailFile()"
+      @parse-actors="showFolderDialog ? parseFolderActors() : parseEditFolderActors()"
+      @add-tag="showFolderDialog ? addFolderTag() : addEditFolderTag()"
+      @remove-tag="showFolderDialog ? removeFolderTag($event) : removeEditFolderTag($event)"
+    />
 
     <!-- 视频详情对话框 -->
     <DetailPanel
@@ -151,216 +107,16 @@
     >
       <!-- 文件夹视频列表 -->
       <template #extra v-if="selectedVideo && selectedVideo.type === 'folder' && selectedVideo.folderVideos">
-        <div class="folder-videos-section">
-          <h4>文件夹中的视频 ({{ selectedVideo.folderVideos.length }} 个)</h4>
-          <div class="folder-videos-grid" v-if="selectedVideo.folderVideos.length > 0">
-            <div 
-              v-for="(video, index) in selectedVideo.folderVideos" 
-              :key="index"
-              class="folder-video-card"
-            >
-              <div class="folder-video-thumbnail-wrapper">
-                <div class="folder-video-thumbnail" v-if="video.thumbnail">
-                  <img :src="getThumbnailUrl(video.thumbnail)" :alt="video.name" @error="handleFolderVideoThumbnailError">
-                </div>
-                <div class="folder-video-thumbnail placeholder" v-else>
-                  <span>🎬</span>
-                </div>
-                <div class="video-overlay">
-                  <button 
-                    class="overlay-action-button play-btn" 
-                    @click.stop="playFolderVideo(video)"
-                    title="播放视频"
-                  >
-                    ▶️
-                  </button>
-                </div>
-              </div>
-              <div class="folder-video-info">
-                <div class="video-name" :title="video.name">{{ video.name }}</div>
-                <div class="video-actions">
-                  <button 
-                    class="action-button generate-thumbnail-btn" 
-                    @click.stop="generateFolderVideoThumbnail(video, index)"
-                    :disabled="video.isGeneratingThumbnail"
-                    :title="video.thumbnail ? '重新生成缩略图' : '生成缩略图'"
-                  >
-                    {{ video.isGeneratingThumbnail ? '⏳' : '📷' }}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div v-else class="no-videos">
-            <p>该文件夹中没有找到视频文件</p>
-          </div>
-        </div>
+        <FolderVideosGrid
+          :videos="selectedVideo.folderVideos"
+          :get-thumbnail-url="getThumbnailUrl"
+          :handle-thumbnail-error="handleFolderVideoThumbnailError"
+          @play-video="playFolderVideo"
+          @generate-thumbnail="generateFolderVideoThumbnail"
+        />
       </template>
     </DetailPanel>
 
-    <!-- 编辑视频对话框 -->
-    <div v-if="showEditDialog" class="modal-overlay" @click="closeEditDialog">
-    <div class="modal-content" @click.stop>
-      <div class="modal-header">
-        <h3>编辑视频</h3>
-        <button class="modal-close" @click="closeEditDialog">✕</button>
-      </div>
-      <div class="modal-body">
-        <FormField
-          label="名称"
-          type="text"
-          v-model="editVideoForm.name"
-        />
-        <FormField
-          label="系列"
-          type="text"
-          v-model="editVideoForm.series"
-        />
-        <FormField
-          label="演员"
-          type="text"
-          v-model="editActorsInput"
-          placeholder="用逗号分隔多个演员"
-          @blur="parseEditActors"
-        />
-        <FormField
-          label="标签"
-          type="tags"
-          v-model="editVideoForm.tags"
-          v-model:tagInput="editTagsInput"
-          @add-tag="addEditTag"
-          @remove-tag="removeEditTag"
-        />
-        <FormField
-          label="描述"
-          type="textarea"
-          v-model="editVideoForm.description"
-          :rows="3"
-        />
-        <FormField
-          label="视频文件"
-          type="file"
-          v-model="editVideoForm.filePath"
-          @browse="browseEditVideoFile"
-        />
-        <div class="form-group">
-          <label>缩略图</label>
-          <div class="file-input-group">
-            <input type="text" v-model="editVideoForm.thumbnail" readonly>
-            <button type="button" class="btn-select-file" @click="browseEditThumbnailFile">选择图片</button>
-            <button type="button" class="btn-select-file" @click="randomizeThumbnail">随机封面</button>
-          </div>
-          <div class="thumb-preview-wrapper">
-            <img 
-              v-if="editVideoForm.thumbnail"
-              class="thumb-preview"
-              :src="getThumbnailUrl(editVideoForm.thumbnail)"
-              :alt="editVideoForm.name || 'thumbnail'"
-              @error="handleThumbnailPreviewError"
-              @load="handleThumbnailPreviewLoad"
-            >
-            <div v-else class="thumb-placeholder">无缩略图</div>
-          </div>
-        </div>
-        <div class="form-group">
-          <label>时长 (分钟)</label>
-          <input type="number" v-model.number="editVideoForm.duration" min="0">
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn-cancel" @click="closeEditDialog">取消</button>
-        <button type="button" class="btn-confirm" @click="saveEditedVideo">保存</button>
-      </div>
-    </div>
-    </div>
-
-    <!-- 编辑文件夹对话框 -->
-    <div v-if="showEditFolderDialog" class="modal-overlay" @click="closeEditFolderDialog">
-      <div class="modal-content" @click.stop>
-        <div class="modal-header">
-          <h3>编辑文件夹</h3>
-          <button class="modal-close" @click="closeEditFolderDialog">✕</button>
-        </div>
-        <div class="modal-body">
-          <form @submit.prevent="saveEditedFolder">
-            <FormField
-              label="文件夹名称"
-              type="text"
-              v-model="editFolderForm.name"
-              placeholder="如：复仇者联盟系列"
-            />
-            
-            <FormField
-              label="系列名"
-              type="text"
-              v-model="editFolderForm.series"
-              placeholder="如：复仇者联盟"
-            />
-
-            <FormField
-              label="演员"
-              type="text"
-              v-model="editFolderActorsInput"
-              placeholder="用逗号分隔多个演员"
-              @blur="parseEditFolderActors"
-            />
-
-            <FormField
-              label="标签"
-              type="tags"
-              v-model="editFolderForm.tags"
-              v-model:tagInput="editFolderTagsInput"
-              @add-tag="addEditFolderTag"
-              @remove-tag="removeEditFolderTag"
-            />
-
-            <FormField
-              label="描述"
-              type="textarea"
-              v-model="editFolderForm.description"
-              placeholder="文件夹描述..."
-              :rows="3"
-            />
-
-            <FormField
-              label="文件夹路径"
-              type="file"
-              v-model="editFolderForm.folderPath"
-              placeholder="选择包含视频的文件夹"
-              @browse="selectEditFolderPath"
-            />
-
-            <div class="form-group">
-              <label>缩略图</label>
-              <div class="file-input-group">
-                <input type="text" v-model="editFolderForm.thumbnail" readonly>
-                <button type="button" class="btn-select-file" @click="selectFromFolderCovers">从封面文件夹选择</button>
-                <button type="button" class="btn-select-file" @click="selectEditFolderThumbnailFile">自定义选择</button>
-              </div>
-              <div class="thumb-preview-wrapper">
-                <img 
-                  v-if="editFolderForm.thumbnail"
-                  class="thumb-preview"
-                  :src="getThumbnailUrl(editFolderForm.thumbnail)"
-                  :alt="editFolderForm.name || 'thumbnail'"
-                  @error="handleThumbnailPreviewError"
-                  @load="handleThumbnailPreviewLoad"
-                >
-                <div v-else class="thumb-placeholder">无缩略图</div>
-              </div>
-            </div>
-          </form>
-        </div>
-        <div class="modal-footer">
-          <button type="button" @click="closeEditFolderDialog" class="btn-cancel">
-            取消
-          </button>
-          <button type="button" @click="saveEditedFolder" class="btn-confirm">
-            保存
-          </button>
-        </div>
-      </div>
-    </div>
 
     <!-- 路径更新确认对话框 -->
     <PathUpdateDialog
@@ -389,19 +145,23 @@ import MediaCard from '../components/MediaCard.vue'
 import DetailPanel from '../components/DetailPanel.vue'
 import PathUpdateDialog from '../components/PathUpdateDialog.vue'
 import VideoSelector from './video/VideoSelector.vue'
-import AddVideoDialog from './video/AddVideoDialog.vue'
+import VideoFormDialog from '../components/video/VideoFormDialog.vue'
+import FolderFormDialog from '../components/video/FolderFormDialog.vue'
+import FolderVideosGrid from '../components/video/FolderVideosGrid.vue'
 
 import saveManager from '../utils/SaveManager.ts'
 import notify from '../utils/NotificationService.ts'
 import { unlockAchievement } from './user/AchievementView.vue'
+import { ref, watch } from 'vue'
+import { usePagination } from '../composables/usePagination'
+import { useVideoFilter } from '../composables/video/useVideoFilter'
+import { useVideoManagement } from '../composables/video/useVideoManagement'
+import { useVideoFolder } from '../composables/video/useVideoFolder'
+import { useVideoDragDrop } from '../composables/video/useVideoDragDrop'
+import { useVideoThumbnail } from '../composables/video/useVideoThumbnail'
+import { useVideoDuration } from '../composables/video/useVideoDuration'
+import { useVideoPlayback } from '../composables/video/useVideoPlayback'
 // 通过 preload 暴露的 electronAPI 进行调用
-
-const VIDEO_COLLECTION_ACHIEVEMENTS = [
-  { threshold: 50, id: 'video_collector_50' },
-  { threshold: 100, id: 'video_collector_100' },
-  { threshold: 500, id: 'video_collector_500' },
-  { threshold: 1000, id: 'video_collector_1000' }
-]
 
 export default {
   name: 'VideoView',
@@ -412,30 +172,129 @@ export default {
     DetailPanel,
     PathUpdateDialog,
     VideoSelector,
-    AddVideoDialog,
+    VideoFormDialog,
+    FolderFormDialog,
+    FolderVideosGrid,
   },
   emits: ['filter-data-updated'],
+  setup() {
+    // 使用视频管理 composable
+    const videoManagementComposable = useVideoManagement()
+    
+    // 使用文件夹管理 composable
+    const videoFolderComposable = useVideoFolder()
+    
+    // 使用筛选 composable（基于 videos 和 folders）
+    const videoFilterComposable = useVideoFilter(
+      videoManagementComposable.videos,
+      videoFolderComposable.folders
+    )
+    
+    // 创建一个 ref 用于存储筛选后的视频列表（用于分页）
+    const filteredVideosRef = ref([])
+    
+    // 监听筛选结果变化，更新 filteredVideosRef
+    watch(videoFilterComposable.filteredVideos, (newValue) => {
+      filteredVideosRef.value = newValue
+    }, { immediate: true })
+
+    // 使用分页 composable（视频列表分页）
+    const videoPaginationComposable = usePagination(
+      filteredVideosRef,
+      20,
+      '视频'
+    )
+
+    // 路径更新对话框状态（需要在 setup 中定义，以便传递给 composable）
+    const showPathUpdateDialog = ref(false)
+    const pathUpdateInfo = ref({
+      existingVideo: null,
+      newPath: '',
+      newFileName: ''
+    })
+
+    // 使用视频拖拽 composable
+    const videoDragDropComposable = useVideoDragDrop({
+      videos: videoManagementComposable.videos,
+      folders: videoFolderComposable.folders,
+      onAddVideo: async (videoData) => {
+        return await videoManagementComposable.addVideo(videoData as any)
+      },
+      onAddFolder: async (folderData) => {
+        return await videoFolderComposable.addFolder(folderData as any)
+      },
+      onShowPathUpdateDialog: (info) => {
+        pathUpdateInfo.value = info
+        showPathUpdateDialog.value = true
+      },
+      onReloadData: async () => {
+        await videoManagementComposable.loadVideos()
+        await videoFolderComposable.loadFolders()
+      }
+    })
+
+    // 使用视频缩略图 composable
+    const videoThumbnailComposable = useVideoThumbnail()
+
+    // 使用视频时长 composable
+    const videoDurationComposable = useVideoDuration()
+
+    // 使用视频播放 composable
+    const videoPlaybackComposable = useVideoPlayback({
+      onIncrementWatchCount: async (videoId) => {
+        await videoManagementComposable.incrementWatchCount(videoId)
+      },
+      onReloadVideos: async () => {
+        await videoManagementComposable.loadVideos()
+      }
+    })
+
+    return {
+      filteredVideosRef,
+      showPathUpdateDialog,
+      pathUpdateInfo,
+      // 视频管理相关
+      ...videoManagementComposable,
+      // 文件夹管理相关
+      ...videoFolderComposable,
+      // 筛选相关
+      ...videoFilterComposable,
+      // 分页相关
+      ...videoPaginationComposable,
+      // 拖拽相关
+      ...videoDragDropComposable,
+      // 缩略图相关
+      ...videoThumbnailComposable,
+      // 时长相关
+      ...videoDurationComposable,
+      // 播放相关
+      ...videoPlaybackComposable
+    }
+  },
   data() {
     return {
-      videoManager: null,
-      folderManager: null,
-      videos: [],
-      folders: [], // 文件夹列表
-      searchQuery: '',
-      sortBy: 'name',
+      // videos, folders, searchQuery, sortBy 已移至 setup()
+      // videoManager, folderManager 已移至 useVideoManagement 和 useVideoFolder
+      // isUpdatingDurations 已移至 useVideoManagement
       showAddDialog: false,
       showFolderDialog: false,
-      isDragOver: false,
-      isUpdatingDurations: false, // 防止重复执行时长更新
-      // 路径更新确认对话框
-      showPathUpdateDialog: false,
-      pathUpdateInfo: {
-        existingVideo: null,
-        newPath: '',
-        newFileName: ''
-      },
+      // isDragOver 已移至 useVideoDragDrop composable
+      // showPathUpdateDialog, pathUpdateInfo 已移至 setup()
       showDetailDialog: false,
       selectedVideo: null,
+      // 添加视频表单
+      newVideoForm: {
+        name: '',
+        description: '',
+        tags: [],
+        actors: [],
+        series: '',
+        duration: 0,
+        filePath: '',
+        thumbnail: ''
+      },
+      videoActorsInput: '',
+      videoTagsInput: '',
       newFolder: {
         name: '',
         description: '',
@@ -476,8 +335,7 @@ export default {
       },
       editFolderActorsInput: '',
       editFolderTagsInput: '',
-      // 缩略图 URL 缓存
-      thumbnailUrlCache: new Map(),
+      // thumbnailUrlCache 已移至 useVideoThumbnail composable
       // 排序选项
       videoSortOptions: [
         { value: 'name', label: '按名称排序' },
@@ -493,22 +351,8 @@ export default {
         { key: 'edit', icon: '✏️', label: '编辑信息' },
         { key: 'remove', icon: '🗑️', label: '删除视频' }
       ],
-      // 标签筛选相关
-      allTags: [],
-      selectedTags: [],
-      excludedTags: [],
-      // 演员筛选相关
-      allActors: [],
-      selectedActors: [],
-      excludedActors: [],
-      // 系列筛选相关
-      allSeries: [],
-      selectedSeries: null,
-      excludedSeries: null,
-      // 视频列表分页相关
-      currentVideoPage: 1,
-      videoPageSize: 20, // 默认每页显示20个视频
-      totalVideoPages: 0,
+      // 标签、演员、系列筛选相关已移至 useVideoFilter composable
+      // 视频列表分页相关已移至 usePagination composable
       // 空状态配置
       videoEmptyStateConfig: {
         emptyIcon: '🎬',
@@ -539,78 +383,22 @@ export default {
     }
   },
   computed: {
-    // 合并视频和文件夹，并添加类型标识
-    allItems() {
-      const videoItems = this.videos.map(video => ({ ...video, type: 'video' }))
-      const folderItems = this.folders.map(folder => ({ 
-        ...folder, 
-        type: 'folder',
-        // 为文件夹添加动态视频数量，如果还没有计算过则显示为0
-        videoCount: folder.folderVideos ? folder.folderVideos.length : 0
-      }))
-      return [...videoItems, ...folderItems]
-    },
-    
-    
+    // allItems, filteredVideos 已移至 useVideoFilter composable
+    // 使用 composable 的 filteredVideos
     filteredVideos() {
-      let filtered = this.allItems.filter(item => {
-        // 搜索筛选
-        const matchesSearch = !this.searchQuery || (
-          item.name.toLowerCase().includes(this.searchQuery.toLowerCase()) ||
-          item.description.toLowerCase().includes(this.searchQuery.toLowerCase()) ||
-          item.series.toLowerCase().includes(this.searchQuery.toLowerCase()) ||
-          item.actors.some(actor => actor.toLowerCase().includes(this.searchQuery.toLowerCase())) ||
-          item.tags.some(tag => tag.toLowerCase().includes(this.searchQuery.toLowerCase()))
-        )
-        
-        // 标签筛选 - 必须包含所有选中的标签（AND逻辑）
-        const matchesTag = this.selectedTags.length === 0 || (item.tags && this.selectedTags.every(tag => item.tags.includes(tag)))
-        const notExcludedTag = this.excludedTags.length === 0 || !(item.tags && this.excludedTags.some(tag => item.tags.includes(tag)))
-        
-        // 演员筛选 - 演员是"或"逻辑（一个项目可以有多个演员）
-        const matchesActor = this.selectedActors.length === 0 || (item.actors && this.selectedActors.some(actor => item.actors.includes(actor)))
-        const notExcludedActor = this.excludedActors.length === 0 || !(item.actors && this.excludedActors.some(actor => item.actors.includes(actor)))
-        
-        // 系列筛选
-        const matchesSeries = !this.selectedSeries || item.series === this.selectedSeries
-        const notExcludedSeries = !this.excludedSeries || item.series !== this.excludedSeries
-        
-        return matchesSearch && matchesTag && notExcludedTag && matchesActor && notExcludedActor && matchesSeries && notExcludedSeries
-      })
-
-      // 排序
-      filtered.sort((a, b) => {
-        switch (this.sortBy) {
-          case 'name':
-            return a.name.localeCompare(b.name)
-          case 'lastWatched':
-            return new Date(b.lastWatched || 0).getTime() - new Date(a.lastWatched || 0).getTime()
-          case 'watchCount':
-            return b.watchCount - a.watchCount
-          case 'added':
-            return new Date(b.addedDate).getTime() - new Date(a.addedDate).getTime()
-          default:
-            return 0
-        }
-      })
-
-      return filtered
+      return this.filteredVideosRef || []
     },
-    // 分页显示的视频和文件夹列表
-    paginatedVideos() {
-      if (!this.filteredVideos || this.filteredVideos.length === 0) return []
-      const start = (this.currentVideoPage - 1) * this.videoPageSize
-      const end = start + this.videoPageSize
-      return this.filteredVideos.slice(start, end)
-    },
-    
-    // 分页显示的项目列表（视频和文件夹）
+    // 分页显示的项目列表（视频和文件夹）- 使用 composable 的 paginatedItems
     paginatedItems() {
-      return this.paginatedVideos
+      return this.paginatedItems || []
     },
-    // 当前视频页的起始索引
+    // 分页显示的视频和文件夹列表（兼容性）
+    paginatedVideos() {
+      return this.paginatedItems || []
+    },
+    // 当前视频页的起始索引 - 使用 composable 的 currentPageStartIndex
     currentVideoPageStartIndex() {
-      return (this.currentVideoPage - 1) * this.videoPageSize
+      return this.currentPageStartIndex || 0
     },
     videoStats() {
       if (!this.selectedVideo) return []
@@ -658,21 +446,24 @@ export default {
         return actions
       }
     },
-    // 动态更新分页配置
+    // 动态更新分页配置（使用 composable 的 paginationConfig）
     videoPaginationConfig() {
-      return {
-        currentPage: this.currentVideoPage,
-        totalPages: this.totalVideoPages,
-        pageSize: this.videoPageSize,
-        totalItems: this.filteredVideos.length,
+      const config = this.paginationConfig || {
+        currentPage: 1,
+        totalPages: 0,
+        pageSize: 20,
+        totalItems: 0,
         itemType: '视频'
+      }
+      
+      return {
+        ...config,
+        totalItems: this.filteredVideos.length,
+        totalPages: config.totalPages || Math.ceil(this.filteredVideos.length / (config.pageSize || 20))
       }
     }
   },
   async mounted() {
-    this.videoManager = new VideoManager()
-    this.folderManager = new FolderManager()
-    
     // 等待父组件（App.vue）的存档系统初始化完成
     const maxWaitTime = 5000
     const startTime = Date.now()
@@ -683,188 +474,117 @@ export default {
       console.log('✅ 存档系统已初始化，开始加载视频数据')
     }
     
-    // 初始化管理器
-    await this.folderManager.init(saveManager)
+    // 初始化管理器（在 composables 中已处理）
+    if (this.initVideoManager) {
+      await this.initVideoManager()
+    }
+    if (this.initFolderManager) {
+      await this.initFolderManager()
+    }
     
-    await this.loadVideos()
-    await this.loadFolders()
+    // 加载视频和文件夹（使用 composable 的方法）
+    const loadVideosFn = (this as any).loadVideos
+    if (loadVideosFn && typeof loadVideosFn === 'function') {
+      await loadVideosFn.call(this)
+    }
+    
+    const loadFoldersFn = (this as any).loadFolders
+    if (loadFoldersFn && typeof loadFoldersFn === 'function') {
+      await loadFoldersFn.call(this)
+    }
+    
+    // 预加载所有文件夹的视频列表
+    const preloadFn = (this as any).preloadAllFolderVideos
+    if (preloadFn && typeof preloadFn === 'function') {
+      await preloadFn.call(this)
+    }
     
     // 加载视频分页设置
     await this.loadVideoPaginationSettings()
     
-    // 加载排序设置
+    // 加载排序设置（使用 composable 的方法）
     await this.loadSortSetting()
     
     // 初始化筛选器数据
     this.updateFilterData()
-    
   },
   watch: {
-    // 监听筛选结果变化，更新分页信息
+    // 监听筛选结果变化，更新分页信息（使用 composable 的 updatePagination）
     filteredVideos: {
       handler() {
-        this.updateVideoPagination()
+        if (this.updatePagination) {
+          this.updatePagination()
+        }
       },
       immediate: false
     },
-    // 监听搜索查询变化，重置到第一页
+    // 监听搜索查询变化，重置到第一页（使用 composable 的 resetToFirstPage）
     searchQuery() {
-      this.currentVideoPage = 1
+      if (this.resetToFirstPage) {
+        this.resetToFirstPage()
+      }
     },
-    // 监听排序变化，重置到第一页
+    // 监听排序变化，重置到第一页（使用 composable 的 resetToFirstPage）
     sortBy() {
-      this.currentVideoPage = 1
+      if (this.resetToFirstPage) {
+        this.resetToFirstPage()
+      }
     }
   },
   methods: {
-    async checkVideoCollectionAchievements() {
-      if (!Array.isArray(this.videos)) return
-
-      const totalVideos = this.videos.length
-      const unlockPromises = VIDEO_COLLECTION_ACHIEVEMENTS
-        .filter(config => totalVideos >= config.threshold)
-        .map(config => unlockAchievement(config.id))
-
-      if (unlockPromises.length === 0) {
-        return
-      }
-
-      try {
-        await Promise.all(unlockPromises)
-      } catch (error) {
-        console.warn('触发视频收藏成就时出错:', error)
-      }
-    },
+    // checkVideoCollectionAchievements 已移至 useVideoManagement composable
+    // loadVideos 已移至 useVideoManagement composable
+    // 此方法保留作为包装，调用 composable 的方法并执行额外逻辑
     async loadVideos() {
-      if (this.videoManager) {
-        await this.videoManager.loadVideos()
-        this.videos = this.videoManager.getVideos()
-        this.extractAllFilters()
-        
-        // 检测文件存在性（仅在应用启动时检测一次）
-        if (this.$parent.shouldCheckFileLoss && this.$parent.shouldCheckFileLoss()) {
-          await this.checkFileExistence()
-          this.$parent.markFileLossChecked()
+      // 调用 composable 的 loadVideos（通过 this 访问）
+      const loadFn = (this as any).loadVideos
+      if (loadFn && typeof loadFn === 'function') {
+        await loadFn.call(this)
+      }
+      
+      // 检测文件存在性（仅在应用启动时检测一次）
+      if (this.$parent.shouldCheckFileLoss && this.$parent.shouldCheckFileLoss()) {
+        const checkFn = (this as any).checkFileExistence
+        if (checkFn && typeof checkFn === 'function') {
+          await checkFn.call(this)
         }
-        
-        // 自动更新未知时长的视频
-        await this.autoUpdateUnknownDurations()
-        
-        // 计算视频列表总页数
-        this.updateVideoPagination()
-        await this.checkVideoCollectionAchievements()
+        this.$parent.markFileLossChecked()
+      }
+      
+      // 自动更新未知时长的视频（保留在组件中，因为需要访问其他方法）
+      await this.autoUpdateUnknownDurations()
+      
+      // 计算视频列表总页数（使用 composable 的 updatePagination）
+      if (this.updatePagination) {
+        this.updatePagination()
+      }
+      
+      const checkAchievementsFn = (this as any).checkVideoCollectionAchievements
+      if (checkAchievementsFn && typeof checkAchievementsFn === 'function') {
+        await checkAchievementsFn.call(this)
       }
     },
 
+    // loadFolders 已移至 useVideoFolder composable
+    // 此方法保留作为包装
     async loadFolders() {
-      if (this.folderManager) {
-        this.folders = this.folderManager.getFolders()
-        console.log('加载文件夹完成:', this.folders.length, '个文件夹')
-        
-        // 为每个文件夹预加载视频数量
-        for (const folder of this.folders) {
-          if (folder.folderPath) {
-            try {
-              const folderVideos = await this.getFolderVideos(folder)
-              folder.folderVideos = folderVideos
-              console.log(`文件夹 "${folder.name}" 包含 ${folderVideos.length} 个视频`)
-            } catch (error) {
-              console.error(`加载文件夹 "${folder.name}" 视频列表失败:`, error)
-              folder.folderVideos = []
-            }
-          }
-        }
-        
-        // 重新提取筛选器数据（包含文件夹的标签、演员、系列）
-        this.extractAllFilters()
+      const loadFn = (this as any).loadFolders
+      if (loadFn && typeof loadFn === 'function') {
+        await loadFn.call(this)
+      }
+      
+      // 预加载所有文件夹的视频列表
+      const preloadFn = (this as any).preloadAllFolderVideos
+      if (preloadFn && typeof preloadFn === 'function') {
+        await preloadFn.call(this)
       }
     },
 
-    async checkFileExistence() {
-      console.log('🔍 开始检测视频文件存在性...')
-      
-      if (!window.electronAPI || !window.electronAPI.checkFileExists) {
-        console.log('⚠️ Electron API 不可用，跳过文件存在性检测')
-        // 如果API不可用，默认设置为存在
-        this.videos.forEach(video => {
-          video.fileExists = true
-        })
-        return
-      }
-      
-      let checkedCount = 0
-      let missingCount = 0
-      const missingFiles = [] // 收集丢失的文件信息
-      
-      for (const video of this.videos) {
-        if (!video.filePath) {
-          video.fileExists = false
-          missingCount++
-          missingFiles.push({
-            name: video.name,
-            path: '未设置路径'
-          })
-          continue
-        }
-        
-        try {
-          const result = await window.electronAPI.checkFileExists(video.filePath)
-          video.fileExists = result.exists       
-          if (!result.exists) {
-            missingCount++
-            missingFiles.push({
-              name: video.name,
-              path: video.filePath
-            })
-            console.log(`❌ 视频文件不存在: ${video.name} - ${video.filePath}`)
-          } 
-        } catch (error) {
-          console.error(`❌ 检测视频文件存在性失败: ${video.name}`, error)
-          video.fileExists = false
-          missingCount++
-          missingFiles.push({
-            name: video.name,
-            path: video.filePath || '路径检测失败'
-          })
-        }
-        
-        checkedCount++
-      }
-      
-      console.log(`📊 文件存在性检测完成: 检查了 ${checkedCount} 个视频，${missingCount} 个文件不存在`)
-      
-      // 如果有丢失的文件，显示提醒
-      if (missingCount > 0) {
-        this.showMissingFilesAlert(missingFiles)
-      }
-      
-      // 强制更新视图
-      this.$forceUpdate()
-    },
-
-    // 显示丢失文件提醒
-    showMissingFilesAlert(missingFiles) {
-      // 构建文件列表文本
-      const fileList = missingFiles.map(file => 
-        `• ${file.name}${file.path !== '未设置路径' && file.path !== '路径检测失败' ? ` (${file.path})` : ''}`
-      ).join('\n')
-      
-      // 显示 toast 通知，包含详细信息
-      notify.toast(
-        'warning',
-        '文件丢失提醒', 
-        `发现 ${missingFiles.length} 个视频文件丢失：\n${fileList}\n\n请检查文件路径或重新添加这些视频。`
-      )
-      
-      // 在控制台输出详细信息
-      console.warn('📋 丢失的视频文件列表:')
-      missingFiles.forEach((file, index) => {
-        console.warn(`${index + 1}. ${file.name}`)
-        if (file.path !== '未设置路径' && file.path !== '路径检测失败') {
-          console.warn(`   路径: ${file.path}`)
-        }
-      })
-    },
+    // checkFileExistence 已移至 useVideoManagement composable
+    // showMissingFilesAlert 已移至 useVideoManagement composable（在 checkFileExistence 内部处理）
+    // 拖拽处理方法已移至 useVideoDragDrop composable
+    // handleDrop, handleDragOver, handleDragEnter, handleDragLeave, detectFoldersFromFiles,
+    // processMultipleVideoFiles, processMultipleFolders, extractVideoName 已移至 composable
 
     // 自动更新未知时长的视频
     async autoUpdateUnknownDurations() {
@@ -958,8 +678,8 @@ export default {
         await new Promise(resolve => setTimeout(resolve, 100))
       }
       
-      // 保存视频数据到文件
-      await this.videoManager.saveVideos()
+      // 使用 composable 的 saveVideos 方法保存视频数据
+      await this.saveVideos()
       
       // 显示更新结果
       if (updatedCount > 0) {
@@ -983,448 +703,99 @@ export default {
       }
     },
 
-    // 拖拽处理方法
-    handleDragOver(event) {
-      event.preventDefault()
-      event.dataTransfer.dropEffect = 'copy'
-    },
-    
-    handleDragEnter(event) {
-      event.preventDefault()
-      // 防止子元素触发 dragenter 时重复设置状态
-      if (!this.isDragOver) {
-        this.isDragOver = true
-      }
-    },
-    
-    handleDragLeave(event) {
-      event.preventDefault()
-      // 只有当离开整个拖拽区域时才取消高亮
-      // 检查 relatedTarget 是否存在且不在当前元素内
-      if (!event.relatedTarget || !event.currentTarget.contains(event.relatedTarget)) {
-        this.isDragOver = false
-      }
-    },
-    
-    async handleDrop(event) {
-      event.preventDefault()
-      this.isDragOver = false
-      
-      try {
-        const files = Array.from(event.dataTransfer.files)
-        
-        console.log('=== 拖拽调试信息 ===')
-        console.log('拖拽文件数量:', files.length)
-        console.log('拖拽文件详细信息:', files.map((f: any) => ({
-          name: f.name,
-          path: f.path,
-          type: f.type,
-          size: f.size
-        })))
-        
-        if (files.length === 0) {
-          notify.native('拖拽失败', '请拖拽视频文件或文件夹到此处')
-          return
-        }
-        
-        // 检测拖拽的内容类型
-        const videoFiles = files.filter((file:File) => {
-          const videoExtensions = ['.mp4', '.avi', '.mkv', '.mov', '.wmv', '.flv', '.webm', '.m4v', '.3gp', '.ogv']
-          const fileName = file.name.toLowerCase()
-          return videoExtensions.some(ext => fileName.endsWith(ext))
-        })
-        
-        // 检测文件夹（通过 webkitRelativePath 或文件路径判断）
-        const folders = this.detectFoldersFromFiles(files)
-        
-        console.log('检测到视频文件数量:', videoFiles.length)
-        console.log('检测到文件夹数量:', folders.length)
-        
-        if (videoFiles.length === 0 && folders.length === 0) {
-          notify.native('拖拽失败', '没有检测到视频文件或文件夹，请拖拽视频文件（mp4, avi, mkv, mov, wmv, flv, webm, m4v, 3gp, ogv）或文件夹')
-          return
-        }
-        
-        let allResults = []
-        
-        // 处理视频文件
-        if (videoFiles.length > 0) {
-          console.log('开始处理视频文件...')
-          const videoResults = await this.processMultipleVideoFiles(videoFiles)
-          allResults = allResults.concat(videoResults)
-        }
-        
-        // 处理文件夹
-        if (folders.length > 0) {
-          console.log('开始处理文件夹...')
-          const folderResults = await this.processMultipleFolders(folders)
-          allResults = allResults.concat(folderResults)
-        }
-        
-        // 统计结果
-        const addedCount = allResults.filter(r => r.success).length
-        const failedCount = allResults.filter(r => !r.success).length
-        
-        // 重新加载数据
-        await this.loadVideos()
-        await this.loadFolders()
-        
-        // 显示结果通知
-        if (addedCount > 0) {
-          console.log('显示批量操作结果通知')
-          notify.toast('success', '批量添加完成', '', allResults)
-        } else {
-          console.log('所有项目添加失败，显示失败通知')
-          const failureReasons = allResults
-            .filter(r => !r.success)
-            .map((r, index) => `${index + 1}. "${r.fileName || r.folderName}": ${r.error || '未知错误'}`)
-            .join('\n')
-          
-          notify.toast('error', '添加失败', `所有项目添加失败:\n${failureReasons}`, allResults)
-        }
-        
-      } catch (error) {
-        console.error('拖拽添加失败:', error)
-        
-        let errorMessage = ''
-        if (error.name === 'SecurityError') {
-          errorMessage = '安全错误：浏览器阻止了文件访问\n请尝试使用"添加"按钮手动选择文件'
-        } else if (error.name === 'NotAllowedError') {
-          errorMessage = '权限错误：无法访问拖拽的文件\n请检查文件权限或尝试重新拖拽'
-        } else if (error.message.includes('path')) {
-          errorMessage = `文件路径错误：${error.message}\n请确保文件路径有效且可访问`
-        } else {
-          errorMessage = `未知错误：${error.message}\n请尝试重新拖拽文件或使用"添加"按钮`
-        }
-        
-        notify.toast(
-          'error',
-          '添加失败', 
-          `拖拽添加时发生错误\n\n${errorMessage}\n`
-        )
-      }
-    },
-    
-    // 从文件名提取视频名称（去掉扩展名）
-    extractVideoName(fileName) {
-      const lastDotIndex = fileName.lastIndexOf('.')
-      return lastDotIndex > 0 ? fileName.substring(0, lastDotIndex) : fileName
-    },
-
-    // 从拖拽的文件中检测文件夹
-    detectFoldersFromFiles(files) {
-      console.log('=== 开始检测文件夹 ===')
-      const folderMap = new Map()
-      
-      for (const file of files) {
-        const filePath = (file as any).path || file.name
-        const webkitPath = (file as any).webkitRelativePath
-        const normalizedPath = filePath ? filePath.replace(/\\/g, '/') : ''
-
-        console.log('处理文件:', {
-          name: file.name,
-          path: filePath,
-          webkitPath: webkitPath
-        })
-        
-        let folderPath = ''
-        let folderName = ''
-        
-        if (webkitPath && webkitPath.includes('/')) {
-          // 通过 webkitRelativePath 检测文件夹
-          const relativePath = webkitPath.replace(/\\/g, '/')
-          const relativeParts = relativePath.split('/')
-          folderName = relativeParts[0]
-
-          const basePath = normalizedPath.slice(0, normalizedPath.length - relativePath.length)
-          const sanitizedBasePath = basePath.endsWith('/') ? basePath.slice(0, -1) : basePath
-          folderPath = sanitizedBasePath ? `${sanitizedBasePath}/${folderName}` : folderName
-          folderPath = folderPath.replace(/\\/g, '/')
-        } else {
-        const entry = typeof (file as any).webkitGetAsEntry === 'function'
-          ? (file as any).webkitGetAsEntry()
-          : null
-
-        if (entry && entry.isDirectory && normalizedPath) {
-          folderPath = normalizedPath
-          folderName = file.name
-        } else {
-          const hasExtension = /\.[^\\/]+$/.test(file.name)
-          const isLikelyDirectory =
-            (!file.type || file.type === '') &&
-            !hasExtension
-
-          if (isLikelyDirectory && normalizedPath) {
-            folderPath = normalizedPath
-            folderName = file.name
-          }
-        }
-        }
-        
-        if (folderPath && folderName) {
-          console.log('检测到文件夹:', {
-            name: folderName,
-            path: folderPath
-          })
-          
-          if (!folderMap.has(folderPath)) {
-            folderMap.set(folderPath, {
-              name: folderName,
-              path: folderPath,
-              files: []
-            })
-          }
-          
-          folderMap.get(folderPath).files.push(file)
-        }
-      }
-      
-      const folders = Array.from(folderMap.values())
-      console.log('检测到的文件夹列表:', folders.map(f => ({ name: f.name, path: f.path, fileCount: f.files.length })))
-      return folders
-    },
-
-    // 批量处理多个视频文件
-    async processMultipleVideoFiles(videoFiles) {
-      console.log('=== 开始批量处理视频文件 ===')
-      console.log('待处理视频文件数量:', videoFiles.length)
-      
-      const results = []
-      
-      for (let i = 0; i < videoFiles.length; i++) {
-        const videoFile = videoFiles[i]
-        console.log(`\n--- 处理视频文件 ${i + 1}/${videoFiles.length} ---`)
-        console.log('视频文件信息:', {
-          name: videoFile.name,
-          path: videoFile.path,
-          size: videoFile.size
-        })
-        
-        try {
-          // 检查是否已经存在相同的文件路径
-          const existingVideoByPath = this.videos.find(video => video.filePath === videoFile.path)
-          if (existingVideoByPath) {
-            console.log(`视频文件已存在: ${videoFile.name}`)
-            results.push({
-              success: false,
-              fileName: videoFile.name,
-              error: `视频文件 "${videoFile.name}" 已经存在`,
-              filePath: videoFile.path,
-              existingVideoId: existingVideoByPath.id
-            })
-            continue
-          }
-          
-          // 检查是否存在同名但路径不同的丢失文件
-          const existingVideoByName = this.videos.find(video => {
-            const videoFileName = video.filePath.split(/[\\/]/).pop().toLowerCase()
-            const newFileName = videoFile.name.toLowerCase()
-            const isSameName = videoFileName === newFileName
-            const isFileMissing = !video.fileExists
-            
-            console.log(`检查视频: ${video.name}`)
-            console.log(`  文件名: ${videoFileName} vs ${newFileName}`)
-            console.log(`  是否同名: ${isSameName}`)
-            console.log(`  文件存在: ${video.fileExists}`)
-            console.log(`  是否丢失: ${isFileMissing}`)
-            console.log(`  匹配条件: ${isSameName && isFileMissing}`)
-            
-            return isSameName && isFileMissing
-          })
-          
-          if (existingVideoByName) {
-            console.log(`发现同名丢失文件: ${videoFile.name}`)
-            console.log(`现有视频路径: ${existingVideoByName.filePath}`)
-            console.log(`新文件路径: ${videoFile.path}`)
-            // 显示路径更新确认对话框
-            this.pathUpdateInfo = {
-              existingVideo: existingVideoByName,
-              newPath: videoFile.path,
-              newFileName: videoFile.name
-            }
-            this.showPathUpdateDialog = true
-            // 暂停处理，等待用户确认
-            return
-          }
-          
-          // 创建新的视频对象
-          const video = {
-            id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
-            name: this.extractVideoName(videoFile.name),
-            description: '',
-            tags: [],
-            actors: [],
-            series: '',
-            duration: 0,
-            filePath: videoFile.path,
-            thumbnail: '',
-            watchCount: 0,
-            lastWatched: null,
-            addedDate: new Date().toISOString()
-          }
-          
-          console.log('创建视频对象:', video)
-          
-          // 添加到视频管理器
-          if (this.videoManager) {
-            await this.videoManager.addVideo(video)
-            results.push({
-              success: true,
-              fileName: videoFile.name,
-              video: video
-            })
-            console.log('视频文件处理成功:', videoFile.name)
-          } else {
-            results.push({
-              success: false,
-              fileName: videoFile.name,
-              error: '视频管理器不可用',
-              filePath: videoFile.path
-            })
-          }
-          
-        } catch (error) {
-          console.error(`处理视频文件 "${videoFile.name}" 失败:`, error)
-          console.error('错误堆栈:', error.stack)
-          
-          // 根据错误类型提供更具体的错误信息
-          let errorMessage = error.message
-          if (error.message.includes('ENOENT')) {
-            errorMessage = '视频文件不存在或无法访问'
-          } else if (error.message.includes('EACCES')) {
-            errorMessage = '没有访问权限'
-          } else if (error.message.includes('EMFILE') || error.message.includes('ENFILE')) {
-            errorMessage = '打开文件过多，请稍后重试'
-          } else if (error.message.includes('timeout')) {
-            errorMessage = '操作超时'
-          } else if (error.message.includes('Invalid path')) {
-            errorMessage = '无效的视频文件路径'
-          }
-          
-          results.push({
-            success: false,
-            fileName: videoFile.name,
-            error: errorMessage,
-            filePath: videoFile.path,
-            originalError: error.message
-          })
-        }
-      }
-      
-      console.log('\n=== 批量处理完成 ===')
-      console.log('处理结果统计:', {
-        总数: results.length,
-        成功: results.filter(r => r.success).length,
-        失败: results.filter(r => !r.success).length
-      })
-      
-      return results
-    },
-
-    // 批量处理多个文件夹
-    async processMultipleFolders(folders) {
-      console.log('=== 开始批量处理文件夹 ===')
-      console.log('待处理文件夹数量:', folders.length)
-      
-      const results = []
-      
-      for (let i = 0; i < folders.length; i++) {
-        const folder = folders[i]
-        console.log(`\n--- 处理文件夹 ${i + 1}/${folders.length} ---`)
-        console.log('文件夹信息:', {
-          name: folder.name,
-          path: folder.path,
-          fileCount: folder.files.length
-        })
-        
-        try {
-          // 检查文件夹是否已存在
-          const existingFolder = this.folders.find(f => f.folderPath === folder.path)
-          if (existingFolder) {
-            console.log(`文件夹 "${folder.name}" 已存在，跳过`)
-            results.push({
-              success: false,
-              folderName: folder.name,
-              folderPath: folder.path,
-              error: '文件夹已存在'
-            })
-            continue
-          }
-          
-          // 创建文件夹对象
-          const newFolder = {
-            id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
-            name: folder.name,
-            series: '',
-            actors: [],
-            tags: [],
-            description: '',
-            folderPath: folder.path,
-            thumbnail: '',
-            addedDate: new Date().toISOString()
-          }
-          
-          console.log('创建文件夹对象:', newFolder)
-          
-          // 添加到文件夹管理器
-          if (this.folderManager) {
-            const addResult = await this.folderManager.addFolder(newFolder)
-            console.log('文件夹管理器添加结果:', addResult)
-            
-            if (addResult) {
-              console.log(`文件夹 "${folder.name}" 添加成功`)
-              results.push({
-                success: true,
-                folderName: folder.name,
-                folderPath: folder.path,
-                message: '文件夹添加成功'
-              })
-            } else {
-              console.error(`文件夹 "${folder.name}" 添加失败`)
-              results.push({
-                success: false,
-                folderName: folder.name,
-                folderPath: folder.path,
-                error: '添加失败'
-              })
-            }
-          } else {
-            console.error('文件夹管理器未初始化')
-            results.push({
-              success: false,
-              folderName: folder.name,
-              folderPath: folder.path,
-              error: '文件夹管理器未初始化'
-            })
-          }
-          
-        } catch (error) {
-          console.error(`处理文件夹 "${folder.name}" 时发生错误:`, error)
-          results.push({
-            success: false,
-            folderName: folder.name,
-            folderPath: folder.path,
-            error: error.message || '处理失败'
-          })
-        }
-      }
-      
-      console.log('=== 批量处理文件夹完成 ===')
-      console.log('处理结果统计:', {
-        成功: results.filter(r => r.success).length,
-        失败: results.filter(r => !r.success).length,
-        总数: results.length
-      })
-      
-      return results
-    },
+    // 拖拽处理方法已移至 useVideoDragDrop composable
+    // detectFoldersFromFiles, processMultipleVideoFiles, processMultipleFolders, extractVideoName 已移至 composable
 
     showAddVideoDialog() {
+      this.resetNewVideoForm()
       this.showAddDialog = true
     },
 
     closeAddVideoDialog() {
       this.showAddDialog = false
+      this.resetNewVideoForm()
+    },
+
+    resetNewVideoForm() {
+      this.newVideoForm = {
+        name: '',
+        description: '',
+        tags: [],
+        actors: [],
+        series: '',
+        duration: 0,
+        filePath: '',
+        thumbnail: ''
+      }
+      this.videoActorsInput = ''
+      this.videoTagsInput = ''
+    },
+
+    async selectVideoFile() {
+      try {
+        const filePath = await window.electronAPI.selectVideoFile()
+        if (filePath) {
+          this.newVideoForm.filePath = filePath
+          if (!this.newVideoForm.name || !this.newVideoForm.name.trim()) {
+            this.newVideoForm.name = this.extractVideoName(filePath)
+          }
+          
+          // 自动获取视频时长
+          try {
+            const duration = await this.getVideoDuration(filePath)
+            if (duration > 0) {
+              this.newVideoForm.duration = duration
+            }
+          } catch (e) {
+            console.warn('获取视频时长失败:', e)
+          }
+          
+          // 自动生成缩略图（若未手动设置）
+          if (!this.newVideoForm.thumbnail || !this.newVideoForm.thumbnail.trim()) {
+            try {
+              const thumb = await this.generateThumbnail(filePath, this.newVideoForm.name)
+              if (thumb) {
+                this.newVideoForm.thumbnail = thumb
+              }
+            } catch (e) {
+              console.warn('自动生成缩略图失败:', e)
+            }
+          }
+        }
+      } catch (error) {
+        console.error('选择视频文件失败:', error)
+      }
+    },
+
+    async selectThumbnailFile() {
+      try {
+        const filePath = await window.electronAPI.selectImageFile()
+        if (filePath) {
+          this.newVideoForm.thumbnail = filePath
+        }
+      } catch (error) {
+        console.error('选择缩略图失败:', error)
+      }
+    },
+
+    parseVideoActors() {
+      if (this.videoActorsInput && this.videoActorsInput.trim()) {
+        this.newVideoForm.actors = this.videoActorsInput.split(',').map(actor => actor.trim()).filter(actor => actor)
+      } else {
+        this.newVideoForm.actors = []
+      }
+    },
+
+    addVideoTag() {
+      const tag = this.videoTagsInput.trim()
+      if (tag && !this.newVideoForm.tags.includes(tag)) {
+        this.newVideoForm.tags.push(tag)
+        this.videoTagsInput = ''
+      }
+    },
+
+    removeVideoTag(index) {
+      this.newVideoForm.tags.splice(index, 1)
     },
 
     showAddFolderDialog() {
@@ -1494,78 +865,7 @@ export default {
       return folder.folderPath || '未设置路径'
     },
 
-    // 获取文件夹中的视频文件列表
-    async getFolderVideos(folder) {
-      if (!folder || !folder.folderPath) {
-        console.log('文件夹或路径不存在:', folder)
-        return []
-      }
-      
-      try {
-        console.log('开始扫描文件夹:', folder.folderPath)
-        
-        // 如果文件夹对象中已经有 folderVideos 数据，直接返回（包含缩略图信息）
-        if (folder.folderVideos && Array.isArray(folder.folderVideos) && folder.folderVideos.length > 0) {
-          console.log('使用已保存的文件夹视频列表（包含缩略图）:', folder.folderVideos.length, '个视频')
-          // 确保清理任何可能残留的生成状态
-          folder.folderVideos.forEach(video => {
-            video.isGeneratingThumbnail = false
-          })
-          return folder.folderVideos
-        }
-        
-        // 否则重新扫描文件夹
-        if (window.electronAPI && window.electronAPI.listFiles) {
-          const result = await window.electronAPI.listFiles(folder.folderPath)
-          console.log('文件夹扫描结果:', result)
-          
-          if (result && result.success && Array.isArray(result.files)) {
-            const videoExtensions = ['.mp4', '.avi', '.mkv', '.mov', '.wmv', '.flv', '.webm', '.m4v', '.3gp', '.ogv']
-            const videoFiles = result.files
-              .map((f: any) => {
-                const path = typeof f === 'string' ? f : f.path || ''
-                console.log('处理文件:', path)
-                return path
-              })
-              .filter(Boolean)
-              .map((p: string) => {
-                // 如果路径不是绝对路径，则拼接文件夹路径
-                let fullPath = p.replace(/\\/g, '/')
-                if (!fullPath.includes('/') || (!fullPath.startsWith('/') && !fullPath.match(/^[A-Za-z]:/))) {
-                  // 只是文件名，需要拼接完整路径
-                  const folderPath = folder.folderPath.replace(/\\/g, '/')
-                  fullPath = folderPath.endsWith('/') ? folderPath + fullPath : folderPath + '/' + fullPath
-                }
-                console.log('完整路径:', fullPath)
-                return fullPath
-              })
-              .filter((p: string) => {
-                const hasVideoExt = videoExtensions.some(ext => p.toLowerCase().endsWith(ext))
-                console.log('视频文件检查:', p, '是否视频:', hasVideoExt)
-                return hasVideoExt
-              })
-              .map((filePath: string) => {
-                const videoInfo = {
-                  name: this.extractVideoName(filePath.split('/').pop() || ''),
-                  path: filePath,
-                  size: 0, // 可以后续添加文件大小获取
-                  thumbnail: null, // 初始没有缩略图
-                  isGeneratingThumbnail: false // 确保不会被禁用
-                }
-                console.log('创建视频信息:', videoInfo)
-                return videoInfo
-              })
-            
-            console.log('最终视频文件列表:', videoFiles)
-            return videoFiles
-          }
-        }
-        return []
-      } catch (error) {
-        console.error('获取文件夹视频列表失败:', error)
-        return []
-      }
-    },
+    // getFolderVideos 已移至 useVideoFolder composable
 
 
 
@@ -1582,8 +882,40 @@ export default {
 
     async handleAddVideo(videoData) {
       try {
-        await this.videoManager.addVideo(videoData)
-        await this.loadVideos()
+        // 如果没有名称，从文件路径提取
+        if (!videoData.name || !videoData.name.trim()) {
+          if (videoData.filePath) {
+            videoData.name = this.extractVideoName(videoData.filePath)
+          }
+        }
+        if (!videoData.name || !videoData.name.trim()) {
+          alert('请至少选择一个视频文件或填写名称')
+          return
+        }
+
+        // 解析演员
+        this.parseVideoActors()
+        videoData.actors = this.newVideoForm.actors
+
+        // 若未设置缩略图且存在视频文件，尝试生成一张
+        if ((!videoData.thumbnail || !videoData.thumbnail.trim()) && videoData.filePath) {
+          try {
+            const thumb = await this.generateThumbnail(videoData.filePath, videoData.name)
+            if (thumb) videoData.thumbnail = thumb
+          } catch (e) {
+            console.warn('生成缩略图失败，跳过:', e)
+          }
+        }
+
+        // 使用 composable 的 addVideo 方法
+        await this.addVideo(videoData)
+        
+        // 更新筛选器数据
+        this.updateFilterData()
+        
+        // 重置表单
+        this.resetNewVideoForm()
+        this.closeAddVideoDialog()
         
         // 成功时使用 toast 通知
         notify.toast('success', '添加成功', `视频 "${videoData.name}" 已成功添加`)
@@ -1593,7 +925,20 @@ export default {
       }
     },
 
-    async addFolder() {
+    async addFolder(folderData) {
+      // 如果没有传入 folderData，使用 newFolder
+      const data = folderData || this.newFolder
+      
+      if (!data.name || !data.name.trim()) {
+        alert('请填写文件夹名称')
+        return
+      }
+      if (!data.folderPath || !data.folderPath.trim()) {
+        alert('请先选择文件夹路径')
+        return
+      }
+
+      this.parseFolderActors()
       if (!this.newFolder.name || !this.newFolder.name.trim()) {
         alert('请填写文件夹名称')
         return
@@ -1618,11 +963,12 @@ export default {
           addedDate: new Date().toISOString()
         }
 
-        // 使用文件夹管理器添加文件夹
-        const success = await this.folderManager.addFolder(folder)
+        // 使用 composable 的 addFolder 方法
+        const success = await this.addFolder(folder)
         if (success) {
-          // 重新加载文件夹列表
-          await this.loadFolders()
+          // 更新筛选器数据
+          this.updateFilterData()
+          
           this.closeAddFolderDialog()
           
           // 成功时使用 toast 通知
@@ -1650,7 +996,7 @@ export default {
       this.selectedVideo = folder
       this.showDetailDialog = true
       
-      // 如果还没有加载过视频列表，则加载
+      // 如果还没有加载过视频列表，则加载（使用 composable 的方法）
       if (folder && folder.folderPath && !folder.folderVideos) {
         try {
           const folderVideos = await this.getFolderVideos(folder)
@@ -1743,7 +1089,7 @@ export default {
           currentThumbnail: video.thumbnail
         })
 
-        // 设置生成状态（Vue 3 方式）
+        // 设置生成状态
         video.isGeneratingThumbnail = true
 
         // 生成缩略图文件名：使用文件夹名作为子目录
@@ -1752,7 +1098,7 @@ export default {
         const videoFileName = this.extractVideoName(video.path.split('/').pop() || video.path.split('\\').pop() || '')
         const cleanVideoName = videoFileName.replace(/[^\w\u4e00-\u9fa5\-_]/g, '_')
         
-        // 获取当前最大序号
+        // 使用 composable 的方法获取当前最大序号
         const maxNumber = await this.getMaxFolderVideoThumbnailNumber(cleanFolderName, cleanVideoName)
         const nextNumber = maxNumber + 1
         
@@ -1766,13 +1112,13 @@ export default {
           await this.deleteOldThumbnail(video.thumbnail)
         }
 
-        // 生成缩略图
+        // 使用 composable 的方法生成缩略图
         const thumbnailPath = await this.generateThumbnailForFolderVideo(video.path, thumbnailFilename)
 
         if (thumbnailPath) {
           console.log('✅ 缩略图生成成功:', thumbnailPath)
           
-          // 更新视频对象的缩略图路径（Vue 3 方式）
+          // 更新视频对象的缩略图路径
           video.thumbnail = thumbnailPath
           
           // 更新到原始文件夹对象中
@@ -1793,8 +1139,8 @@ export default {
               originalFolder.folderVideos[index].thumbnail = thumbnailPath
             }
             
-            // 保存文件夹数据（包含 folderVideos）
-            await this.folderManager.updateFolder(originalFolder.id, originalFolder)
+            // 使用 composable 的 updateFolder 方法保存文件夹数据（包含 folderVideos）
+            await this.updateFolder(originalFolder.id, originalFolder)
           }
 
           // 强制更新视图
@@ -1809,174 +1155,18 @@ export default {
         console.error('生成文件夹视频缩略图失败:', error)
         notify.toast('error', '生成失败', `生成缩略图失败: ${error.message}`)
       } finally {
-        // 清除生成状态（Vue 3 方式）
+        // 清除生成状态
         video.isGeneratingThumbnail = false
         // 强制更新视图
         this.$forceUpdate()
       }
     },
+    // generateThumbnailForFolderVideo 已移至 useVideoThumbnail composable
 
-    // 为文件夹视频生成缩略图（专用方法）
-    async generateThumbnailForFolderVideo(filePath, thumbnailFilename) {
-      return new Promise(async (resolve, reject) => {
-        try {
-          if (!filePath) {
-            console.warn('⚠️ generateThumbnailForFolderVideo: 文件路径为空')
-            return resolve(null)
-          }
-          
-          console.log('🔍 generateThumbnailForFolderVideo 开始处理:', filePath)
-          
-          // 检查文件扩展名
-          const extension = filePath.toLowerCase().split('.').pop()
-          const supportedFormats = ['mp4', 'webm', 'ogg', 'avi', 'mov', 'mkv', 'flv', 'wmv']
-          if (!supportedFormats.includes(extension)) {
-            console.warn('⚠️ 不支持的视频格式:', extension)
-            return resolve(null)
-          }
-          
-          let src = filePath
-          // 优先通过 getFileUrl 生成可加载的 file:// 或安全映射 URL
-          if (window.electronAPI && window.electronAPI.getFileUrl) {
-            try {
-              console.log('📡 调用 getFileUrl API...')
-              const result = await window.electronAPI.getFileUrl(filePath)
-              console.log('📡 getFileUrl 返回:', result)
-              if (result && result.success && result.url && result.url.startsWith('file://')) {
-                src = result.url
-                console.log('✅ 使用 getFileUrl 生成的 URL:', src)
-              } else {
-                console.warn('⚠️ getFileUrl 返回格式不正确:', result)
-                src = this.buildFileUrl(filePath)
-              }
-            } catch (e) {
-              console.warn('⚠️ getFileUrl 调用失败:', e)
-              src = this.buildFileUrl(filePath)
-            }
-          } else {
-            console.warn('⚠️ getFileUrl API 不可用，使用降级方案')
-            src = this.buildFileUrl(filePath)
-          }
-
-          console.log('🎬 创建 video 元素，src:', src)
-          const video = document.createElement('video')
-          video.style.position = 'fixed'
-          video.style.left = '-9999px'
-          video.style.top = '-9999px'
-          video.muted = true
-          video.preload = 'metadata'
-          video.crossOrigin = 'anonymous'
-          video.src = src
-
-          // 设置超时
-          const timeout = setTimeout(() => {
-            console.warn('⏰ 视频加载超时')
-            cleanup()
-            resolve(null)
-          }, 10000)
-
-          const onError = (e) => {
-            console.error('❌ 视频加载错误:', e)
-            cleanup()
-            resolve(null)
-          }
-
-          const cleanup = () => {
-            clearTimeout(timeout)
-            console.log('🧹 清理 video 元素和事件监听器')
-            video.removeEventListener('error', onError)
-            video.removeEventListener('loadedmetadata', onLoadedMeta)
-            video.removeEventListener('seeked', onSeeked)
-            try { 
-              video.pause() 
-              if (video.parentNode) {
-                video.parentNode.removeChild(video)
-              }
-            } catch (e) {
-              console.warn('清理 video 元素时出错:', e)
-            }
-          }
-
-          const onSeeked = () => {
-            try {
-              console.log('🎯 视频定位完成，开始截取帧...')
-              
-              const canvas = document.createElement('canvas')
-              const width = Math.min(800, video.videoWidth || 800)
-              const height = Math.floor((video.videoHeight || 450) * (width / (video.videoWidth || 800)))
-              canvas.width = width
-              canvas.height = height
-              
-              const ctx = canvas.getContext('2d')
-              ctx.drawImage(video, 0, 0, width, height)
-              const dataUrl = canvas.toDataURL('image/jpeg', 0.8)
-              console.log('✅ 缩略图生成成功，dataURL 长度:', dataUrl.length)
-              
-              // 保存为本地文件
-              const saveThumbnailFile = async () => {
-                try {
-                  const savedPath = await saveManager.saveThumbnail('videos', thumbnailFilename, dataUrl)
-                  
-                  if (savedPath) {
-                    console.log('✅ 缩略图保存为本地文件:', savedPath)
-                    cleanup()
-                    resolve(savedPath)
-                  } else {
-                    console.warn('⚠️ 缩略图保存失败')
-                    cleanup()
-                    resolve(null)
-                  }
-                } catch (saveError) {
-                  console.error('❌ 保存缩略图文件失败:', saveError)
-                  cleanup()
-                  resolve(null)
-                }
-              }
-              
-              saveThumbnailFile()
-              
-            } catch (err) {
-              console.error('❌ 截取帧时出错:', err)
-              cleanup()
-              resolve(null)
-            }
-          }
-
-          const onLoadedMeta = () => {
-            try {
-              console.log('📊 视频元数据加载完成')
-              
-              const duration = Math.max(0, Number(video.duration) || 0)
-              const start = duration * 0.05
-              const end = duration * 0.8
-              const target = isFinite(duration) && duration > 0 ? (start + Math.random() * (end - start)) : 1.0
-              
-              console.log('🎯 目标时间:', target)
-              video.currentTime = target
-            } catch (err) {
-              console.error('❌ 设置视频时间时出错:', err)
-              cleanup()
-              resolve(null)
-            }
-          }
-
-          video.addEventListener('error', onError)
-          video.addEventListener('loadedmetadata', onLoadedMeta, { once: true })
-          video.addEventListener('seeked', onSeeked, { once: true })
-
-          document.body.appendChild(video)
-          console.log('📎 Video 元素已添加到文档')
-        } catch (e) {
-          console.error('❌ generateThumbnailForFolderVideo 外层错误:', e)
-          resolve(null)
-        }
-      })
-    },
-
-    // 处理文件夹视频缩略图加载错误
+    // 处理文件夹视频缩略图加载错误（使用 composable 的方法）
     handleFolderVideoThumbnailError(event) {
-      console.log('文件夹视频缩略图加载失败')
-      event.target.style.display = 'none'
+      // 使用 composable 的 handleThumbnailError 方法
+      this.handleThumbnailError(event)
     },
 
     handleDetailAction(actionKey, item) {
@@ -2013,41 +1203,7 @@ export default {
       }
     },
 
-    async playVideo(video) {
-      if (!video.filePath) {
-        notify.toast('error', '播放失败', '视频文件路径不存在')
-        return
-      }
-
-      // 检查视频文件是否存在
-      if (video.fileExists === false) {
-        notify.toast('error', '播放失败', `视频文件不存在: ${video.name}`)
-        return
-      }
-
-      try {
-        // 获取当前设置
-        const settings = await this.loadSettings()
-        console.log('当前视频播放设置:', settings)
-        console.log('videoPlayMode:', settings.videoPlayMode)
-        
-        if (settings.videoPlayMode === 'internal') {
-          console.log('使用内部播放器播放视频')
-          // 在本应用新窗口中播放
-          await this.playVideoInternal(video)
-        } else {
-          console.log('使用外部播放器播放视频')
-          // 使用外部默认播放器
-          await this.playVideoExternal(video)
-        }
-        
-        await this.videoManager.incrementWatchCount(video.id)
-        await this.loadVideos()
-      } catch (error) {
-        console.error('播放视频失败:', error)
-        notify.toast('error', '播放失败', `播放视频失败: ${error.message}`)
-      }
-    },
+    // playVideo, playVideoInternal, playVideoExternal 已移至 useVideoPlayback composable
 
     editVideo(video) {
       if (!video) return
@@ -2118,9 +1274,8 @@ export default {
          console.log('视频文件路径:', this.editVideoForm.filePath)
          console.log('视频名称:', this.editVideoForm.name)
          console.log('当前缩略图:', this.editVideoForm.thumbnail)
-         console.log('路径类型:', typeof this.editVideoForm.filePath)
-         console.log('路径长度:', this.editVideoForm.filePath.length)
          
+         // 使用 composable 的 generateThumbnail 方法
          const thumb = await this.generateThumbnail(
            this.editVideoForm.filePath, 
            this.editVideoForm.name, 
@@ -2129,19 +1284,17 @@ export default {
          console.log('🔄 随机封面生成结果:', thumb)
          if (thumb) {
            console.log('✅ 缩略图生成成功，路径:', thumb)
-           console.log('🔄 设置前 editVideoForm.thumbnail:', this.editVideoForm.thumbnail)
            this.editVideoForm.thumbnail = thumb
-           console.log('🔄 设置后 editVideoForm.thumbnail:', this.editVideoForm.thumbnail)
            
            // 强制清除缓存，确保新生成的缩略图能正确显示
-           this.thumbnailUrlCache.delete(thumb)
+           const cache = 'value' in this.thumbnailUrlCache ? this.thumbnailUrlCache.value : this.thumbnailUrlCache
+           cache.delete(thumb)
            
            // 强制更新视图
            this.$nextTick(() => {
              this.$forceUpdate()
            })
            
-           // 缩略图生成成功时不显示通知，只在控制台记录
            console.log('缩略图生成成功，已更新预览')
          } else {
            console.warn('⚠️ 缩略图生成失败')
@@ -2156,37 +1309,39 @@ export default {
              errorMessage = '可能的原因：视频编码格式不被浏览器支持、视频文件损坏或无法访问、文件路径包含特殊字符。建议尝试使用其他视频文件或手动选择缩略图图片。'
            }
            
-           // 使用 toast 通知显示错误
            notify.toast('error', '缩略图生成失败', errorMessage)
          }
        } catch (e) {
          console.error('❌ 随机封面失败:', e)
-         console.error('错误堆栈:', e.stack)
-         console.error('错误类型:', e.constructor.name)
-         
-         // 使用 toast 通知显示错误
          notify.toast('error', '缩略图生成失败', `生成过程中发生错误: ${e.message}`)
        }
      },
-    async saveEditedVideo() {
+    async saveEditedVideo(videoData) {
       try {
+        // 如果没有传入 videoData，使用 editVideoForm
+        const data = videoData || this.editVideoForm
         this.parseEditActors()
         const payload = {
-          name: (this.editVideoForm.name || '').trim(),
-          description: (this.editVideoForm.description || '').trim(),
-          tags: this.editVideoForm.tags,
-          actors: this.editVideoForm.actors,
-          series: (this.editVideoForm.series || '').trim(),
-          duration: Number(this.editVideoForm.duration) || 0,
-          filePath: (this.editVideoForm.filePath || '').trim(),
-          thumbnail: (this.editVideoForm.thumbnail || '').trim()
+          name: (data.name || '').trim(),
+          description: (data.description || '').trim(),
+          tags: data.tags || this.editVideoForm.tags,
+          actors: data.actors || this.editVideoForm.actors,
+          series: (data.series || '').trim(),
+          duration: Number(data.duration) || 0,
+          filePath: (data.filePath || '').trim(),
+          thumbnail: (data.thumbnail || '').trim()
         }
-        await this.videoManager.updateVideo(this.editVideoForm.id, payload)
-        await this.loadVideos()
+        // 使用 composable 的 updateVideo 方法
+        await this.updateVideo(this.editVideoForm.id, payload)
+        
+        // 更新筛选器数据
+        this.updateFilterData()
+        
         this.showEditDialog = false
+        notify.toast('success', '保存成功', '视频信息已更新')
       } catch (e) {
         console.error('保存编辑失败:', e)
-        alert('保存编辑失败: ' + e.message)
+        notify.toast('error', '保存失败', `保存编辑失败: ${e.message}`)
       }
     },
 
@@ -2194,15 +1349,14 @@ export default {
       if (!confirm(`确定要删除视频 "${video.name}" 吗？`)) return
       
       try {
-        await this.videoManager.deleteVideo(video.id)
+        // 使用 composable 的 deleteVideo 方法
+        await this.deleteVideo(video.id)
         
-        // 从所有文件夹中移除该视频的引用
-        if (this.folderManager) {
-          await this.folderManager.removeVideoFromFolders(video.id)
-          await this.loadFolders()
-        }
+        // 从所有文件夹中移除该视频的引用（使用 composable 的方法）
+        await this.removeVideoFromFolders(video.id)
         
-        await this.loadVideos()
+        // 更新筛选器数据
+        this.updateFilterData()
         
         // 显示删除成功通知
         notify.toast('success', '删除成功', `已成功删除视频 "${video.name}"`)
@@ -2408,20 +1562,26 @@ export default {
       }
     },
 
-    async saveEditedFolder() {
+    async saveEditedFolder(folderData) {
       try {
+        // 如果没有传入 folderData，使用 editFolderForm
+        const data = folderData || this.editFolderForm
         this.parseEditFolderActors()
         const payload = {
-          name: (this.editFolderForm.name || '').trim(),
-          description: (this.editFolderForm.description || '').trim(),
-          tags: this.editFolderForm.tags,
-          actors: this.editFolderForm.actors,
-          series: (this.editFolderForm.series || '').trim(),
-          folderPath: (this.editFolderForm.folderPath || '').trim(),
-          thumbnail: (this.editFolderForm.thumbnail || '').trim()
+          name: (data.name || '').trim(),
+          description: (data.description || '').trim(),
+          tags: data.tags || this.editFolderForm.tags,
+          actors: data.actors || this.editFolderForm.actors,
+          series: (data.series || '').trim(),
+          folderPath: (data.folderPath || '').trim(),
+          thumbnail: (data.thumbnail || '').trim()
         }
-        await this.folderManager.updateFolder(this.editFolderForm.id, payload)
-        await this.loadFolders()
+        // 使用 composable 的 updateFolder 方法
+        await this.updateFolder(this.editFolderForm.id, payload)
+        
+        // 更新筛选器数据
+        this.updateFilterData()
+        
         this.showEditFolderDialog = false
         notify.toast('success', '保存成功', `文件夹 "${payload.name}" 已更新`)
       } catch (e) {
@@ -2434,11 +1594,11 @@ export default {
       if (!confirm(`确定要删除文件夹 "${folder.name}" 吗？`)) return
       
       try {
-        // 使用文件夹管理器删除文件夹
-        const success = await this.folderManager.deleteFolder(folder.id)
+        // 使用 composable 的 deleteFolder 方法
+        const success = await this.deleteFolder(folder.id)
         if (success) {
-          // 重新加载文件夹列表
-          await this.loadFolders()
+          // 更新筛选器数据
+          this.updateFilterData()
           
           // 显示删除成功通知
           notify.toast('success', '删除成功', `已成功删除文件夹 "${folder.name}"`)
@@ -2517,197 +1677,8 @@ export default {
       console.log('✅ VideoView 排序方式已更新:', newValue)
     },
 
-    /**
-     * 获取缩略图的显示URL
-     * 支持多种格式：base64 dataURL、本地文件路径、HTTP URL
-     * 
-     * @param {string} thumbnail - 缩略图数据，可能是：
-     *   - base64 dataURL: "data:image/jpeg;base64,/9j/4AAQ..."
-     *   - 相对路径: "SaveData/Video/Covers/video_123.jpg"
-     *   - 绝对路径: "E:/app/SaveData/Video/Covers/video_123.jpg"
-     *   - HTTP URL: "https://example.com/image.jpg"
-     * @returns {string} 可用于img标签src属性的URL
-     */
-    getThumbnailUrl(thumbnail) {
-      // 1. 空值检查：如果没有缩略图，返回默认图标
-      if (!thumbnail) {
-        return './default-video.png' // 使用相对路径的默认图标
-      }
-      
-      // 2. 缓存检查：如果已经处理过这个缩略图，直接返回缓存结果
-      if (this.thumbnailUrlCache.has(thumbnail)) {
-        return this.thumbnailUrlCache.get(thumbnail)
-      }
-      
-      // 3. 格式判断：只处理本地文件路径，其他格式直接返回
-      // 这里使用排除法：
-      // - !thumbnail.startsWith('data:') 排除 base64 dataURL
-      // - !thumbnail.startsWith('/') 排除绝对路径（以/开头）
-      // - !thumbnail.startsWith('http') 排除 HTTP/HTTPS URL
-      // 这样只有本地文件路径（如 SaveData/... 或 E:/...）会进入处理逻辑
-      if (thumbnail && !thumbnail.startsWith('data:') && !thumbnail.startsWith('/') && !thumbnail.startsWith('http')) {
-        // 本地文件路径，需要转换为浏览器可访问的 file:// URL
-        try {
-          let url = ''
-          
-          // 4. 路径类型判断：区分相对路径和绝对路径
-          if (thumbnail.startsWith('SaveData/')) {
-            // 4.1 相对路径处理（以 SaveData 开头）
-            // 在 Electron 应用中，相对路径是相对于应用的工作目录
-            // 例如：SaveData/Video/Covers/video_123.jpg
-            
-            // 统一路径分隔符：将 Windows 的反斜杠转换为正斜杠
-            const absolutePath = thumbnail.replace(/\\/g, '/')
-            console.log('处理相对路径:', absolutePath)
-            
-            // 构建 file:// URL
-            // 对路径的每个部分进行 URL 编码，处理特殊字符
-            const encoded = absolutePath.split('/').map(seg => {
-              return encodeURIComponent(seg)
-            }).join('/')
-            
-            // 构建 file:// URL 格式
-            // 格式：file:///SaveData/Video/Covers/video_123.jpg
-            url = 'file:///' + encoded
-            // console.log('尝试路径格式1:', url)
-          } else {
-            // 4.2 绝对路径处理（如 E:/app/SaveData/...）
-            // 将 Windows 路径格式转换为 file:// URL 格式
-            
-            // 标准化路径：统一使用正斜杠，并处理盘符
-            // 例如：E:\app\SaveData\... -> /E/app/SaveData/...
-            const normalized = thumbnail.replace(/\\/g, '/').replace(/^([A-Za-z]:)/, '/$1')
-            
-            // URL 编码每个路径段
-            const encoded = normalized.split('/').map(seg => {
-              if (seg.includes(':')) return seg // 保留盘符部分（如 /E:）
-              return encodeURIComponent(seg)
-            }).join('/')
-            
-            // 构建 file:// URL
-            // 格式：file:///E/app/SaveData/Video/Covers/video_123.jpg
-            url = 'file://' + encoded
-          }
-          
-          // 5. 缓存结果：将处理后的 URL 缓存起来，避免重复计算
-          this.thumbnailUrlCache.set(thumbnail, url)
-          console.log('缩略图 URL:', url)
-          return url
-        } catch (error) {
-          console.error('转换缩略图路径失败:', error)
-          return './default-video.png'
-        }
-      }
-      
-      // 6. 直接返回：对于 base64 dataURL、HTTP URL 等格式，直接返回原值
-      // 这些格式浏览器可以直接使用，无需转换
-      return thumbnail
-    },
-
-    /**
-     * 异步获取缩略图的显示URL（增强版）
-     * 优先使用 Electron API 来正确处理文件路径，提供更好的兼容性
-     * 
-     * @param {string} thumbnail - 缩略图数据
-     * @returns {Promise<string>} 可用于img标签src属性的URL
-     */
-    async getThumbnailUrlAsync(thumbnail) {
-      // 1. 空值检查
-      if (!thumbnail) {
-        return './default-video.png' // 默认图标
-      }
-      
-      // 2. 缓存检查：避免重复的异步操作
-      if (this.thumbnailUrlCache.has(thumbnail)) {
-        return this.thumbnailUrlCache.get(thumbnail)
-      }
-      
-      // 3. 格式判断：只处理本地文件路径
-      if (thumbnail && !thumbnail.startsWith('data:') && !thumbnail.startsWith('/') && !thumbnail.startsWith('http')) {
-        // 本地文件路径，使用 Electron API 进行异步处理
-        try {
-          // 4. 优先方案：使用 readFileAsDataUrl API
-          // 将本地文件读取为 base64 dataURL，这是最可靠的方式
-          if (window.electronAPI && window.electronAPI.readFileAsDataUrl) {
-            const dataUrl = await window.electronAPI.readFileAsDataUrl(thumbnail)
-            if (dataUrl) {
-              console.log('通过 readFileAsDataUrl 获取缩略图:', dataUrl.substring(0, 50) + '...')
-              this.thumbnailUrlCache.set(thumbnail, dataUrl)
-              return dataUrl
-            }
-          }
-          
-          // 5. 降级方案1：使用 getFileUrl API
-          // 获取正确的 file:// URL，由 Electron 主进程处理路径转换
-          if (window.electronAPI && window.electronAPI.getFileUrl) {
-            const result = await window.electronAPI.getFileUrl(thumbnail)
-            if (result.success) {
-              console.log('通过 Electron API 获取文件 URL:', result.url)
-              this.thumbnailUrlCache.set(thumbnail, result.url)
-              return result.url
-            } else {
-              console.warn('Electron API 获取文件 URL 失败:', result.error)
-            }
-          }
-          
-          // 6. 降级方案2：使用同步方法
-          // 如果 Electron API 不可用，回退到同步的路径转换方法
-          const url = this.getThumbnailUrl(thumbnail)
-          this.thumbnailUrlCache.set(thumbnail, url)
-          return url
-        } catch (error) {
-          console.error('转换缩略图路径失败:', error)
-          return './default-video.png'
-        }
-      }
-      
-      // 7. 直接返回：对于 base64 dataURL、HTTP URL 等格式，直接返回原值
-      return thumbnail
-    },
-
-    resolveThumbnail(thumbnail) {
-      // 保持向后兼容，直接返回缩略图路径
-      return thumbnail || '/icon.svg'
-    },
-
-    /**
-     * 处理缩略图加载失败的情况
-     * 当同步方法生成的 file:// URL 无法访问时，尝试使用异步方法重新获取
-     * 
-     * @param {Event} event - 图片加载错误事件
-     */
-    async handleThumbnailError(event) {
-      console.log('缩略图加载失败，尝试使用异步方法')
-      
-      // 1. 获取原始缩略图路径
-      // 从 data-original-src 属性中获取未处理的原始路径
-      const originalSrc = event.target.getAttribute('data-original-src')
-      
-      // 2. 检查是否为本地文件路径
-      // 只对本地文件路径进行异步重试，其他格式（base64、HTTP）直接使用默认图标
-      if (originalSrc && !originalSrc.startsWith('data:') && !originalSrc.startsWith('/') && !originalSrc.startsWith('http')) {
-        try {
-          // 3. 使用异步方法重新获取正确的 URL
-          // 异步方法会尝试使用 Electron API 来正确处理文件路径
-          const asyncUrl = await this.getThumbnailUrlAsync(originalSrc)
-          
-          // 4. 检查异步方法是否成功获取到有效的 URL
-          if (asyncUrl && asyncUrl !== '/icon.svg') {
-            console.log('异步方法获取到缩略图 URL:', asyncUrl)
-            // 更新图片的 src 属性，触发重新加载
-            event.target.src = asyncUrl
-            return
-          }
-        } catch (error) {
-          console.error('异步获取缩略图失败:', error)
-        }
-      }
-      
-      // 5. 降级处理：如果异步方法也失败，使用默认图标
-      console.log('使用默认图标')
-      event.target.src = './default-video.png'
-    },
-
+    // getThumbnailUrl, getThumbnailUrlAsync, handleThumbnailError, resolveThumbnail 已移至 useVideoThumbnail composable
+    // onThumbnailLoad 保留在组件中（如果需要）
     async onThumbnailLoad(event) {
       // 缩略图加载成功时的处理
       console.log('缩略图加载成功')
@@ -2776,14 +1747,7 @@ export default {
       }
     },
 
-    // 从路径提取不带扩展名的文件名
-    extractNameFromPath(filePath) {
-      if (!filePath) return ''
-      const normalized = filePath.replace(/\\/g, '/')
-      const filename = normalized.substring(normalized.lastIndexOf('/') + 1)
-      const dotIndex = filename.lastIndexOf('.')
-      return dotIndex > 0 ? filename.substring(0, dotIndex) : filename
-    },
+    // extractNameFromPath 已移至 useVideoThumbnail composable
 
     // 打开视频文件夹
     async openVideoFolder(video) {
@@ -2821,10 +1785,11 @@ export default {
 
         console.log('🔄 开始更新视频时长:', video.name)
 
+        // 使用 composable 的 getVideoDuration 方法
         const duration = await this.getVideoDuration(video.filePath)
         if (duration > 0) {
-          // 更新视频数据
-          await this.videoManager.updateVideo(video.id, {
+          // 使用 composable 的 updateVideo 方法更新视频数据
+          await this.updateVideo(video.id, {
             ...video,
             duration: duration
           })
@@ -2833,7 +1798,6 @@ export default {
           await this.loadVideos()
           
           console.log('✅ 视频时长更新成功:', duration, '分钟')
-          // 成功时不显示通知，只在控制台记录
         } else {
           console.warn('⚠️ 无法获取视频时长')
           notify.toast('error', '更新失败', '无法获取视频时长，请检查视频文件是否有效')
@@ -2933,479 +1897,11 @@ export default {
       console.log(`📊 批量视频时长更新完成: 成功 ${updatedCount} 个，失败 ${failedCount} 个`)
     },
 
-     // 获取视频时长
-     async getVideoDuration(filePath) {
-       return new Promise(async (resolve, reject) => {
-         try {
-           if (!filePath) {
-             console.warn('⚠️ getVideoDuration: 文件路径为空')
-             return resolve(0)
-           }
-           
-           console.log('🔍 getVideoDuration 开始处理:', filePath)
-           
-           let src = filePath
-           // 优先通过 getFileUrl 生成可加载的 file:// 或安全映射 URL
-           if (window.electronAPI && window.electronAPI.getFileUrl) {
-             try {
-               console.log('📡 调用 getFileUrl API...')
-               const result = await window.electronAPI.getFileUrl(filePath)
-               if (result && result.success && result.url && result.url.startsWith('file://')) {
-                 src = result.url
-                 console.log('✅ 使用 getFileUrl 生成的 URL:', src)
-               } else {
-                 console.warn('⚠️ getFileUrl 返回格式不正确:', result)
-                 src = this.buildFileUrl(filePath)
-               }
-             } catch (e) {
-               console.warn('⚠️ getFileUrl 调用失败:', e)
-               src = this.buildFileUrl(filePath)
-             }
-           } else {
-             console.warn('⚠️ getFileUrl API 不可用，使用降级方案')
-             src = this.buildFileUrl(filePath)
-           }
+     // getVideoDuration 已移至 useVideoDuration composable
 
-           console.log('🎬 创建 video 元素获取时长，src:', src)
-           const video = document.createElement('video')
-           video.style.position = 'fixed'
-           video.style.left = '-9999px'
-           video.style.top = '-9999px'
-           video.muted = true
-           video.preload = 'metadata'
-           video.crossOrigin = 'anonymous'
-           video.src = src
+     // generateThumbnail, buildFileUrl, generateThumbnailFilename, getMaxThumbnailNumber, deleteOldThumbnail 已移至 useVideoThumbnail composable
 
-           // 设置超时，避免长时间等待
-           const timeout = setTimeout(() => {
-             console.warn('⏰ 视频时长获取超时')
-             cleanup()
-             resolve(0)
-           }, 5000) // 5秒超时
-
-           const onError = (e) => {
-             console.error('❌ 视频加载错误:', e)
-             cleanup()
-             resolve(0)
-           }
-
-           const cleanup = () => {
-             clearTimeout(timeout)
-             console.log('🧹 清理 video 元素和事件监听器')
-             video.removeEventListener('error', onError)
-             video.removeEventListener('loadedmetadata', onLoadedMeta)
-             try { 
-               video.pause() 
-               if (video.parentNode) {
-                 video.parentNode.removeChild(video)
-               }
-             } catch (e) {
-               console.warn('清理 video 元素时出错:', e)
-             }
-           }
-
-           const onLoadedMeta = () => {
-             try {
-               console.log('📊 视频元数据加载完成')
-               console.log('⏱️ 视频时长:', video.duration)
-               
-               const duration = Math.max(0, Number(video.duration) || 0)
-               const durationMinutes = duration / 60 // 保持小数精度
-               
-               console.log('✅ 视频时长获取成功:', durationMinutes, '分钟')
-               cleanup()
-               resolve(durationMinutes)
-             } catch (err) {
-               console.error('❌ 获取视频时长时出错:', err)
-               cleanup()
-               resolve(0)
-             }
-           }
-
-           video.addEventListener('error', onError)
-           video.addEventListener('loadedmetadata', onLoadedMeta, { once: true })
-
-           // 将元素附加到文档，确保某些浏览器能正确触发事件
-           document.body.appendChild(video)
-           console.log('📎 Video 元素已添加到文档')
-         } catch (e) {
-           console.error('❌ getVideoDuration 外层错误:', e)
-           resolve(0)
-         }
-       })
-     },
-
-     // 生成视频缩略图：从视频随机时间截取一帧，保存为本地文件并返回文件路径
-     async generateThumbnail(filePath, videoName = null, existingThumbnail = null) {
-       return new Promise(async (resolve, reject) => {
-         try {
-           if (!filePath) {
-             console.warn('⚠️ generateThumbnail: 文件路径为空')
-             return resolve(null)
-           }
-           
-           console.log('🔍 generateThumbnail 开始处理:', filePath)
-           
-           // 检查文件扩展名，跳过可能不支持的格式
-           const extension = filePath.toLowerCase().split('.').pop()
-           const supportedFormats = ['mp4', 'webm', 'ogg', 'avi', 'mov', 'mkv', 'flv', 'wmv']
-           if (!supportedFormats.includes(extension)) {
-             console.warn('⚠️ 不支持的视频格式:', extension)
-             return resolve(null)
-           }
-           
-           let src = filePath
-           // 优先通过 getFileUrl 生成可加载的 file:// 或安全映射 URL
-           if (window.electronAPI && window.electronAPI.getFileUrl) {
-             try {
-               console.log('📡 调用 getFileUrl API...')
-               const result = await window.electronAPI.getFileUrl(filePath)
-               console.log('📡 getFileUrl 返回:', result)
-               if (result && result.success && result.url && result.url.startsWith('file://')) {
-                 src = result.url
-                 console.log('✅ 使用 getFileUrl 生成的 URL:', src)
-               } else {
-                 console.warn('⚠️ getFileUrl 返回格式不正确:', result)
-                 // 手动构建 file:// URL
-                 src = this.buildFileUrl(filePath)
-               }
-             } catch (e) {
-               console.warn('⚠️ getFileUrl 调用失败:', e)
-               // 降级：手动构建 file:// URL
-               src = this.buildFileUrl(filePath)
-             }
-           } else {
-             console.warn('⚠️ getFileUrl API 不可用，使用降级方案')
-             src = this.buildFileUrl(filePath)
-           }
-
-           console.log('🎬 创建 video 元素，src:', src)
-           const video = document.createElement('video')
-           video.style.position = 'fixed'
-           video.style.left = '-9999px'
-           video.style.top = '-9999px'
-           video.muted = true
-           video.preload = 'metadata'
-           video.crossOrigin = 'anonymous'
-           video.src = src
-
-           // 设置超时，避免长时间等待
-           const timeout = setTimeout(() => {
-             console.warn('⏰ 视频加载超时')
-             cleanup()
-             resolve(null) // 超时返回 null 而不是 reject
-           }, 10000) // 10秒超时
-
-           const onError = (e) => {
-             console.error('❌ 视频加载错误:', e)
-             console.error('❌ 错误详情:', {
-               error: e,
-               code: video.error?.code,
-               message: video.error?.message,
-               src: video.src,
-               networkState: video.networkState,
-               readyState: video.readyState
-             })
-             
-             // 检查是否是解码器不支持的错误
-             if (video.error?.code === 4 || video.error?.message?.includes('DECODER_ERROR_NOT_SUPPORTED')) {
-               console.warn('⚠️ 视频格式不被浏览器支持，跳过缩略图生成')
-               cleanup()
-               resolve(null) // 返回 null 而不是 reject，让调用方知道生成失败但不影响整体流程
-             } else {
-               cleanup()
-               resolve(null) // 其他错误也返回 null
-             }
-           }
-
-           const cleanup = () => {
-             clearTimeout(timeout)
-             console.log('🧹 清理 video 元素和事件监听器')
-             video.removeEventListener('error', onError)
-             video.removeEventListener('loadedmetadata', onLoadedMeta)
-             video.removeEventListener('seeked', onSeeked)
-             try { 
-               video.pause() 
-               if (video.parentNode) {
-                 video.parentNode.removeChild(video)
-               }
-             } catch (e) {
-               console.warn('清理 video 元素时出错:', e)
-             }
-           }
-
-           const onSeeked = () => {
-             try {
-               console.log('🎯 视频定位完成，开始截取帧...')
-               console.log('📐 视频尺寸:', video.videoWidth, 'x', video.videoHeight)
-               console.log('⏰ 当前时间:', video.currentTime)
-               
-               const canvas = document.createElement('canvas')
-               const width = Math.min(800, video.videoWidth || 800)
-               const height = Math.floor((video.videoHeight || 450) * (width / (video.videoWidth || 800)))
-               canvas.width = width
-               canvas.height = height
-               console.log('🖼️ Canvas 尺寸:', width, 'x', height)
-               
-               const ctx = canvas.getContext('2d')
-               ctx.drawImage(video, 0, 0, width, height)
-               const dataUrl = canvas.toDataURL('image/jpeg', 0.8)
-               console.log('✅ 缩略图生成成功，dataURL 长度:', dataUrl.length)
-               
-               // 保存为本地文件
-               const saveThumbnailFile = async () => {
-                 try {
-                   // 生成新的缩略图文件名
-                   const filename = await this.generateThumbnailFilename(videoName, filePath)
-                   
-                   // 删除旧的缩略图文件
-                   if (existingThumbnail && existingThumbnail.trim()) {
-                     await this.deleteOldThumbnail(existingThumbnail)
-                   }
-                  
-                   const savedPath = await saveManager.saveThumbnail('videos', filename, dataUrl)
-                   
-                   if (savedPath) {
-                     console.log('✅ 缩略图保存为本地文件:', savedPath)
-                     cleanup()
-                     resolve(savedPath)
-                   } else {
-                     console.warn('⚠️ 缩略图保存失败，返回 dataURL')
-                     cleanup()
-                     resolve(dataUrl)
-                   }
-                 } catch (saveError) {
-                   console.error('❌ 保存缩略图文件失败:', saveError)
-                   console.warn('⚠️ 降级返回 dataURL')
-                   cleanup()
-                   resolve(dataUrl)
-                 }
-               }
-               
-               // 异步保存文件
-               saveThumbnailFile()
-               
-             } catch (err) {
-               console.error('❌ 截取帧时出错:', err)
-               cleanup()
-               resolve(null) // 截取失败也返回 null
-             }
-           }
-
-           const onLoadedMeta = () => {
-             try {
-               console.log('📊 视频元数据加载完成')
-               console.log('⏱️ 视频时长:', video.duration)
-               console.log('📐 视频尺寸:', video.videoWidth, 'x', video.videoHeight)
-               
-               const duration = Math.max(0, Number(video.duration) || 0)
-               // 在 5% - 80% 之间取一帧，避免黑屏开头或片尾
-               const start = duration * 0.05
-               const end = duration * 0.8
-               const target = isFinite(duration) && duration > 0 ? (start + Math.random() * (end - start)) : 1.0
-               
-               console.log('🎯 目标时间:', target, '(范围:', start, '-', end, ')')
-               video.currentTime = target
-             } catch (err) {
-               console.error('❌ 设置视频时间时出错:', err)
-               cleanup()
-               resolve(null) // 设置时间失败也返回 null
-             }
-           }
-
-           video.addEventListener('error', onError)
-           video.addEventListener('loadedmetadata', onLoadedMeta, { once: true })
-           video.addEventListener('seeked', onSeeked, { once: true })
-
-           // 将元素附加到文档，确保某些浏览器能正确触发事件
-           document.body.appendChild(video)
-           console.log('📎 Video 元素已添加到文档')
-         } catch (e) {
-           console.error('❌ generateThumbnail 外层错误:', e)
-           resolve(null) // 外层错误也返回 null
-         }
-       })
-     },
-
-    // 构建文件URL的辅助方法
-    buildFileUrl(filePath) {
-      try {
-        // 将反斜杠转换为正斜杠，并确保路径以 / 开头
-        const normalized = filePath.replace(/\\/g, '/').replace(/^([A-Za-z]:)/, '/$1')
-        // 对路径进行编码，处理中文和特殊字符
-        const encoded = normalized.split('/').map(seg => {
-          if (seg.includes(':')) {
-            // 处理 Windows 盘符（如 C:）
-            return seg
-          }
-          return encodeURIComponent(seg)
-        }).join('/')
-        const fileUrl = 'file://' + encoded
-        console.log('🔧 手动构建的 file:// URL:', fileUrl)
-        return fileUrl
-      } catch (e) {
-        console.error('构建文件URL失败:', e)
-        return filePath // 降级返回原始路径
-      }
-    },
-
-    // 生成缩略图文件名：视频名+cover+_序号
-    async generateThumbnailFilename(videoName, filePath) {
-      try {
-        // 如果没有提供视频名，从文件路径提取
-        let name = videoName
-        if (!name || !name.trim()) {
-          name = this.extractNameFromPath(filePath)
-        }
-        
-        // 清理文件名，移除特殊字符，只保留字母、数字、中文、下划线和连字符
-        const cleanName = name.replace(/[^\w\u4e00-\u9fa5\-_]/g, '_')
-        
-        // 获取当前最大的序号
-        const maxNumber = await this.getMaxThumbnailNumber(cleanName)
-        const nextNumber = maxNumber + 1
-        
-        const filename = `${cleanName}cover_${nextNumber}.jpg`
-        console.log('📝 生成缩略图文件名:', filename)
-        return filename
-      } catch (error) {
-        console.error('生成缩略图文件名失败:', error)
-        // 降级方案：使用时间戳
-        return `video_${Date.now()}.jpg`
-      }
-    },
-
-    // 获取指定视频名的最大缩略图序号
-    async getMaxThumbnailNumber(videoName) {
-      try {
-        if (!window.electronAPI || !window.electronAPI.listFiles) {
-          console.warn('Electron API 不可用，使用默认序号')
-          return 0
-        }
-
-        // 获取视频缩略图目录
-        const thumbnailDir = saveManager.thumbnailDirectories?.videos || 'SaveData/Video/Covers'
-        
-        // 列出目录中的所有文件
-        const result = await window.electronAPI.listFiles(thumbnailDir)
-        if (!result.success) {
-          console.warn('无法列出缩略图目录:', result.error)
-          return 0
-        }
-
-        const files = result.files || []
-        let maxNumber = 0
-        
-        // 查找匹配的文件名模式：视频名cover_数字.jpg
-        const pattern = new RegExp(`^${videoName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}cover_(\\d+)\\.jpg$`)
-        
-        for (const file of files) {
-          const match = file.match(pattern)
-          if (match) {
-            const number = parseInt(match[1], 10)
-            if (number > maxNumber) {
-              maxNumber = number
-            }
-          }
-        }
-        
-        console.log(`📊 视频 "${videoName}" 的最大缩略图序号: ${maxNumber}`)
-        return maxNumber
-      } catch (error) {
-        console.error('获取最大缩略图序号失败:', error)
-        return 0
-      }
-    },
-
-    // 删除旧的缩略图文件
-    async deleteOldThumbnail(thumbnailPath) {
-      try {
-        if (!thumbnailPath || !thumbnailPath.trim()) {
-          return
-        }
-
-        // 如果是base64数据，不需要删除
-        if (thumbnailPath.startsWith('data:')) {
-          return
-        }
-
-        console.log('🗑️ 准备删除旧缩略图:', thumbnailPath)
-        
-        const success = await saveManager.deleteThumbnail(thumbnailPath)
-        
-        if (success) {
-          console.log('✅ 旧缩略图删除成功:', thumbnailPath)
-        } else {
-          console.warn('⚠️ 旧缩略图删除失败:', thumbnailPath)
-        }
-      } catch (error) {
-        console.error('删除旧缩略图失败:', error)
-      }
-    },
-
-    // 获取文件夹视频的最大缩略图序号
-    async getMaxFolderVideoThumbnailNumber(folderName, videoName) {
-      try {
-        if (!window.electronAPI || !window.electronAPI.listFiles) {
-          console.warn('Electron API 不可用，使用默认序号')
-          return 0
-        }
-
-        // 获取文件夹的缩略图目录
-        const thumbnailDir = `${saveManager.thumbnailDirectories?.videos || 'SaveData/Video/Covers'}/${folderName}`
-        
-        // 列出目录中的所有文件
-        const result = await window.electronAPI.listFiles(thumbnailDir)
-        if (!result.success) {
-          console.warn('无法列出文件夹缩略图目录:', result.error)
-          return 0
-        }
-
-        const files = result.files || []
-        let maxNumber = 0
-        
-        // 查找匹配的文件名模式：视频名_cover_数字.jpg
-        const pattern = new RegExp(`^${videoName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}_cover_(\\d+)\\.jpg$`)
-        
-        for (const file of files) {
-          // 只匹配文件名，不包含路径
-          const fileName = file.split(/[\\/]/).pop() || file
-          const match = fileName.match(pattern)
-          if (match) {
-            const number = parseInt(match[1], 10)
-            if (number > maxNumber) {
-              maxNumber = number
-            }
-          }
-        }
-        
-        console.log(`📊 文件夹 "${folderName}" 中视频 "${videoName}" 的最大缩略图序号: ${maxNumber}`)
-        return maxNumber
-      } catch (error) {
-        console.error('获取文件夹视频缩略图最大序号失败:', error)
-        return 0
-      }
-    },
-
-    // 检查视频文件是否可访问
-    async checkVideoFileAccess(filePath) {
-      try {
-        if (window.electronAPI && window.electronAPI.getFileUrl) {
-          const result = await window.electronAPI.getFileUrl(filePath)
-          if (result.success) {
-            console.log('✅ 视频文件可访问:', result.url)
-            return { accessible: true, url: result.url }
-          } else {
-            console.warn('⚠️ 视频文件不可访问:', result.error)
-            return { accessible: false, error: result.error }
-          }
-        }
-        return { accessible: true, url: this.buildFileUrl(filePath) }
-      } catch (error) {
-        console.error('检查视频文件访问失败:', error)
-        return { accessible: false, error: error.message }
-      }
-    },
+    // getMaxFolderVideoThumbnailNumber, checkVideoFileAccess 已移至 composables
 
     // 加载设置
     async loadSettings() {
@@ -3420,115 +1916,12 @@ export default {
       }
     },
 
-    // 在本应用新窗口中播放视频
-    async playVideoInternal(video) {
-      try {
-        console.log('=== 开始内部播放视频 ===')
-        console.log('视频名称:', video.name)
-        console.log('视频路径:', video.filePath)
-        console.log('当前环境:', typeof window.electronAPI !== 'undefined' ? 'Electron' : '浏览器')
-        
-        // 首先检查视频文件是否可访问
-        const accessCheck = await this.checkVideoFileAccess(video.filePath)
-        if (!accessCheck.accessible) {
-          console.error('❌ 视频文件不可访问:', accessCheck.error)
-          notify.toast('error', '播放失败', `视频文件不可访问: ${accessCheck.error}`)
-          return
-        }
-        
-        if (window.electronAPI && window.electronAPI.openVideoWindow) {
-          console.log('✅ Electron API 可用，调用 openVideoWindow')
-          
-          const result = await window.electronAPI.openVideoWindow(video.filePath, {
-            title: video.name,
-            width: 1200,
-            height: 800,
-            resizable: true,
-            minimizable: true,
-            maximizable: true
-          })
-          
-          console.log('openVideoWindow 返回结果:', result)
-          
-          if (result.success) {
-            console.log('✅ 视频窗口已成功打开')
-            // 播放成功时不显示通知，只在控制台记录
-          } else {
-            console.error('❌ 打开视频窗口失败:', result.error)
-            
-            // 检查是否是路径编码问题
-            if (result.error && (result.error.includes('ERR_FILE_NOT_FOUND') || result.error.includes('路径'))) {
-              console.log('🔄 检测到路径问题')
-              notify.toast('error', '播放失败', `视频文件路径问题: ${result.error}`)
-            } else {
-              notify.toast('error', '播放失败', `打开视频窗口失败: ${result.error}`)
-            }
-          }
-        } else {
-          // 降级处理：使用外部播放器
-          console.warn('❌ Electron API 不可用，降级到外部播放器')
-          console.warn('electronAPI 可用性:', !!window.electronAPI)
-          console.warn('openVideoWindow 可用性:', !!window.electronAPI?.openVideoWindow)
-          notify.toast('error', '播放失败', '内部播放器不可用')
-        }
-      } catch (error) {
-        console.error('❌ 内部播放视频失败:', error)
-        
-        // 检查是否是特定类型的错误
-        let errorMessage = error.message
-        if (error.message.includes('ERR_FILE_NOT_FOUND')) {
-          errorMessage = '视频文件未找到，可能是路径包含特殊字符或文件不存在'
-        } else if (error.message.includes('ERR_ACCESS_DENIED')) {
-          errorMessage = '无法访问视频文件，请检查文件权限'
-        }
-        
-        notify.toast('error', '播放失败', `内部播放视频失败: ${errorMessage}`)
-      }
-    },
+    // playVideoInternal, playVideoExternal 已移至 useVideoPlayback composable
 
-    // 使用外部默认播放器播放视频
-    async playVideoExternal(video) {
-      try {
-        if (window.electronAPI && window.electronAPI.openExternal) {
-          await window.electronAPI.openExternal(video.filePath)
-          // 播放成功时不显示通知，只在控制台记录
-          console.log('✅ 已使用外部播放器播放视频:', video.name)
-        } else {
-          // 降级处理：在浏览器中显示路径
-          notify.toast('error', '播放失败', '在浏览器环境中无法直接打开视频文件')
-        }
-      } catch (error) {
-        console.error('外部播放视频失败:', error)
-        notify.toast('error', '播放失败', `外部播放视频失败: ${error.message}`)
-      }
-    },
-
-    // 处理缩略图预览加载错误
+    // 处理缩略图预览加载错误（使用 composable 的方法）
     async handleThumbnailPreviewError(event) {
-      console.log('缩略图预览加载失败，尝试使用异步方法')
-      
-      const originalSrc = event.target.getAttribute('src')
-      const thumbnailPath = this.editVideoForm.thumbnail
-      
-      if (thumbnailPath && !thumbnailPath.startsWith('data:') && !thumbnailPath.startsWith('/') && !thumbnailPath.startsWith('http')) {
-        try {
-          // 使用异步方法重新获取正确的 URL
-          const asyncUrl = await this.getThumbnailUrlAsync(thumbnailPath)
-          
-          if (asyncUrl && asyncUrl !== '/icon.svg') {
-            console.log('异步方法获取到缩略图 URL:', asyncUrl)
-            // 更新图片的 src 属性，触发重新加载
-            event.target.src = asyncUrl
-            return
-          }
-        } catch (error) {
-          console.error('异步获取缩略图失败:', error)
-        }
-      }
-      
-      // 降级处理：隐藏图片
-      console.log('使用默认处理')
-      event.target.style.display = 'none'
+      // 使用 composable 的 handleThumbnailPreviewError 方法
+      await this.handleThumbnailPreviewError(event, this.editVideoForm.thumbnail)
     },
 
     // 处理缩略图预览加载成功
@@ -3566,7 +1959,7 @@ export default {
         existingVideo.filePath = newPath
         existingVideo.fileExists = true
         
-        // 重新获取视频时长（如果之前没有）
+        // 重新获取视频时长（如果之前没有）- 使用 composable 的方法
         if (!existingVideo.duration || existingVideo.duration === 0) {
           try {
             console.log('🔄 重新获取视频时长...')
@@ -3580,11 +1973,11 @@ export default {
           }
         }
         
-        // 重新生成缩略图（如果之前没有）
+        // 重新生成缩略图（如果之前没有）- 使用 composable 的方法
         if (!existingVideo.thumbnail || !existingVideo.thumbnail.trim()) {
           try {
             console.log('🔄 重新生成缩略图...')
-            const thumbnail = await this.generateThumbnail(newPath, existingVideo.name)
+            const thumbnail = await this.generateThumbnail(newPath, existingVideo.name, null)
             if (thumbnail) {
               existingVideo.thumbnail = thumbnail
               console.log('✅ 缩略图生成成功')
@@ -3594,8 +1987,8 @@ export default {
           }
         }
         
-        // 保存视频数据
-        await this.videoManager.updateVideo(existingVideo.id, existingVideo)
+        // 使用 composable 的 updateVideo 方法保存视频数据
+        await this.updateVideo(existingVideo.id, existingVideo)
         
         // 重新加载视频列表
         await this.loadVideos()
@@ -3615,162 +2008,10 @@ export default {
     },
 
 
-    // 提取标签、演员、系列信息
-    extractAllFilters() {
-      const tagCount = {}
-      const actorCount = {}
-      const seriesCount = {}
-      
-      // 合并视频和文件夹的数据
-      const allItems = [...this.videos, ...this.folders]
-      
-      allItems.forEach(item => {
-        // 提取标签
-        if (item.tags && Array.isArray(item.tags)) {
-          item.tags.forEach(tag => {
-            tagCount[tag] = (tagCount[tag] || 0) + 1
-          })
-        }
-        
-        // 提取演员
-        if (item.actors && Array.isArray(item.actors)) {
-          item.actors.forEach(actor => {
-            actorCount[actor] = (actorCount[actor] || 0) + 1
-          })
-        }
-        
-        // 提取系列
-        if (item.series) {
-          seriesCount[item.series] = (seriesCount[item.series] || 0) + 1
-        }
-      })
-      
-      // 转换为数组并按名称排序
-      this.allTags = Object.entries(tagCount)
-        .map(([name, count]) => ({ name, count }))
-        .sort((a, b) => a.name.localeCompare(b.name))
-        
-      this.allActors = Object.entries(actorCount)
-        .map(([name, count]) => ({ name, count }))
-        .sort((a, b) => a.name.localeCompare(b.name))
-        
-      this.allSeries = Object.entries(seriesCount)
-        .map(([name, count]) => ({ name, count }))
-        .sort((a, b) => a.name.localeCompare(b.name))
-      
-      // 提取完标签后更新筛选器数据
-      this.updateFilterData()
-    },
-    
-    // 筛选方法
-    filterByTag(tagName) {
-      if (this.selectedTags.indexOf(tagName) !== -1) {
-        // 如果当前是选中状态，则取消选择
-        this.selectedTags = this.selectedTags.filter(tag => tag !== tagName)
-      } else if (this.excludedTags.indexOf(tagName) !== -1) {
-        // 如果当前是排除状态，则切换为选中状态
-        this.excludedTags = this.excludedTags.filter(tag => tag !== tagName)
-        this.selectedTags = [...this.selectedTags, tagName]
-      } else {
-        // 否则直接设置为选中状态
-        this.selectedTags = [...this.selectedTags, tagName]
-      }
-      this.updateFilterData()
-    },
-    
-    clearTagFilter() {
-      this.selectedTags = []
-      this.excludedTags = []
-      this.updateFilterData()
-    },
-    
-    filterByActor(actorName) {
-      if (this.selectedActors.indexOf(actorName) !== -1) {
-        // 如果当前是选中状态，则取消选择
-        this.selectedActors = this.selectedActors.filter(actor => actor !== actorName)
-      } else if (this.excludedActors.indexOf(actorName) !== -1) {
-        // 如果当前是排除状态，则切换为选中状态
-        this.excludedActors = this.excludedActors.filter(actor => actor !== actorName)
-        this.selectedActors = [...this.selectedActors, actorName]
-      } else {
-        // 否则直接设置为选中状态
-        this.selectedActors = [...this.selectedActors, actorName]
-      }
-      this.updateFilterData()
-    },
-    
-    clearActorFilter() {
-      this.selectedActors = []
-      this.excludedActors = []
-      this.updateFilterData()
-    },
-    
-    filterBySeries(seriesName) {
-      if (this.selectedSeries === seriesName) {
-        // 如果当前是选中状态，则取消选择
-        this.selectedSeries = null
-      } else if (this.excludedSeries === seriesName) {
-        // 如果当前是排除状态，则切换为选中状态
-        this.excludedSeries = null
-        this.selectedSeries = seriesName
-      } else {
-        // 否则直接设置为选中状态
-        this.selectedSeries = seriesName
-      }
-      this.updateFilterData()
-    },
-    
-    clearSeriesFilter() {
-      this.selectedSeries = null
-      this.excludedSeries = null
-      this.updateFilterData()
-    },
-    
-    // 排除方法
-    excludeByTag(tagName) {
-      if (this.excludedTags.indexOf(tagName) !== -1) {
-        // 如果已经是排除状态，则取消排除
-        this.excludedTags = this.excludedTags.filter(tag => tag !== tagName)
-      } else if (this.selectedTags.indexOf(tagName) !== -1) {
-        // 如果当前是选中状态，则切换为排除状态
-        this.selectedTags = this.selectedTags.filter(tag => tag !== tagName)
-        this.excludedTags = [...this.excludedTags, tagName]
-      } else {
-        // 否则直接设置为排除状态
-        this.excludedTags = [...this.excludedTags, tagName]
-      }
-      this.updateFilterData()
-    },
-    
-    excludeByActor(actorName) {
-      if (this.excludedActors.indexOf(actorName) !== -1) {
-        // 如果已经是排除状态，则取消排除
-        this.excludedActors = this.excludedActors.filter(actor => actor !== actorName)
-      } else if (this.selectedActors.indexOf(actorName) !== -1) {
-        // 如果当前是选中状态，则切换为排除状态
-        this.selectedActors = this.selectedActors.filter(actor => actor !== actorName)
-        this.excludedActors = [...this.excludedActors, actorName]
-      } else {
-        // 否则直接设置为排除状态
-        this.excludedActors = [...this.excludedActors, actorName]
-      }
-      this.updateFilterData()
-    },
-    
-    excludeBySeries(seriesName) {
-      if (this.excludedSeries === seriesName) {
-        // 如果已经是排除状态，则取消排除
-        this.excludedSeries = null
-      } else if (this.selectedSeries === seriesName) {
-        // 如果当前是选中状态，则切换为排除状态
-        this.selectedSeries = null
-        this.excludedSeries = seriesName
-      } else {
-        // 否则直接设置为排除状态
-        this.excludedSeries = seriesName
-      }
-      this.updateFilterData()
-    },
+    // extractAllFilters 已移至 useVideoFilter composable（通过 allTags, allActors, allSeries 计算属性自动提取）
+    // 筛选方法已移至 useVideoFilter composable
+    // filterByTag, excludeByTag, clearTagFilter, filterByActor, excludeByActor, clearActorFilter,
+    // filterBySeries, excludeBySeries, clearSeriesFilter 已移至 composable
     
     // 处理来自 App.vue 的筛选器事件
     handleFilterEvent(event, data) {
@@ -3803,35 +2044,15 @@ export default {
           }
           break
       }
+      // 更新筛选器数据
+      this.updateFilterData()
     },
     
-    // 更新筛选器数据到 App.vue
+    // 更新筛选器数据到 App.vue（使用 composable 的 getFilterData）
     updateFilterData() {
-      this.$emit('filter-data-updated', {
-        filters: [
-          {
-            key: 'tags',
-            title: '标签筛选',
-            items: this.allTags,
-            selected: this.selectedTags,
-            excluded: this.excludedTags
-          },
-          {
-            key: 'actors',
-            title: '演员筛选',
-            items: this.allActors,
-            selected: this.selectedActors,
-            excluded: this.excludedActors
-          },
-          {
-            key: 'series',
-            title: '系列筛选',
-            items: this.allSeries,
-            selected: this.selectedSeries,
-            excluded: this.excludedSeries
-          }
-        ]
-      })
+      if (this.getFilterData) {
+        this.$emit('filter-data-updated', this.getFilterData())
+      }
     },
     async handleSortChanged({ pageType, sortBy }) {
       try {
@@ -3841,33 +2062,29 @@ export default {
         console.warn('保存排序方式失败:', error)
       }
     },
+    // loadSortSetting 已移至 useVideoFilter composable
     async loadSortSetting() {
-      try {
-        const savedSortBy = await saveManager.getSortSetting('videos')
-        if (savedSortBy && savedSortBy !== this.sortBy) {
-          this.sortBy = savedSortBy
-          console.log('✅ 已加载视频页面排序方式:', savedSortBy)
-        }
-      } catch (error) {
-        console.warn('加载排序方式失败:', error)
+      if (this.loadSortSetting) {
+        await this.loadSortSetting()
       }
     },
     
-    // 处理分页组件的事件
+    // 处理分页组件的事件（使用 composable 的 handlePageChange）
     handleVideoPageChange(pageNum) {
-      this.currentVideoPage = pageNum
+      if (this.handlePageChange) {
+        this.handlePageChange(pageNum)
+      }
     },
     
-    // 更新视频列表分页信息
+    // 更新视频列表分页信息（composable 会自动更新，这里只需要同步 filteredVideosRef）
     updateVideoPagination() {
-      this.totalVideoPages = Math.ceil(this.filteredVideos.length / this.videoPageSize)
-      // 确保当前页不超过总页数
-      if (this.currentVideoPage > this.totalVideoPages && this.totalVideoPages > 0) {
-        this.currentVideoPage = this.totalVideoPages
+      // 同步 filteredVideos 到 filteredVideosRef，composable 会自动更新分页
+      if (this.filteredVideosRef && this.filteredVideos) {
+        this.filteredVideosRef = this.filteredVideos
       }
-      // 如果当前页为0且没有数据，重置为1
-      if (this.currentVideoPage === 0 && this.filteredVideos.length > 0) {
-        this.currentVideoPage = 1
+      // 使用 composable 的 updatePagination
+      if (this.updatePagination) {
+        this.updatePagination()
       }
     },
     

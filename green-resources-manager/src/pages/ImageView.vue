@@ -45,84 +45,29 @@
 
 
     <!-- 添加专辑对话框 -->
-    <div v-if="showAddDialog" class="modal-overlay" @click="closeAddAlbumDialog">
-      <div class="modal-content" @click.stop>
-        <div class="modal-header">
-          <h3>添加漫画</h3>
-          <button class="modal-close" @click="closeAddAlbumDialog">✕</button>
-        </div>
-        <div class="modal-body">
-          <FormField
-            label="漫画名称 (可选)"
-            type="text"
-            v-model="newAlbum.name"
-            placeholder="留空将自动从文件夹名提取"
-          />
-          <FormField
-            label="作者 (可选)"
-            type="text"
-            v-model="newAlbum.author"
-            placeholder="输入作者名称"
-          />
-          <FormField
-            label="漫画简介 (可选)"
-            type="textarea"
-            v-model="newAlbum.description"
-            placeholder="输入漫画简介或描述..."
-            :rows="3"
-          />
-          <FormField
-            label="漫画标签 (可选)"
-            type="tags"
-            v-model="newAlbum.tags"
-            v-model:tagInput="tagInput"
-            @add-tag="addTag"
-            @remove-tag="removeTag"
-          />
-          <FormField
-            label="漫画文件夹"
-            type="file"
-            v-model="newAlbum.folderPath"
-            placeholder="选择漫画文件夹"
-            @browse="browseForFolder"
-          />
-          <!-- 封面图片选择区域 -->
-          <div class="form-group">
-            <label class="form-label">封面图片 (可选)</label>
-            <div class="cover-selection-container">
-              <div class="cover-preview" v-if="newAlbum.cover">
-                <img :src="resolveCoverImage(newAlbum.cover)" :alt="'封面预览'" @error="handleImageError">
-                <div class="cover-preview-info">
-                  <span class="cover-filename">{{ getImageFileName(newAlbum.cover) }}</span>
-                </div>
-              </div>
-              <div class="cover-actions">
-                <button type="button" class="btn-cover-action" @click="useFirstImageAsCoverNew" :disabled="!newAlbum.folderPath">
-                  <span class="btn-icon">🖼️</span>
-                  使用第一张图片
-                </button>
-                <button type="button" class="btn-cover-action" @click="selectImageFromFolderNew" :disabled="!newAlbum.folderPath">
-                  <span class="btn-icon">📂</span>
-                  从文件夹选择
-                </button>
-                <button type="button" class="btn-cover-action" @click="browseForImageNew">
-                  <span class="btn-icon">📁</span>
-                  选择自定义封面
-                </button>
-                <button type="button" class="btn-cover-action btn-clear" @click="clearCoverNew" v-if="newAlbum.cover">
-                  <span class="btn-icon">🗑️</span>
-                  清除封面
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button class="btn-cancel" @click="closeAddAlbumDialog">取消</button>
-          <button class="btn-confirm" @click="addAlbum" :disabled="!canAddAlbum">添加</button>
-        </div>
-      </div>
-    </div>
+    <AlbumFormDialog
+      :visible="showAddDialog"
+      mode="add"
+      :formData="newAlbum"
+      :cover="newAlbumCover"
+      :tagInput="tagInput"
+      :resolveCoverImage="resolveCoverImage"
+      :getImageFileName="getImageFileName"
+      :handleImageError="handleImageError"
+      :useFirstImageAsCover="useFirstImageAsCover"
+      :selectImageFromFolder="selectImageFromFolder"
+      :browseForImage="browseForImage"
+      :clearCover="clearCover"
+      @update:visible="showAddDialog = $event"
+      @update:formData="newAlbum = $event"
+      @update:cover="newAlbumCover = $event"
+      @update:tagInput="tagInput = $event"
+      @submit="handleAddAlbumSubmit"
+      @close="closeAddAlbumDialog"
+      @browse-folder="browseForFolder"
+      @add-tag="addTag"
+      @remove-tag="removeTag"
+    />
 
     <!-- 漫画专辑详情 -->
     <DetailPanel
@@ -134,146 +79,45 @@
       @action="handleDetailAction"
     >
       <template #extra>
-        <div class="pages-section" v-if="pages.length > 0">
-          <!-- 分页导航 -->
-          <div class="pagination-nav" v-if="totalPages > 1">
-            <div class="pagination-info">
-              <span>第 {{ currentPage }} 页，共 {{ totalPages }} 页</span>
-              <span class="page-range">
-                显示第 {{ currentPageStartIndex + 1 }} - {{ Math.min(currentPageStartIndex + pageSize, pages.length) }} 张，共 {{ pages.length }} 张
-              </span>
-            </div>
-            <div class="pagination-controls">
-              <button 
-                class="btn-pagination" 
-                @click="previousPageGroup" 
-                :disabled="currentPage <= 1"
-              >
-                ◀ 上一页
-              </button>
-              <div class="page-jump-group">
-                <input 
-                  type="number" 
-                  v-model.number="jumpToPageInput" 
-                  :min="1" 
-                  :max="totalPages"
-                  @keyup.enter="jumpToPageGroup(jumpToPageInput)"
-                  class="page-input-group"
-                  placeholder="页码"
-                >
-                <button class="btn-jump-group" @click="jumpToPageGroup(jumpToPageInput)">跳转</button>
-              </div>
-              <button 
-                class="btn-pagination" 
-                @click="nextPageGroup" 
-                :disabled="currentPage >= totalPages"
-              >
-                下一页 ▶
-              </button>
-            </div>
-          </div>
-          
-          <!-- 图片网格 -->
-          <div class="pages-grid">
-            <div 
-              v-for="(p, idx) in paginatedPages" 
-              :key="p" 
-              class="page-item" 
-              @click="viewPage(idx)"
-            >
-              <img 
-                :src="resolveImage(p)" 
-                :alt="'Page ' + (currentPageStartIndex + idx + 1)" 
-                @error="handleImageError"
-                loading="lazy"
-                class="preview-thumbnail"
-              >
-              <div class="page-index">{{ currentPageStartIndex + idx + 1 }}</div>
-            </div>
-          </div>
-        </div>
+        <AlbumPagesGrid
+          :pages="pages"
+          :currentPage="detailCurrentPage"
+          :pageSize="detailPageSize"
+          :totalPages="detailTotalPages"
+          :resolveImage="resolveImage"
+          :handleImageError="handleImageError"
+          @page-click="handlePageClick"
+          @previous-page="previousPageGroup"
+          @next-page="nextPageGroup"
+          @jump-to-page="jumpToPageGroup"
+        />
       </template>
     </DetailPanel>
 
     <!-- 编辑漫画对话框 -->
-    <div v-if="showEditDialog" class="modal-overlay" @click="closeEditAlbumDialog">
-      <div class="modal-content" @click.stop>
-        <div class="modal-header">
-          <h3>编辑漫画</h3>
-          <button class="modal-close" @click="closeEditAlbumDialog">✕</button>
-        </div>
-        <div class="modal-body">
-          <FormField
-            label="名称"
-            type="text"
-            v-model="editAlbumForm.name"
-            placeholder="输入漫画名称"
-          />
-          <FormField
-            label="作者"
-            type="text"
-            v-model="editAlbumForm.author"
-            placeholder="输入作者名称"
-          />
-          <FormField
-            label="漫画简介"
-            type="textarea"
-            v-model="editAlbumForm.description"
-            placeholder="输入漫画简介或描述..."
-            :rows="3"
-          />
-          <FormField
-            label="漫画标签"
-            type="tags"
-            v-model="editAlbumForm.tags"
-            v-model:tagInput="editTagInput"
-            @add-tag="addEditTag"
-            @remove-tag="removeEditTag"
-          />
-          <FormField
-            label="漫画文件夹"
-            type="file"
-            v-model="editAlbumForm.folderPath"
-            placeholder="选择漫画文件夹"
-            @browse="browseForFolderEdit"
-          />
-          <!-- 封面图片选择区域 -->
-          <div class="form-group">
-            <label class="form-label">封面图片</label>
-            <div class="cover-selection-container">
-              <div class="cover-preview" v-if="editAlbumForm.cover">
-                <img :src="resolveCoverImage(editAlbumForm.cover)" :alt="'封面预览'" @error="handleImageError">
-                <div class="cover-preview-info">
-                  <span class="cover-filename">{{ getImageFileName(editAlbumForm.cover) }}</span>
-                </div>
-              </div>
-              <div class="cover-actions">
-                <button type="button" class="btn-cover-action" @click="useFirstImageAsCover" :disabled="!editAlbumForm.folderPath">
-                  <span class="btn-icon">🖼️</span>
-                  使用第一张图片
-                </button>
-                <button type="button" class="btn-cover-action" @click="selectImageFromFolder" :disabled="!editAlbumForm.folderPath">
-                  <span class="btn-icon">📂</span>
-                  从文件夹选择
-                </button>
-                <button type="button" class="btn-cover-action" @click="browseForImageEdit">
-                  <span class="btn-icon">📁</span>
-                  选择自定义封面
-                </button>
-                <button type="button" class="btn-cover-action btn-clear" @click="clearCover" v-if="editAlbumForm.cover">
-                  <span class="btn-icon">🗑️</span>
-                  清除封面
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button class="btn-cancel" @click="closeEditAlbumDialog">取消</button>
-          <button class="btn-confirm" @click="saveEditedAlbum">保存修改</button>
-        </div>
-      </div>
-    </div>
+    <AlbumFormDialog
+      :visible="showEditDialog"
+      mode="edit"
+      :formData="editAlbumForm"
+      :cover="editAlbumCover"
+      :tagInput="editTagInput"
+      :resolveCoverImage="resolveCoverImage"
+      :getImageFileName="getImageFileName"
+      :handleImageError="handleImageError"
+      :useFirstImageAsCover="useFirstImageAsCoverEdit"
+      :selectImageFromFolder="selectImageFromFolderEdit"
+      :browseForImage="browseForImageEdit"
+      :clearCover="clearCoverEdit"
+      @update:visible="showEditDialog = $event"
+      @update:formData="editAlbumForm = $event"
+      @update:cover="editAlbumCover = $event"
+      @update:tagInput="editTagInput = $event"
+      @submit="handleEditAlbumSubmit"
+      @close="closeEditAlbumDialog"
+      @browse-folder="browseForFolderEdit"
+      @add-tag="addEditTag"
+      @remove-tag="removeEditTag"
+    />
 
     <!-- 漫画阅读器 -->
     <ComicViewer
@@ -316,13 +160,19 @@ import MediaCard from '../components/MediaCard.vue'
 import DetailPanel from '../components/DetailPanel.vue'
 import ComicViewer from '../components/ComicViewer.vue'
 import PathUpdateDialog from '../components/PathUpdateDialog.vue'
+import AlbumFormDialog from '../components/image/AlbumFormDialog.vue'
+import AlbumPagesGrid from '../components/image/AlbumPagesGrid.vue'
 
 import notify from '../utils/NotificationService.ts'
 import { unlockAchievement } from './user/AchievementView.vue'
 import { ref, computed, toRefs, watch } from 'vue'
 import { usePagination } from '../composables/usePagination'
-import { useDragAndDrop } from '../composables/useDragAndDrop'
+import { useImageDragDrop } from '../composables/image/useImageDragDrop'
 import { useImageFilter } from '../composables/image/useImageFilter'
+import { useImageAlbum } from '../composables/image/useImageAlbum'
+import { useImageCache } from '../composables/image/useImageCache'
+import { useImagePages } from '../composables/image/useImagePages'
+import { useImageCover } from '../composables/image/useImageCover'
 
 const IMAGE_COLLECTION_ACHIEVEMENTS = [
   { threshold: 50, id: 'image_collector_50' },
@@ -344,11 +194,11 @@ export default {
   },
   emits: ['filter-data-updated'],
   setup() {
-    // 响应式数据
-    const albums = ref([])
+    // 使用专辑管理 composable
+    const imageAlbumComposable = useImageAlbum()
     
-    // 使用筛选 composable
-    const imageFilterComposable = useImageFilter(albums)
+    // 使用筛选 composable（基于 albums）
+    const imageFilterComposable = useImageFilter(imageAlbumComposable.albums)
     
     // 创建一个 ref 用于存储筛选后的专辑列表（用于分页）
     const filteredAlbumsRef = ref([])
@@ -365,38 +215,117 @@ export default {
       '漫画'
     )
 
-    // 使用拖拽 composable（基础拖拽状态管理）
-    const dragDropComposable = useDragAndDrop({
-      enabled: true
-      // onDrop 将在 methods 中处理，因为逻辑复杂
+    // 路径更新对话框状态（需要在 setup 中定义，以便传递给 composable）
+    const showPathUpdateDialog = ref(false)
+    const pathUpdateInfo = ref({
+      existingAlbum: null,
+      newPath: '',
+      newFolderName: ''
+    })
+
+    // 使用图片拖拽 composable
+    const imageDragDropComposable = useImageDragDrop({
+      albums: imageAlbumComposable.albums,
+      onAddAlbum: async (albumData) => {
+        // 调用 composable 的 addAlbum 方法
+        return await imageAlbumComposable.addAlbum(albumData)
+      },
+      onShowPathUpdateDialog: (info) => {
+        pathUpdateInfo.value = info
+        showPathUpdateDialog.value = true
+      },
+      onExtractAllTags: () => {
+        // extractAllTags 在 ImageView.vue 的 methods 中，通过 this 访问
+        // 这里先留空，在 methods 中会调用
+      },
+      onCheckAchievements: async () => {
+        // 调用 composable 的 checkImageCollectionAchievements 方法
+        await imageAlbumComposable.checkImageCollectionAchievements()
+      },
+      onSaveAlbums: async () => {
+        // 调用 composable 的 saveAlbums 方法
+        await imageAlbumComposable.saveAlbums()
+      }
+    })
+
+    // 图片缓存相关状态（需要在 setup 中定义，以便传递给 composable）
+    const showComicViewer = ref(false)
+    const showDetailModal = ref(false)
+    const pages = ref<string[]>([])
+
+    // 使用图片缓存 composable
+    // 注意：onForceUpdate 回调在 Options API 中无法直接访问 this.$forceUpdate
+    // 如果需要强制更新，可以在 methods 中手动调用 $forceUpdate
+    const imageCacheComposable = useImageCache({
+      enableThumbnails: true,
+      jpegQuality: 80,
+      thumbnailSize: 200,
+      maxCacheSize: 50 * 1024 * 1024, // 50MB
+      preloadCount: 3,
+      isComicViewer: showComicViewer,
+      isDetailModal: showDetailModal,
+      pages: pages
+    })
+
+    // 使用详情页图片分页 composable
+    const imagePagesComposable = useImagePages({
+      pages: pages,
+      defaultPageSize: 50
+    })
+
+    // 封面管理 composables（新专辑和编辑专辑各一个）
+    const newAlbumCover = ref('')
+    const newAlbumFolderPath = ref('')
+    const imageCoverNewComposable = useImageCover({
+      coverRef: newAlbumCover,
+      folderPathRef: newAlbumFolderPath
+    })
+
+    const editAlbumCover = ref('')
+    const editAlbumFolderPath = ref('')
+    const imageCoverEditComposable = useImageCover({
+      coverRef: editAlbumCover,
+      folderPathRef: editAlbumFolderPath
     })
 
     return {
-      albums,
       filteredAlbumsRef,
+      showPathUpdateDialog,
+      pathUpdateInfo,
+      showComicViewer,
+      showDetailModal,
+      pages,
+      newAlbumCover,
+      newAlbumFolderPath,
+      editAlbumCover,
+      editAlbumFolderPath,
+      // 专辑管理相关（只展开一次，避免重复）
+      ...imageAlbumComposable,
       // 筛选相关
-      ...toRefs(imageFilterComposable),
       ...imageFilterComposable,
       // 分页相关
-      ...toRefs(albumPaginationComposable),
       ...albumPaginationComposable,
       // 拖拽相关
-      ...toRefs(dragDropComposable),
-      ...dragDropComposable
+      ...imageDragDropComposable,
+      // 图片缓存相关
+      ...imageCacheComposable,
+      // 详情页图片分页相关
+      ...imagePagesComposable,
+      // 封面管理相关（新专辑）
+      ...imageCoverNewComposable,
+      // 封面管理相关（编辑专辑）- 需要重命名避免冲突
+      browseForImageEdit: imageCoverEditComposable.browseForImage,
+      useFirstImageAsCoverEdit: imageCoverEditComposable.useFirstImageAsCover,
+      selectImageFromFolderEdit: imageCoverEditComposable.selectImageFromFolder,
+      clearCoverEdit: imageCoverEditComposable.clearCover
     }
   },
   data() {
     return {
       // albums, searchQuery, sortBy 已移至 setup()
       showAddDialog: false,
-      // isDragOver 已移至 useDragAndDrop composable
-      // 路径更新确认对话框
-      showPathUpdateDialog: false,
-      pathUpdateInfo: {
-        existingAlbum: null,
-        newPath: '',
-        newFolderName: ''
-      },
+      // isDragOver 已移至 useImageDragDrop composable
+      // showPathUpdateDialog 和 pathUpdateInfo 已移至 setup()
       newAlbum: {
         name: '',
         author: '',
@@ -407,24 +336,12 @@ export default {
         viewCount: 0
       },
       tagInput: '',
-      showDetailModal: false,
-      currentAlbum: null,
+      // showDetailModal, pages 已移至 setup()
+      // currentAlbum 已移至 useImageAlbum composable
       selectedAlbum: null,
-      pages: [],
-      // 优化的图片缓存系统
-      imageCache: new Map(), // 使用Map替代Object，支持LRU
-      imageCacheSize: 0,
-      maxCacheSize: 50 * 1024 * 1024, // 50MB缓存限制
-      preloadQueue: [], // 预加载队列
-      isPreloading: false,
-      // 图片质量设置
-      imageQuality: 'high', // 'high', 'medium', 'low'
-      enableThumbnails: true, // 是否启用缩略图
-      // 从设置中加载的配置
-      jpegQuality: 80, // JPEG压缩质量
-      thumbnailSize: 200, // 缩略图尺寸
-      cacheSize: 50, // 缓存大小(MB)
-      preloadCount: 3, // 预加载数量
+      // 图片缓存系统已移至 useImageCache composable
+      // 图片质量设置已移至 useImageCache composable
+      imageQuality: 'high', // 'high', 'medium', 'low' (保留用于其他用途)
       hardwareAcceleration: true, // 硬件加速
       renderQuality: 'high', // 渲染质量
       // 编辑相关
@@ -458,10 +375,10 @@ export default {
       // 漫画阅读器相关
       showComicViewer: false,
       currentPageIndex: 0,
-      // 分页相关
-      currentPage: 1,
-      pageSize: 50, // 默认值，将从设置中加载
-      totalPages: 0,
+      // 分页相关（详情页内图片分页，避免与 composable 的变量名冲突）
+      detailCurrentPage: 1,
+      detailPageSize: 50, // 默认值，将从设置中加载
+      detailTotalPages: 0,
       jumpToPageInput: 1,
       // 漫画列表分页相关已移至 usePagination composable
       // 空状态配置
@@ -503,18 +420,20 @@ export default {
     // 动态更新分页配置（使用 composable 的 paginationConfig）
     albumPaginationConfig() {
       // 使用 composable 的 paginationConfig，但需要更新 totalItems
-      if (this.paginationConfig) {
-        return {
-          ...this.paginationConfig,
-          totalItems: this.filteredAlbums.length
-        }
-      }
-      return {
+      // 确保 paginationConfig 始终存在
+      const config = this.paginationConfig || {
         currentPage: 1,
         totalPages: 0,
         pageSize: 20,
-        totalItems: this.filteredAlbums.length,
+        totalItems: 0,
         itemType: '漫画'
+      }
+      
+      return {
+        ...config,
+        totalItems: this.filteredAlbums.length,
+        // 确保 totalPages 正确计算
+        totalPages: config.totalPages || Math.ceil(this.filteredAlbums.length / (config.pageSize || 20))
       }
     },
     albumStats() {
@@ -527,16 +446,16 @@ export default {
         { label: '最后查看', value: this.formatDate(this.currentAlbum.lastViewed) }
       ]
     },
-    // 分页显示的图片
+    // 分页显示的图片（详情页内图片分页）
     paginatedPages() {
       if (!this.pages || this.pages.length === 0) return []
-      const start = (this.currentPage - 1) * this.pageSize
-      const end = start + this.pageSize
+      const start = (this.detailCurrentPage - 1) * this.detailPageSize
+      const end = start + this.detailPageSize
       return this.pages.slice(start, end)
     },
-    // 当前页的起始索引
-    currentPageStartIndex() {
-      return (this.currentPage - 1) * this.pageSize
+    // 当前页的起始索引（详情页内图片分页）
+    detailCurrentPageStartIndex() {
+      return (this.detailCurrentPage - 1) * this.detailPageSize
     },
     // 分页显示的漫画列表（使用 composable 的 paginatedItems）
     paginatedAlbums() {
@@ -570,601 +489,104 @@ export default {
       if (this.resetToFirstPage) {
         this.resetToFirstPage()
       }
+    },
+    // 同步 newAlbum 的 cover 和 folderPath 到 composable ref
+    'newAlbum.cover'(newVal) {
+      this.newAlbumCover = newVal
+    },
+    'newAlbum.folderPath'(newVal) {
+      this.newAlbumFolderPath = newVal
+    },
+    // 同步 newAlbumCover 和 newAlbumFolderPath 到 newAlbum
+    newAlbumCover(newVal) {
+      this.newAlbum.cover = newVal
+    },
+    newAlbumFolderPath(newVal) {
+      this.newAlbum.folderPath = newVal
+    },
+    // 同步 editAlbumForm 的 cover 和 folderPath 到 composable ref
+    'editAlbumForm.cover'(newVal) {
+      this.editAlbumCover = newVal
+    },
+    'editAlbumForm.folderPath'(newVal) {
+      this.editAlbumFolderPath = newVal
+    },
+    // 同步 editAlbumCover 和 editAlbumFolderPath 到 editAlbumForm
+    editAlbumCover(newVal) {
+      this.editAlbumForm.cover = newVal
+    },
+    editAlbumFolderPath(newVal) {
+      this.editAlbumForm.folderPath = newVal
     }
   },
   methods: {
-    async checkImageCollectionAchievements() {
-      if (!Array.isArray(this.albums)) return
-
-      const totalAlbums = this.albums.length
-      const unlockPromises = IMAGE_COLLECTION_ACHIEVEMENTS
-        .filter(config => totalAlbums >= config.threshold)
-        .map(config => unlockAchievement(config.id))
-
-      if (unlockPromises.length === 0) {
-        return
-      }
-
-      try {
-        await Promise.all(unlockPromises)
-      } catch (error) {
-        console.warn('触发图片收藏成就时出错:', error)
-      }
-    },
+    // checkImageCollectionAchievements 已移至 useImageAlbum composable
+    // loadAlbums 已移至 useImageAlbum composable
+    // 此方法保留作为包装，调用 composable 的方法并执行额外逻辑
     async loadAlbums() {
-      this.albums = await saveManager.loadImages()
+      // 调用 composable 的 loadAlbums
+      const loadFn = (this as any).loadAlbums
+      if (loadFn && typeof loadFn === 'function') {
+        await loadFn.call(this)
+      }
+      
       this.extractAllTags()
       
       // 检测文件存在性（仅在应用启动时检测一次）
       if (this.$parent.shouldCheckFileLoss && this.$parent.shouldCheckFileLoss()) {
-        await this.checkFileExistence()
+        const checkFn = (this as any).checkFileExistence
+        if (checkFn && typeof checkFn === 'function') {
+          await checkFn.call(this)
+        }
         this.$parent.markFileLossChecked()
       }
       
       // 计算漫画列表总页数（使用 composable 的 updatePagination）
-      // 注意：需要手动更新，因为 filteredAlbums 不是 composable 的依赖
       this.updateAlbumPagination()
-      await this.checkImageCollectionAchievements()
-    },
-    
-    async checkFileExistence() {
-      console.log('🔍 开始检测图片文件夹存在性...')
       
-      if (!window.electronAPI || !window.electronAPI.checkFileExists) {
-        console.log('⚠️ Electron API 不可用，跳过文件存在性检测')
-        // 如果API不可用，默认设置为存在
-        this.albums.forEach(album => {
-          album.fileExists = true
-        })
-        return
+      const checkAchievementsFn = (this as any).checkImageCollectionAchievements
+      if (checkAchievementsFn && typeof checkAchievementsFn === 'function') {
+        await checkAchievementsFn.call(this)
       }
-      
-      let checkedCount = 0
-      let missingCount = 0
-      const missingFiles = [] // 收集丢失的文件信息
-      
-      for (const album of this.albums) {
-        if (!album.folderPath) {
-          album.fileExists = false
-          missingCount++
-          missingFiles.push({
-            name: album.name,
-            path: '未设置路径'
-          })
-          continue
-        }
-        
-        try {
-          const result = await window.electronAPI.checkFileExists(album.folderPath)
-          album.fileExists = result.exists       
-          if (!result.exists) {
-            missingCount++
-            missingFiles.push({
-              name: album.name,
-              path: album.folderPath
-            })
-            console.log(`❌ 图片文件夹不存在: ${album.name} - ${album.folderPath}`)
-          } 
-        } catch (error) {
-          console.error(`❌ 检测图片文件夹存在性失败: ${album.name}`, error)
-          album.fileExists = false
-          missingCount++
-          missingFiles.push({
-            name: album.name,
-            path: album.folderPath || '路径检测失败'
-          })
-        }
-        
-        checkedCount++
-      }
-      
-      console.log(`📊 文件存在性检测完成: 检查了 ${checkedCount} 个图片文件夹，${missingCount} 个文件夹不存在`)
-      
-      // 如果有丢失的文件，显示提醒
-      if (missingCount > 0) {
-        this.showMissingFilesAlert(missingFiles)
-      }
-      
-      // 强制更新视图
-      this.$forceUpdate()
     },
 
-    // 显示丢失文件提醒
-    showMissingFilesAlert(missingFiles) {
-      // 构建文件列表文本
-      const fileList = missingFiles.map(file => 
-        `• ${file.name}${file.path !== '未设置路径' && file.path !== '路径检测失败' ? ` (${file.path})` : ''}`
-      ).join('\n')
-      
-      // 显示 toast 通知，包含详细信息
-      notify.toast(
-        'warning',
-        '文件夹丢失提醒', 
-        `发现 ${missingFiles.length} 个图片文件夹丢失：\n${fileList}\n\n请检查文件夹路径或重新添加这些图片。`
-      )
-      
-      // 在控制台输出详细信息
-      console.warn('📋 丢失的图片文件夹列表:')
-      missingFiles.forEach((file, index) => {
-        console.warn(`${index + 1}. ${file.name}`)
-        if (file.path !== '未设置路径' && file.path !== '路径检测失败') {
-          console.warn(`   路径: ${file.path}`)
-        }
-      })
-    },
+    // checkFileExistence 已移至 useImageAlbum composable
     
     // 拖拽处理方法（使用 composable 的方法）
-    handleDragOver(event) {
+    handleDragOver(event: DragEvent) {
       if (this.handleDragOver) {
         this.handleDragOver(event)
       }
     },
     
-    handleDragEnter(event) {
+    handleDragEnter(event: DragEvent) {
       if (this.handleDragEnter) {
         this.handleDragEnter(event)
       }
     },
     
-    handleDragLeave(event) {
+    handleDragLeave(event: DragEvent) {
       if (this.handleDragLeave) {
         this.handleDragLeave(event)
       }
     },
     
-    async handleDrop(event) {
-      console.log('=== 拖拽事件开始 ===')
+    async handleDrop(event: DragEvent) {
       event.preventDefault()
       // 更新拖拽状态（使用 composable 的状态）
       if (this.isDragOver !== undefined) {
         this.isDragOver = false
       }
       
-      try {
-        const files = Array.from(event.dataTransfer.files) as File[]
-        
-        console.log('=== 拖拽调试信息 ===')
-        console.log('拖拽文件数量:', files.length)
-        console.log('拖拽文件详细信息:', files.map(f => ({
-          name: f.name,
-          path: f.path,
-          webkitRelativePath: f.webkitRelativePath,
-          type: f.type,
-          size: f.size,
-          lastModified: f.lastModified,
-          // 检查是否有其他可能的属性
-          webkitGetAsEntry: (f as any).webkitGetAsEntry ? 'exists' : 'not exists'
-        })))
-        console.log('当前漫画库状态:')
-        this.albums.forEach((album, index) => {
-          console.log(`  ${index + 1}. ${album.name}`)
-          console.log(`     路径: ${album.folderPath}`)
-          console.log(`     文件存在: ${album.fileExists}`)
-        })
-        
-        if (files.length === 0) {
-          console.log('没有拖拽文件，显示错误通知')
-          notify.native('拖拽失败', '请拖拽文件夹到此处')
-          return
-        }
-        
-        // 检测多个文件夹
-        console.log('开始检测多个文件夹...')
-        const detectedFolders = this.detectMultipleFolders(files)
-        console.log('检测到的文件夹:', detectedFolders)
-        
-        if (detectedFolders.length === 0) {
-          console.log('未检测到有效文件夹，显示错误通知')
-          notify.native('拖拽失败', '未检测到有效的文件夹，请拖拽包含图片的文件夹')
-          return
-        }
-        
-        console.log('开始批量处理文件夹...')
-        // 批量处理文件夹
-        const results = await this.processMultipleFolders(detectedFolders)
-        console.log('批量处理完成，结果:', results)
-        
-        // 显示结果通知
-        const successCount = results.filter(r => r.success).length
-        const failCount = results.filter(r => !r.success).length
-        
-        console.log('处理结果统计:', {
-          成功: successCount,
-          失败: failCount,
-          总数: results.length
-        })
-        
-        if (successCount > 0) {
-          // 使用通知服务的批量结果处理，会自动显示详细的成功和失败信息
-          console.log('显示批量操作结果通知')
-          notify.toast('success', '批量添加完成', '', results)
-        } else {
-          console.log('所有文件夹添加失败，显示失败通知')
-          // 收集所有失败原因，添加序号和换行
-          const failureReasons = results
-            .filter(r => !r.success)
-            .map((r, index) => `${index + 1}. "${r.folderName}": ${r.error || '未知错误'}`)
-            .join('\n')
-          
-          notify.toast('error', '添加失败', `所有文件夹添加失败:\n${failureReasons}`, results)
-        }
-        
-        console.log('=== 拖拽事件完成 ===')
-        
-      } catch (error) {
-        console.error('拖拽添加漫画失败:', error)
-        console.error('错误堆栈:', error.stack)
-        notify.toast('error', '添加失败', `添加漫画失败: ${error.message}`)
+      // 使用 composable 的 handleDrop 方法
+      if (this.handleDrop) {
+        const files = Array.from(event.dataTransfer?.files || []) as File[]
+        await this.handleDrop(files)
       }
     },
     
-    // 检测多个文件夹
-    detectMultipleFolders(files) {
-      console.log('=== 开始检测多个文件夹 ===')
-      console.log('输入文件数量:', files.length)
-      
-      const folders = new Map() // 使用 Map 来避免重复文件夹
-      
-      // 方法1: 通过 webkitRelativePath 检测多个文件夹
-      const folderFiles = files.filter(file => file.webkitRelativePath && file.webkitRelativePath.includes('/'))
-      console.log('方法1 - webkitRelativePath 文件数量:', folderFiles.length)
-      
-      if (folderFiles.length > 0) {
-        console.log('使用方法1检测文件夹')
-        folderFiles.forEach((file, index) => {
-          console.log(`处理文件 ${index + 1}:`, {
-            name: file.name,
-            path: file.path,
-            webkitRelativePath: file.webkitRelativePath
-          })
-          
-          const relativeFolderPath = file.webkitRelativePath.split('/')[0]
-          console.log('提取的文件夹名:', relativeFolderPath)
-          
-          if (file.path) {
-            const fileDir = file.path.substring(0, file.path.lastIndexOf('/'))
-            const relativePath = file.webkitRelativePath.substring(0, file.webkitRelativePath.indexOf('/'))
-            const fullPath = fileDir + '/' + relativePath
-            
-            console.log('路径分析:', {
-              fileDir,
-              relativePath,
-              fullPath
-            })
-            
-            if (!folders.has(fullPath)) {
-              folders.set(fullPath, {
-                path: fullPath,
-                name: relativeFolderPath,
-                files: []
-              })
-              console.log('新增文件夹:', fullPath)
-            }
-            folders.get(fullPath).files.push(file)
-            console.log('文件夹文件数量:', folders.get(fullPath).files.length)
-          } else {
-            console.log('文件没有path属性，跳过')
-          }
-        })
-      } else {
-        console.log('方法1失败，尝试方法2')
-        // 方法2: 通过文件路径分析检测多个文件夹
-        const filePaths = files.filter(f => f.path).map(f => f.path)
-        console.log('方法2 - 有path的文件数量:', filePaths.length)
-        console.log('文件路径列表:', filePaths)
-        
-        if (filePaths.length > 0) {
-          // 按目录分组文件
-          const dirGroups = new Map()
-          
-          filePaths.forEach(filePath => {
-            console.log('处理文件路径:', filePath)
-            
-            // 检查路径是否看起来像文件夹（没有文件扩展名）
-            const hasImageExtension = /\.(jpg|jpeg|png|gif|bmp|webp|svg)$/i.test(filePath)
-            console.log('路径扩展名检查:', { filePath, hasImageExtension })
-            
-            if (!hasImageExtension) {
-              // 没有图片扩展名，可能是文件夹路径
-              console.log('检测为文件夹路径:', filePath)
-              const folderName = filePath.split(/[/\\]/).pop() || '未命名漫画'
-              
-              folders.set(filePath, {
-                path: filePath,
-                name: folderName,
-                files: files.filter(f => f.path === filePath)
-              })
-            } else {
-              // 有图片扩展名，按目录分组
-              const dir = filePath.substring(0, filePath.lastIndexOf('/'))
-              console.log('提取目录:', { filePath, dir })
-              
-              if (dir && dir !== filePath) {
-                if (!dirGroups.has(dir)) {
-                  dirGroups.set(dir, [])
-                }
-                dirGroups.get(dir).push(filePath)
-              }
-            }
-          })
-          
-          console.log('目录分组结果:', Array.from(dirGroups.entries()).map(([dir, files]) => ({
-            dir,
-            fileCount: files.length
-          })))
-          
-          // 检查每个目录是否包含足够的文件（可能是文件夹）
-          dirGroups.forEach((fileList, dir) => {
-            console.log(`检查目录: ${dir}, 文件数量: ${fileList.length}`)
-            if (fileList.length >= 1) { // 至少1个文件就认为是文件夹
-              const folderName = dir.split(/[/\\]/).pop() || '未命名漫画'
-              const folderFiles = files.filter(f => f.path && f.path.startsWith(dir))
-              
-              console.log('检测到文件夹:', {
-                path: dir,
-                name: folderName,
-                fileCount: folderFiles.length
-              })
-              
-              folders.set(dir, {
-                path: dir,
-                name: folderName,
-                files: folderFiles
-              })
-            } else {
-              console.log('文件数量不足，跳过目录:', dir)
-            }
-          })
-        }
-        
-        // 方法3: 处理单个文件拖拽的特殊情况
-        if (folders.size === 0 && files.length === 1) {
-          console.log('方法2失败，尝试方法3 - 单文件特殊情况')
-          const singleFile = files[0]
-          console.log('单文件信息:', {
-            name: singleFile.name,
-            path: singleFile.path,
-            type: singleFile.type
-          })
-          
-          if (singleFile.path) {
-            const fileName = singleFile.name || ''
-            const hasImageExtension = /\.(jpg|jpeg|png|gif|bmp|webp|svg)$/i.test(fileName)
-            
-            console.log('文件扩展名检查:', {
-              fileName,
-              hasImageExtension
-            })
-            
-            if (!hasImageExtension) {
-              // 没有图片扩展名，可能是文件夹
-              const folderPath = singleFile.path
-              const folderName = fileName || singleFile.path.split(/[/\\]/).pop() || '未命名漫画'
-              
-              console.log('检测为文件夹（无图片扩展名）:', {
-                path: folderPath,
-                name: folderName
-              })
-              
-              folders.set(folderPath, {
-                path: folderPath,
-                name: folderName,
-                files: [singleFile]
-              })
-            } else {
-              // 有图片扩展名，尝试使用父目录
-              const parentDir = singleFile.path.substring(0, singleFile.path.lastIndexOf('/'))
-              if (parentDir) {
-                const folderName = parentDir.split(/[/\\]/).pop() || '未命名漫画'
-                
-                console.log('检测为文件夹（使用父目录）:', {
-                  path: parentDir,
-                  name: folderName
-                })
-                
-                folders.set(parentDir, {
-                  path: parentDir,
-                  name: folderName,
-                  files: [singleFile]
-                })
-              } else {
-                console.log('无法获取父目录')
-              }
-            }
-          } else {
-            console.log('单文件没有path属性')
-          }
-        }
-      }
-      
-      const result = Array.from(folders.values())
-      console.log('=== 文件夹检测完成 ===')
-      console.log('检测到的文件夹数量:', result.length)
-      console.log('检测结果:', result.map(f => ({
-        name: f.name,
-        path: f.path,
-        fileCount: f.files.length
-      })))
-      
-      return result
-    },
-    
-    // 批量处理多个文件夹
-    async processMultipleFolders(folders) {
-      console.log('=== 开始批量处理文件夹 ===')
-      console.log('待处理文件夹数量:', folders.length)
-      
-      const results = []
-      
-      for (let i = 0; i < folders.length; i++) {
-        const folder = folders[i]
-        console.log(`\n--- 处理文件夹 ${i + 1}/${folders.length} ---`)
-        console.log('文件夹信息:', {
-          name: folder.name,
-          path: folder.path,
-          fileCount: folder.files.length
-        })
-        
-        try {
-          // 检查是否已经存在相同的文件夹路径
-          const existingAlbumByPath = this.albums.find(album => album.folderPath === folder.path)
-          if (existingAlbumByPath) {
-            console.log('文件夹已存在，跳过:', folder.name)
-            results.push({
-              success: false,
-              folderName: folder.name,
-              error: `文件夹 "${folder.name}" 已经存在`,
-              folderPath: folder.path,
-              existingAlbumId: existingAlbumByPath.id
-            })
-            continue
-          }
-          
-          // 检查是否存在同名但路径不同的丢失文件夹
-          const existingAlbumByName = this.albums.find(album => {
-            const albumFolderName = album.folderPath.split(/[\\/]/).pop().toLowerCase()
-            const newFolderName = folder.name.toLowerCase()
-            const isSameName = albumFolderName === newFolderName
-            const isFolderMissing = !album.fileExists
-            
-            console.log(`检查漫画: ${album.name}`)
-            console.log(`  文件夹名: ${albumFolderName} vs ${newFolderName}`)
-            console.log(`  是否同名: ${isSameName}`)
-            console.log(`  文件夹存在: ${album.fileExists}`)
-            console.log(`  是否丢失: ${isFolderMissing}`)
-            console.log(`  匹配条件: ${isSameName && isFolderMissing}`)
-            
-            return isSameName && isFolderMissing
-          })
-          
-          if (existingAlbumByName) {
-            console.log(`发现同名丢失文件夹: ${folder.name}`)
-            console.log(`现有漫画路径: ${existingAlbumByName.folderPath}`)
-            console.log(`新文件夹路径: ${folder.path}`)
-            // 显示路径更新确认对话框
-            this.pathUpdateInfo = {
-              existingAlbum: existingAlbumByName,
-              newPath: folder.path,
-              newFolderName: folder.name
-            }
-            this.showPathUpdateDialog = true
-            // 暂停处理，等待用户确认
-            return
-          }
-          
-          // 验证文件夹路径
-          if (!folder.path || folder.path.trim() === '') {
-            console.log('文件夹路径为空，跳过:', folder.name)
-            results.push({
-              success: false,
-              folderName: folder.name,
-              error: '文件夹路径为空',
-              folderPath: folder.path
-            })
-            continue
-          }
-          
-          // 创建新的漫画专辑
-          const albumId = Date.now().toString() + Math.random().toString(36).substr(2, 9)
-          const album = {
-            id: albumId,
-            name: folder.name,
-            author: '',
-            description: '',
-            tags: [],
-            folderPath: folder.path,
-            cover: '',
-            pagesCount: 0,
-            lastViewed: null,
-            viewCount: 0,
-            addedDate: new Date().toISOString()
-          }
-          
-          console.log('创建专辑对象:', {
-            id: album.id,
-            name: album.name,
-            folderPath: album.folderPath
-          })
-          
-          // 加载文件夹中的图片文件
-          console.log('开始加载文件夹中的图片文件...')
-          this.currentAlbum = album
-          
-          const beforeLoadTime = Date.now()
-          await this.loadAlbumPages()
-          const afterLoadTime = Date.now()
-          
-          console.log('图片文件加载完成，耗时:', afterLoadTime - beforeLoadTime, 'ms')
-          console.log('加载的图片数量:', this.pages.length)
-          console.log('专辑页数更新为:', album.pagesCount)
-          
-          // 添加到列表
-          this.albums.push(album)
-          console.log('专辑已添加到列表，当前专辑总数:', this.albums.length)
-          
-          results.push({
-            success: true,
-            folderName: folder.name,
-            album: album
-          })
-          
-          console.log('文件夹处理成功:', folder.name)
-          
-        } catch (error) {
-          console.error(`处理文件夹 "${folder.name}" 失败:`, error)
-          console.error('错误堆栈:', error.stack)
-          
-          // 根据错误类型提供更具体的错误信息
-          let errorMessage = error.message
-          if (error.message.includes('ENOENT')) {
-            errorMessage = '文件夹不存在或无法访问'
-          } else if (error.message.includes('EACCES')) {
-            errorMessage = '没有访问权限'
-          } else if (error.message.includes('EMFILE') || error.message.includes('ENFILE')) {
-            errorMessage = '打开文件过多，请稍后重试'
-          } else if (error.message.includes('timeout')) {
-            errorMessage = '操作超时'
-          } else if (error.message.includes('Invalid path')) {
-            errorMessage = '无效的文件夹路径'
-          } else if (error.message.includes('No image files found')) {
-            errorMessage = '文件夹中没有找到图片文件'
-          }
-          
-          results.push({
-            success: false,
-            folderName: folder.name,
-            error: errorMessage,
-            folderPath: folder.path,
-            originalError: error.message
-          })
-        }
-      }
-      
-      console.log('\n=== 批量处理完成 ===')
-      console.log('处理结果统计:', {
-        总数: results.length,
-        成功: results.filter(r => r.success).length,
-        失败: results.filter(r => !r.success).length
-      })
-      
-      // 批量保存
-      const successCount = results.filter(r => r.success).length
-      if (successCount > 0) {
-        console.log('开始批量保存，成功数量:', successCount)
-        const beforeSaveTime = Date.now()
-        await this.saveAlbums()
-        const afterSaveTime = Date.now()
-        console.log('批量保存完成，耗时:', afterSaveTime - beforeSaveTime, 'ms')
-        
-        // 重新提取标签和作者信息，更新筛选器
-        this.extractAllTags()
-        await this.checkImageCollectionAchievements()
-      } else {
-        console.log('没有成功的文件夹，跳过保存')
-      }
-      
-      return results
-    },
+    // detectMultipleFolders 已移至 useImageDragDrop composable
+    // processMultipleFolders 已移至 useImageDragDrop composable
     
     // 获取文件路径的公共目录
     getCommonDirectory(filePaths) {
@@ -1193,9 +615,7 @@ export default {
       return commonDir || null
     },
     
-    async saveAlbums() {
-      await saveManager.saveImages(this.albums)
-    },
+    // saveAlbums 已移至 useImageAlbum composable
     // 处理空状态按钮点击事件
     handleEmptyStateAction(actionName) {
       if (actionName === 'showAddAlbumDialog') {
@@ -1225,6 +645,9 @@ export default {
         cover: '',
         viewCount: 0
       }
+      // 同步到 composable 的 ref
+      this.newAlbumFolderPath = ''
+      this.newAlbumCover = ''
       this.tagInput = ''
     },
     closeAddAlbumDialog() {
@@ -1238,6 +661,9 @@ export default {
         cover: '',
         viewCount: 0
       }
+      // 同步到 composable 的 ref
+      this.newAlbumFolderPath = ''
+      this.newAlbumCover = ''
       this.tagInput = ''
     },
     async browseForFolder() {
@@ -1248,6 +674,7 @@ export default {
           console.log('选择文件夹结果:', result)
           if (result && result.success && result.path) {
             this.newAlbum.folderPath = result.path
+            this.newAlbumFolderPath = result.path // 同步到 composable
             if (!this.newAlbum.name.trim()) {
               const parts = result.path.replace(/\\/g, '/').split('/')
               this.newAlbum.name = parts[parts.length - 1]
@@ -1265,41 +692,26 @@ export default {
         alert('选择文件夹失败: ' + e.message)
       }
     },
-    async addAlbum() {
-      if (!this.canAddAlbum) return
+    handleAddAlbumSubmit(formData) {
+      // 同步 cover 从 composable ref
+      formData.cover = this.newAlbumCover
+      this.addAlbumInternal(formData)
+    },
+    
+    async addAlbumInternal(formData) {
+      if (!formData || !formData.folderPath || !formData.folderPath.trim()) return
       try {
-        console.log('开始添加漫画，文件夹路径:', this.newAlbum.folderPath)
-        let pages = []
-        if (window.electronAPI && window.electronAPI.listImageFiles) {
-          console.log('正在扫描图片文件...')
-          const resp = await window.electronAPI.listImageFiles(this.newAlbum.folderPath)
-          console.log('扫描结果:', resp)
-          if (resp.success) {
-            pages = resp.files || []
-            console.log('找到图片文件数量:', pages.length)
-          } else {
-            console.error('扫描图片文件失败:', resp.error)
-            alert('扫描图片文件失败: ' + resp.error)
-            return
-          }
-        }
-        const cover = pages[0] || ''
-        const album = {
-          id: Date.now().toString(),
-          name: (this.newAlbum.name || '').trim() || this.extractFolderName(this.newAlbum.folderPath),
-          author: (this.newAlbum.author || '').trim() || '',
-          description: (this.newAlbum.description || '').trim() || '',
-          tags: [...this.newAlbum.tags],
-          folderPath: this.newAlbum.folderPath.trim(),
-          cover: cover,
-          pagesCount: pages.length,
-          addedDate: new Date().toISOString(),
-          lastViewed: null,
-          viewCount: 0
-        }
-        console.log('创建专辑对象:', album)
-        this.albums.push(album)
-        await this.saveAlbums()
+        console.log('开始添加漫画，文件夹路径:', formData.folderPath)
+        
+        const album = await this.addAlbum({
+          name: formData.name || '',
+          author: formData.author || '',
+          description: formData.description || '',
+          tags: formData.tags || [],
+          folderPath: formData.folderPath,
+          cover: formData.cover || ''
+        })
+        
         await this.checkImageCollectionAchievements()
         
         // 重新提取标签和作者信息，更新筛选器
@@ -1307,7 +719,7 @@ export default {
         
         console.log('专辑添加成功')
         // 显示成功通知，包含漫画名称和页数
-        notify.toast('success', '添加成功', `已成功添加漫画 "${this.newAlbum.name}" (${pages.length}页)`)
+        notify.toast('success', '添加成功', `已成功添加漫画 "${album.name}" (${album.pagesCount}页)`)
         this.closeAddAlbumDialog()
       } catch (e) {
         console.error('添加漫画失败:', e)
@@ -1315,10 +727,7 @@ export default {
         notify.toast('error', '添加失败', `无法添加漫画 "${this.newAlbum.name}": ${e.message}`)
       }
     },
-    extractFolderName(p) {
-      const parts = String(p || '').replace(/\\/g, '/').split('/')
-      return parts[parts.length - 1] || '未命名'
-    },
+    // extractFolderName 已移至 useImageAlbum composable
     addTag() {
       const tag = this.tagInput.trim()
       if (tag && !this.newAlbum.tags.includes(tag)) {
@@ -1347,10 +756,8 @@ export default {
       // 清空之前的页面数据，确保重新加载
       this.pages = []
       
-      // 增加浏览次数
-      album.viewCount = (album.viewCount || 0) + 1
-      album.lastViewed = new Date().toISOString()
-      await this.saveAlbums()
+      // 增加浏览次数（使用 composable 的方法）
+      await this.updateViewInfo(album)
       
       // 先加载当前漫画的图片文件，再显示阅读器
       await this.loadAlbumPages()
@@ -1360,10 +767,13 @@ export default {
     },
     async showAlbumDetail(album) {
       try {
+        // 设置当前专辑（在 Options API 中，setup 返回的 ref 会自动解包）
         this.currentAlbum = album
         this.showDetailModal = true
         this.pages = []
-        this.currentPage = 1 // 重置到第一页
+        // 重置分页状态
+        this.resetPagination()
+        this.detailCurrentPage = 1
         
         // 确保pageSize已从设置中加载
         await this.loadImageSettings()
@@ -1374,13 +784,16 @@ export default {
           if (resp.success) files = resp.files || []
         }
         this.pages = files
-        this.totalPages = Math.ceil(files.length / this.pageSize)
+        this.updateTotalPages()
         album.pagesCount = files.length
         
         // 注意：这里不再增加浏览次数，只有真正开始阅读时才增加
         // 浏览次数将在 openAlbum() 或 viewPage() 方法中增加
         
-        await this.saveAlbums()
+        const saveFn = (this as any).saveAlbums
+        if (saveFn && typeof saveFn === 'function') {
+          await saveFn.call(this)
+        }
       } catch (e) {
         console.error('加载漫画详情失败:', e)
       }
@@ -1389,8 +802,7 @@ export default {
       this.showDetailModal = false
       this.currentAlbum = null
       this.pages = []
-      this.currentPage = 1
-      this.totalPages = 0
+      this.resetPagination()
     },
     handleDetailAction(actionKey, album) {
       switch (actionKey) {
@@ -1449,29 +861,18 @@ export default {
       if (!confirm(`确定要删除漫画 "${album.name}" 吗？`)) return
       
       try {
-        const idx = this.albums.findIndex(a => a.id === album.id)
-        if (idx > -1) {
-          this.albums.splice(idx, 1)
-          await this.saveAlbums()
+        await this.removeAlbum(album.id)
           
           // 重新提取标签和作者信息，更新筛选器
           this.extractAllTags()
           
-          // 显示删除成功通知
-          notify.toast('success', '删除成功', `已成功删除漫画 "${album.name}"`)
           console.log('漫画删除成功:', album.name)
-        } else {
-          // 显示删除失败通知
-          notify.toast('error', '删除失败', `漫画 "${album.name}" 不存在`)
-          console.error('漫画不存在:', album.name)
-        }
+        this.closeAlbumDetail()
       } catch (error) {
-        // 显示删除失败通知
+        // 显示删除失败通知（composable 内部已显示成功通知）
         notify.toast('error', '删除失败', `无法删除漫画 "${album.name}": ${error.message}`)
         console.error('删除漫画失败:', error)
       }
-      
-      this.closeAlbumDetail()
     },
     editAlbum(album) {
       if (!album) return
@@ -1486,6 +887,9 @@ export default {
         cover: album.cover || '',
         viewCount: album.viewCount || 0
       }
+      // 同步到 composable 的 ref
+      this.editAlbumFolderPath = album.folderPath || ''
+      this.editAlbumCover = album.cover || ''
       this.editTagInput = ''
       this.showEditDialog = true
     },
@@ -1498,6 +902,7 @@ export default {
           const result = await window.electronAPI.selectFolder()
           if (result && result.success && result.path) {
             this.editAlbumForm.folderPath = result.path
+            this.editAlbumFolderPath = result.path // 同步到 composable
           }
         }
       } catch (e) {
@@ -1505,216 +910,50 @@ export default {
         alert('选择文件夹失败: ' + e.message)
       }
     },
-    async browseForImageEdit() {
-      try {
-        if (window.electronAPI && window.electronAPI.selectImageFile) {
-          const filePath = await window.electronAPI.selectImageFile()
-          if (filePath) {
-            this.editAlbumForm.cover = filePath
-          }
-        }
-      } catch (e) {
-        console.error('选择封面失败:', e)
-        alert('选择封面失败: ' + e.message)
-      }
+    // 封面管理方法已移至 useImageCover composable
+    // browseForImageEdit, useFirstImageAsCover, selectImageFromFolder, clearCover (编辑)
+    // browseForImageNew, useFirstImageAsCoverNew, selectImageFromFolderNew, clearCoverNew (新建)
+    handleEditAlbumSubmit(formData) {
+      // 同步 cover 从 composable ref
+      formData.cover = this.editAlbumCover
+      this.saveEditedAlbum(formData)
     },
     
-    async useFirstImageAsCover() {
+    async saveEditedAlbum(formData) {
       try {
-        if (!this.editAlbumForm.folderPath) {
-          alert('请先选择漫画文件夹')
-          return
-        }
-        
-        // 获取文件夹中的图片文件
-        let files = []
-        if (window.electronAPI && window.electronAPI.listImageFiles) {
-          const resp = await window.electronAPI.listImageFiles(this.editAlbumForm.folderPath)
-          if (resp.success) {
-            files = resp.files || []
-          }
-        }
-        
-        if (files.length > 0) {
-          // 使用第一张图片作为封面
-          this.editAlbumForm.cover = files[0]
-        } else {
-          notify.toast('error', '设置失败', '文件夹中没有找到图片文件')
-        }
-      } catch (e) {
-        console.error('设置第一张图片为封面失败:', e)
-        notify.toast('error', '设置失败', `设置封面失败: ${e.message}`)
-      }
-    },
-    
-    async selectImageFromFolder() {
-      try {
-        if (!this.editAlbumForm.folderPath) {
-          notify.toast('error', '设置失败', '请先选择漫画文件夹')
-          return
-        }
-        
-        console.log('从文件夹选择封面，目标目录:', this.editAlbumForm.folderPath)
-        
-        if (window.electronAPI && window.electronAPI.selectScreenshotImage) {
-          // 使用专门的截图图片选择器（可以用于任何文件夹）
-          const filePath = await window.electronAPI.selectScreenshotImage(this.editAlbumForm.folderPath)
-          if (filePath) {
-            this.editAlbumForm.cover = filePath
-          }
-        } else if (window.electronAPI && window.electronAPI.selectImageFile) {
-          // 降级到普通图片选择器
-          const filePath = await window.electronAPI.selectImageFile(this.editAlbumForm.folderPath)
-          if (filePath) {
-            this.editAlbumForm.cover = filePath
-          }
-        } else {
-          notify.toast('error', '设置失败', '当前环境不支持从文件夹选择图片功能')
-        }
-      } catch (error) {
-        console.error('从文件夹选择封面失败:', error)
-        notify.toast('error', '设置失败', `从文件夹选择封面失败: ${error.message}`)
-      }
-    },
-    
-    clearCover() {
-      this.editAlbumForm.cover = ''
-    },
-    
-    async useFirstImageAsCoverNew() {
-      try {
-        if (!this.newAlbum.folderPath) {
-          notify.toast('error', '设置失败', '请先选择漫画文件夹')
-          return
-        }
-        
-        // 获取文件夹中的图片文件
-        let files = []
-        if (window.electronAPI && window.electronAPI.listImageFiles) {
-          const resp = await window.electronAPI.listImageFiles(this.newAlbum.folderPath)
-          if (resp.success) {
-            files = resp.files || []
-          }
-        }
-        
-        if (files.length > 0) {
-          // 使用第一张图片作为封面
-          this.newAlbum.cover = files[0]
-        } else {
-          notify.toast('error', '设置失败', '文件夹中没有找到图片文件')
-        }
-      } catch (e) {
-        console.error('设置第一张图片为封面失败:', e)
-        notify.toast('error', '设置失败', `设置封面失败: ${e.message}`)
-      }
-    },
-    
-    async selectImageFromFolderNew() {
-      try {
-        if (!this.newAlbum.folderPath) {
-          notify.toast('error', '设置失败', '请先选择漫画文件夹')
-          return
-        }
-        
-        console.log('从文件夹选择封面，目标目录:', this.newAlbum.folderPath)
-        
-        if (window.electronAPI && window.electronAPI.selectScreenshotImage) {
-          // 使用专门的截图图片选择器（可以用于任何文件夹）
-          const filePath = await window.electronAPI.selectScreenshotImage(this.newAlbum.folderPath)
-          if (filePath) {
-            this.newAlbum.cover = filePath
-            notify.native('设置成功', '已从文件夹选择封面')
-          }
-        } else if (window.electronAPI && window.electronAPI.selectImageFile) {
-          // 降级到普通图片选择器
-          const filePath = await window.electronAPI.selectImageFile(this.newAlbum.folderPath)
-          if (filePath) {
-            this.newAlbum.cover = filePath
-            notify.native('设置成功', '已从文件夹选择封面')
-          }
-        } else {
-          alert('当前环境不支持从文件夹选择图片功能')
-        }
-      } catch (error) {
-        console.error('从文件夹选择封面失败:', error)
-        alert(`从文件夹选择封面失败: ${error.message}`)
-      }
-    },
-    
-    async browseForImageNew() {
-      try {
-        if (window.electronAPI && window.electronAPI.selectImageFile) {
-          const filePath = await window.electronAPI.selectImageFile()
-          if (filePath) {
-            this.newAlbum.cover = filePath
-          }
-        }
-      } catch (e) {
-        console.error('选择封面失败:', e)
-        alert('选择封面失败: ' + e.message)
-      }
-    },
-    
-    clearCoverNew() {
-      this.newAlbum.cover = ''
-    },
-    async saveEditedAlbum() {
-      try {
-        const index = this.albums.findIndex(a => a.id === this.editAlbumForm.id)
-        if (index === -1) {
-          alert('未找到要编辑的漫画')
-          return
-        }
-        const target = this.albums[index]
-        target.name = (this.editAlbumForm.name || '').trim() || target.name
-        target.author = (this.editAlbumForm.author || '').trim() || ''
-        target.description = (this.editAlbumForm.description || '').trim() || ''
-        target.tags = [...this.editAlbumForm.tags]
-        target.folderPath = (this.editAlbumForm.folderPath || '').trim() || target.folderPath
-        target.cover = (this.editAlbumForm.cover || '').trim()
-        
-        // 保持浏览次数不变
-        if (!target.viewCount) {
-          target.viewCount = 0
-        }
-
-        // 如更换文件夹，则更新页数与封面（若未手动设置）
-        if (this.editAlbumForm.folderPath && this.editAlbumForm.folderPath.trim()) {
-          try {
-            if (window.electronAPI && window.electronAPI.listImageFiles) {
-              const resp = await window.electronAPI.listImageFiles(target.folderPath)
-              if (resp.success) {
-                const files = resp.files || []
-                target.pagesCount = files.length
-                if (!target.cover && files.length > 0) {
-                  target.cover = files[0]
-                }
-              }
-            }
-          } catch {}
-        }
-
-        await this.saveAlbums()
+        await this.updateAlbum(this.editAlbumForm.id, {
+          name: formData.name,
+          author: formData.author,
+          description: formData.description,
+          tags: formData.tags,
+          folderPath: formData.folderPath,
+          cover: formData.cover
+        })
         
         // 重新提取标签和作者信息，更新筛选器
         this.extractAllTags()
         
         this.showEditDialog = false
+        notify.toast('success', '保存成功', '漫画信息已更新')
       } catch (e) {
         console.error('保存编辑失败:', e)
-        alert('保存编辑失败: ' + e.message)
+        notify.toast('error', '保存失败', `保存编辑失败: ${e.message}`)
       }
     },
+    handlePageClick(index) {
+      // 计算实际索引（考虑分页）
+      const actualIndex = this.detailCurrentPageStartIndex + index
+      this.viewPage(actualIndex)
+    },
+    
     async viewPage(index) {
       // 打开漫画阅读器，index是当前分页中的相对索引
-      const actualIndex = this.currentPageStartIndex + index
+      const actualIndex = this.detailCurrentPageStartIndex + index
       this.currentPageIndex = actualIndex
       
-      // 增加浏览次数
+      // 增加浏览次数（使用 composable 的方法）
       if (this.currentAlbum) {
-        this.currentAlbum.viewCount = (this.currentAlbum.viewCount || 0) + 1
-        this.currentAlbum.lastViewed = new Date().toISOString()
-        await this.saveAlbums()
+        await this.updateViewInfo(this.currentAlbum)
       }
       
       // 确保pages数组已加载完成后再显示阅读器
@@ -1727,350 +966,15 @@ export default {
     },
 
     // 处理浏览次数更新事件
-    onViewCountUpdate() {
+    async onViewCountUpdate() {
       if (this.currentAlbum) {
-        this.currentAlbum.viewCount = (this.currentAlbum.viewCount || 0) + 1
-        this.currentAlbum.lastViewed = new Date().toISOString()
-        this.saveAlbums()
+        await this.updateViewInfo(this.currentAlbum)
       }
     },
-    // 优化的图片解析方法 - 根据使用场景选择不同的加载策略
-    resolveImage(imagePath) {
-      if (!imagePath || (typeof imagePath === 'string' && imagePath.trim() === '')) {
-        return './default-image.png'
-      }
-      if (typeof imagePath === 'string' && (imagePath.startsWith('http://') || imagePath.startsWith('https://'))) {
-        return imagePath
-      }
-      if (typeof imagePath === 'string' && (imagePath.startsWith('data:') || imagePath.startsWith('file:'))) {
-        return imagePath
-      }
-      
-      // 对于阅读器，强制使用原图，忽略所有缓存
-      if (this.showComicViewer) {
-        const normalizedPath = String(imagePath).replace(/\\/g, '/')
-        const fileUrl = `file:///${normalizedPath}`
-        console.log(':', imagePath)
-        return fileUrl
-      }
-      
-      // 检查缓存（非阅读器场景）
-      if (this.imageCache.has(imagePath)) {
-        const cached = this.imageCache.get(imagePath)
-        // 更新访问时间（LRU）
-        cached.lastAccessed = Date.now()
-        return cached.url
-      }
-      
-      // 根据使用场景选择加载策略
-      if (this.showDetailModal) {
-        // 详情页预览图：使用缩略图或压缩版本
-        return this.resolveThumbnailImage(imagePath)
-      } else {
-        // 其他场景：使用缩略图
-        return this.resolveThumbnailImage(imagePath)
-      }
-    },
-    
-    // 解析缩略图 - 用于预览和列表显示
-    resolveThumbnailImage(imagePath) {
-      const normalizedPath = String(imagePath).replace(/\\/g, '/')
-      
-      // 对于预览图，我们使用一个巧妙的技巧：
-      // 1. 使用file://协议避免DataURL的内存占用
-      // 2. 通过CSS object-fit: cover 让浏览器自动缩放
-      // 3. 设置固定尺寸减少渲染负担
-      const fileUrl = `file:///${normalizedPath}`
-      
-      // 缓存文件URL
-      this.addToCache(imagePath, fileUrl, 0)
-      
-      // 如果启用了缩略图模式，异步生成真正的缩略图
-      if (this.enableThumbnails) {
-        this.generateThumbnail(imagePath, normalizedPath).then(thumbnailUrl => {
-          // 更新缓存为缩略图
-          this.addToCache(imagePath, thumbnailUrl, thumbnailUrl.length * 2)
-          // 触发重新渲染（如果需要）
-          this.$forceUpdate()
-        }).catch(error => {
-          console.warn('缩略图生成失败，继续使用原图:', error)
-        })
-      }
-      
-      return fileUrl
-    },
-    
-    // 生成缩略图
-    async generateThumbnail(imagePath, normalizedPath) {
-      // 检查是否已有缩略图缓存
-      const thumbnailKey = `thumb_${imagePath}`
-      if (this.imageCache.has(thumbnailKey)) {
-        const cached = this.imageCache.get(thumbnailKey)
-        cached.lastAccessed = Date.now()
-        return cached.url
-      }
-      
-      // 尝试生成Canvas缩略图
-      try {
-        const thumbnailDataUrl = await this.createCanvasThumbnail(normalizedPath, this.thumbnailSize, this.thumbnailSize)
-        if (thumbnailDataUrl) {
-          // 缓存缩略图DataURL
-          this.addToCache(thumbnailKey, thumbnailDataUrl, thumbnailDataUrl.length * 2)
-          return thumbnailDataUrl
-        }
-      } catch (error) {
-        console.warn('生成缩略图失败，使用原图:', error)
-      }
-      
-      // 降级：直接使用原图
-      const fileUrl = `file:///${normalizedPath}`
-      this.addToCache(thumbnailKey, fileUrl, 0)
-      return fileUrl
-    },
-    
-    // 使用Canvas创建缩略图
-    async createCanvasThumbnail(imagePath, maxWidth, maxHeight) {
-      // 优先使用Electron API生成缩略图
-      if (window.electronAPI && window.electronAPI.generateThumbnail) {
-        try {
-          const result = await window.electronAPI.generateThumbnail(imagePath, maxWidth, maxHeight)
-          if (result && result.success && result.dataUrl) {
-            return result.dataUrl
-          }
-        } catch (error) {
-          console.warn('Electron缩略图生成失败，使用Canvas:', error)
-        }
-      }
-      
-      // 降级到Canvas方案
-      return new Promise((resolve, reject) => {
-        const img = new Image()
-        img.crossOrigin = 'anonymous'
-        
-        img.onload = () => {
-          try {
-            // 计算缩略图尺寸
-            let { width, height } = img
-            const aspectRatio = width / height
-            
-            if (width > height) {
-              width = Math.min(maxWidth, width)
-              height = width / aspectRatio
-            } else {
-              height = Math.min(maxHeight, height)
-              width = height * aspectRatio
-            }
-            
-            // 创建Canvas
-            const canvas = document.createElement('canvas')
-            const ctx = canvas.getContext('2d')
-            canvas.width = width
-            canvas.height = height
-            
-            // 绘制缩略图
-            ctx.drawImage(img, 0, 0, width, height)
-            
-            // 转换为DataURL，使用设置中的JPEG质量
-            const quality = this.jpegQuality / 100 // 转换为0-1范围
-            const dataUrl = canvas.toDataURL('image/jpeg', quality)
-            resolve(dataUrl)
-          } catch (error) {
-            reject(error)
-          }
-        }
-        
-        img.onerror = () => reject(new Error('图片加载失败'))
-        img.src = imagePath
-      })
-    },
-    
-    // 解析原图 - 用于阅读器
-    resolveFullImage(imagePath) {
-      const normalizedPath = String(imagePath).replace(/\\/g, '/')
-      const fileUrl = `file:///${normalizedPath}`
-      
-      // 缓存文件URL
-      this.addToCache(imagePath, fileUrl, 0)
-      
-      return fileUrl
-    },
-    
-    // 解析封面图 - 用于详情页封面和对话框预览，支持伪装模式
-    resolveCoverImage(imagePath) {
-      if (!imagePath || (typeof imagePath === 'string' && imagePath.trim() === '')) {
-        return './default-image.png'
-      }
-      
-      if (typeof imagePath === 'string' && (imagePath.startsWith('http://') || imagePath.startsWith('https://'))) {
-        return imagePath
-      }
-      if (typeof imagePath === 'string' && (imagePath.startsWith('data:') || imagePath.startsWith('file:'))) {
-        return imagePath
-      }
-      
-      // 封面图始终使用原图，创建专用的封面缓存键
-      const coverKey = `cover_${imagePath}`
-      if (this.imageCache.has(coverKey)) {
-        const cached = this.imageCache.get(coverKey)
-        cached.lastAccessed = Date.now()
-        return cached.url
-      }
-      
-      const normalizedPath = String(imagePath).replace(/\\/g, '/')
-      const fileUrl = `file:///${normalizedPath}`
-      
-      // 缓存封面图URL
-      this.addToCache(coverKey, fileUrl, 0)
-      
-      console.log('封面图加载原图:', imagePath)
-      return fileUrl
-    },
-    
-    // 异步图片解析 - 用于需要DataURL的场景（如封面预览）
-    async resolveImageAsync(imagePath) {
-      if (!imagePath || (typeof imagePath === 'string' && imagePath.trim() === '')) {
-        return './default-image.png'
-      }
-      if (typeof imagePath === 'string' && (imagePath.startsWith('http://') || imagePath.startsWith('https://'))) {
-        return imagePath
-      }
-      if (typeof imagePath === 'string' && (imagePath.startsWith('data:') || imagePath.startsWith('file:'))) {
-        return imagePath
-      }
-      
-      // 对于阅读器，强制使用原图，忽略缩略图缓存
-      if (this.showComicViewer) {
-        const normalizedPath = String(imagePath).replace(/\\/g, '/')
-        const fileUrl = `file:///${normalizedPath}`
-        
-        // 为阅读器创建专用的原图缓存键
-        const fullImageKey = `full_${imagePath}`
-        this.addToCache(fullImageKey, fileUrl, 0)
-        
-        console.log('阅读器加载原图:', imagePath)
-        return fileUrl
-      }
-      
-      // 检查普通缓存（非阅读器场景）
-      if (this.imageCache.has(imagePath)) {
-        const cached = this.imageCache.get(imagePath)
-        cached.lastAccessed = Date.now()
-        return cached.url
-      }
-      
-      // 对于小图（如封面），可以使用DataURL
-      if (window.electronAPI && window.electronAPI.readFileAsDataUrl) {
-        try {
-          const dataUrl = await window.electronAPI.readFileAsDataUrl(imagePath)
-          if (dataUrl) {
-            // 估算DataURL大小
-            const estimatedSize = dataUrl.length * 2 // 粗略估算
-            this.addToCache(imagePath, dataUrl, estimatedSize)
-            return dataUrl
-          } else {
-            this.addToCache(imagePath, './default-image.png', 0)
-            return './default-image.png'
-          }
-        } catch (error) {
-          console.error('读取图片文件失败:', error)
-          this.addToCache(imagePath, './default-image.png', 0)
-          return './default-image.png'
-        }
-      } else {
-        const normalizedPath = String(imagePath).replace(/\\/g, '/')
-        const fileUrl = `file:///${normalizedPath}`
-        this.addToCache(imagePath, fileUrl, 0)
-        return fileUrl
-      }
-    },
-    
-    // LRU缓存管理方法
-    addToCache(imagePath, url, size) {
-      // 如果缓存已满，清理最旧的条目
-      while (this.imageCacheSize + size > this.maxCacheSize && this.imageCache.size > 0) {
-        this.evictOldestCache()
-      }
-      
-      this.imageCache.set(imagePath, {
-        url: url,
-        size: size,
-        lastAccessed: Date.now()
-      })
-      this.imageCacheSize += size
-    },
-    
-    evictOldestCache() {
-      let oldestKey = null
-      let oldestTime = Date.now()
-      
-      for (const [key, value] of this.imageCache.entries()) {
-        if (value.lastAccessed < oldestTime) {
-          oldestTime = value.lastAccessed
-          oldestKey = key
-        }
-      }
-      
-      if (oldestKey) {
-        const removed = this.imageCache.get(oldestKey)
-        this.imageCacheSize -= removed.size
-        this.imageCache.delete(oldestKey)
-        console.log('缓存清理:', oldestKey, '释放内存:', removed.size, 'bytes')
-      }
-    },
-    
-    // 预加载图片
-    async preloadImages(startIndex, count = null) {
-      // 使用设置中的预加载数量，如果没有指定则使用默认值
-      const preloadCount = count || this.preloadCount || 3
-      if (this.isPreloading || !this.pages || this.pages.length === 0) return
-      
-      this.isPreloading = true
-      const preloadPromises = []
-      
-      // 预加载当前页前后的图片
-      for (let i = Math.max(0, startIndex - 1); i <= Math.min(this.pages.length - 1, startIndex + preloadCount); i++) {
-        if (i !== startIndex && !this.imageCache.has(this.pages[i])) {
-          preloadPromises.push(this.preloadImage(this.pages[i]))
-        }
-      }
-      
-      try {
-        await Promise.all(preloadPromises)
-      } catch (error) {
-        console.error('预加载图片失败:', error)
-      } finally {
-        this.isPreloading = false
-      }
-    },
-    
-    async preloadImage(imagePath) {
-      try {
-        const normalizedPath = String(imagePath).replace(/\\/g, '/')
-        const fileUrl = `file:///${normalizedPath}`
-        this.addToCache(imagePath, fileUrl, 0)
-        
-        // 创建Image对象预加载
-        return new Promise((resolve, reject) => {
-          const img = new Image()
-          img.onload = () => resolve(img)
-          img.onerror = reject
-          img.src = fileUrl
-        })
-      } catch (error) {
-        console.error('预加载单张图片失败:', imagePath, error)
-      }
-    },
-    
-    handleImageError(event) {
-      event.target.src = './default-image.png'
-    },
-    
-    getImageFileName(imagePath) {
-      if (!imagePath) return ''
-      // 从完整路径中提取文件名
-      const fileName = imagePath.split(/[\\/]/).pop()
-      return fileName || imagePath
-    },
+    // 图片缓存相关方法已移至 useImageCache composable
+    // resolveImage, resolveThumbnailImage, generateThumbnail, createCanvasThumbnail,
+    // resolveFullImage, resolveCoverImage, resolveImageAsync, addToCache, evictOldestCache,
+    // preloadImages, preloadImage, handleImageError, getImageFileName 已移至 composable
     
     
     // 格式化文件大小
@@ -2186,12 +1090,12 @@ export default {
          }
          
          this.pages = files
-         this.totalPages = Math.ceil(files.length / this.pageSize)
+        this.detailTotalPages = Math.ceil(files.length / this.detailPageSize)
          
          console.log('页面信息更新:', {
            pagesCount: this.pages.length,
-           totalPages: this.totalPages,
-           pageSize: this.pageSize
+          totalPages: this.detailTotalPages,
+          pageSize: this.detailPageSize
          })
          
         // 更新专辑的页数信息
@@ -2254,24 +1158,7 @@ export default {
      
     
     
-    // 分页导航方法
-    nextPageGroup() {
-      if (this.currentPage < this.totalPages) {
-        this.currentPage++
-      }
-    },
-    
-    previousPageGroup() {
-      if (this.currentPage > 1) {
-        this.currentPage--
-      }
-    },
-    
-    jumpToPageGroup(pageNum) {
-      if (pageNum >= 1 && pageNum <= this.totalPages) {
-        this.currentPage = pageNum
-      }
-    },
+    // 分页导航方法已移至 useImagePages composable
     
     // 处理分页组件的事件（使用 composable 的 handlePageChange）
     handleAlbumPageChange(pageNum) {
@@ -2312,49 +1199,34 @@ export default {
 
         const settings = await saveManager.loadSettings()
         
+        // 使用 composable 的方法加载图片分页设置
+        if (this.loadImageSettings) {
+          await this.loadImageSettings()
+        }
+        
         if (settings && settings.image) {
-          // 从image对象中更新图片相关配置，确保转换为数字
-          const newPageSize = parseInt(settings.image.detailPageSize) || 50
           const newAlbumPageSize = parseInt(settings.image.listPageSize) || 20
           
-          // 只有当pageSize发生变化时才更新
-          if (this.pageSize !== newPageSize) {
-            this.pageSize = newPageSize
-            
-            // 如果已经有页面数据，需要重新计算totalPages
-            if (this.pages && this.pages.length > 0) {
-              this.totalPages = Math.ceil(this.pages.length / this.pageSize)
-              // 确保当前页不超过总页数
-              if (this.currentPage > this.totalPages) {
-                this.currentPage = this.totalPages
-              }
-            }
-            
-            console.log('图片设置已更新:', {
-              detailPageSize: this.pageSize,
-              totalPages: this.totalPages,
-              currentPage: this.currentPage
-            })
-          }
-          
           // 更新漫画列表分页大小（使用 composable 的 pageSize）
-          if (this.pageSize && this.pageSize.value !== newAlbumPageSize) {
-            this.pageSize = newAlbumPageSize
-            
+          // 注意：composable 的 pageSize 是通过 this.pageSize 访问的
+          if (this.pageSize && typeof this.pageSize === 'object' && 'value' in this.pageSize) {
+            if (this.pageSize.value !== newAlbumPageSize) {
+              this.pageSize.value = newAlbumPageSize
             // 重新计算漫画列表分页
             this.updateAlbumPagination()
             
             console.log('漫画列表分页设置已更新:', {
-              listPageSize: this.pageSize,
-              totalPages: this.totalPages,
-              currentPage: this.currentPage
+                listPageSize: this.pageSize.value,
+                totalPages: this.paginationConfig?.totalPages,
+                currentPage: this.paginationConfig?.currentPage
             })
+            }
           }
         }
       } catch (error) {
         console.error('加载图片设置失败:', error)
         // 使用默认值
-        this.pageSize = 50
+        this.detailPageSize = 50
         // albumPageSize 已移至 composable，通过 loadPaginationSettings 加载
       }
     },

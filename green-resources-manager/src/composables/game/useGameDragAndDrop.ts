@@ -1,38 +1,7 @@
 import { ref, type Ref } from 'vue'
 import { useDragAndDrop } from '../useDragAndDrop'
 import notify from '../../utils/NotificationService'
-import type { Game } from './useGameFilter'
-
-export interface GameDragDropOptions {
-  /**
-   * 游戏列表（响应式）
-   */
-  games: Ref<Game[]> | Game[]
-  
-  /**
-   * 添加游戏的回调函数
-   */
-  onAddGame: (game: Game) => Promise<void>
-  
-  /**
-   * 显示路径更新对话框的回调函数
-   */
-  onShowPathUpdateDialog: (info: {
-    existingGame: Game
-    newPath: string
-    newFileName: string
-  }) => void
-  
-  /**
-   * 从文件路径提取游戏名称的函数
-   */
-  extractGameNameFromPath: (filePath: string) => string
-  
-  /**
-   * 是否为 Electron 环境
-   */
-  isElectronEnvironment: boolean
-}
+import type { Game, GameDragDropOptions } from '../../types/game'
 
 /**
  * 游戏拖拽处理 composable

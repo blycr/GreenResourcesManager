@@ -1,7 +1,7 @@
 import { type Ref } from 'vue'
 import { formatPlayTime } from '../../utils/formatters'
 import notify from '../../utils/NotificationService.ts'
-import type { Game } from './useGameManagement'
+import type { Game } from '../../types/game'
 
 /**
  * 游戏时长管理的 composable

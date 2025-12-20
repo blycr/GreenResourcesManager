@@ -1,5 +1,5 @@
 import { computed, type Ref } from 'vue'
-import type { Game } from './useGameManagement'
+import type { Game } from '../../types/game'
 
 /**
  * 游戏运行状态管理的 composable

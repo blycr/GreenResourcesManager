@@ -2,25 +2,7 @@ import { ref, type Ref } from 'vue'
 import saveManager from '../../utils/SaveManager.ts'
 import notify from '../../utils/NotificationService.ts'
 import { unlockAchievement } from '../../pages/user/AchievementView.vue'
-
-export interface Game {
-  id: string
-  name: string
-  developer?: string
-  publisher?: string
-  description?: string
-  tags?: string[]
-  executablePath?: string
-  image?: string
-  folderSize?: number
-  playTime?: number
-  playCount?: number
-  lastPlayed?: string | null
-  firstPlayed?: string | null
-  addedDate?: string
-  fileExists?: boolean
-  [key: string]: any
-}
+import type { Game } from '../../types/game'
 
 const GAME_COLLECTION_ACHIEVEMENTS = [
   { threshold: 50, id: 'game_collector_50' },

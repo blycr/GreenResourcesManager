@@ -1,28 +1,10 @@
 import { ref, computed, type Ref } from 'vue'
-
-export interface Game {
-  id: string
-  name: string
-  developer?: string
-  publisher?: string
-  tags?: string[]
-  playTime?: number
-  lastPlayed?: string | null
-  addedDate?: string
-  [key: string]: any
-}
-
-export interface FilterItem {
-  name: string
-  count: number
-}
-
-export type SortBy = 'name' | 'lastPlayed' | 'playTime' | 'added'
+import type { Game, FilterItem, GameSortBy } from '../../types/game'
 
 /**
  * 游戏筛选和排序的 composable
  */
-export function useGameFilter(games: Ref<Game[]>, searchQuery: Ref<string>, sortBy: Ref<SortBy>) {
+export function useGameFilter(games: Ref<Game[]>, searchQuery: Ref<string>, sortBy: Ref<GameSortBy>) {
   // 筛选状态
   const selectedTags = ref<string[]>([])
   const excludedTags = ref<string[]>([])
