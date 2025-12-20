@@ -78,6 +78,24 @@
         @update:model-value="updateSetting('smartWindowDetection', $event)"
       />
       
+      <SettingToggle
+        title="使用内置Flash播放器"
+        description="使用应用内置的Flash播放器来运行Flash游戏"
+        :model-value="settings.useBuiltInFlashPlayer !== false"
+        @update:model-value="onUseBuiltInFlashPlayerChange"
+      />
+      
+      <SettingFilePicker
+        v-if="settings.useBuiltInFlashPlayer === false"
+        title="自定义Flash播放器"
+        description="选择自定义的Flash播放器可执行文件"
+        :model-value="settings.customFlashPlayerPath || ''"
+        placeholder="选择Flash播放器exe文件"
+        picker-type="executable"
+        @update:model-value="updateSetting('customFlashPlayerPath', $event)"
+        @browse="handleFlashPlayerBrowse"
+      />
+      
       <div class="setting-item">
         <label class="setting-label">
           <span class="setting-title">打开截图文件夹</span>
@@ -179,6 +197,32 @@ export default {
         this.updateSetting('screenshotLocation', 'custom')
         this.$emit('action', { type: 'save-settings' })
         notify.success('截图目录已更新', `已设置自定义截图目录: ${path}`)
+      }
+    },
+    
+    onUseBuiltInFlashPlayerChange(enabled: boolean) {
+      this.updateSetting('useBuiltInFlashPlayer', enabled)
+      // 如果禁用内置播放器，但还没有设置自定义播放器路径，清空路径
+      if (!enabled && !this.settings.customFlashPlayerPath) {
+        this.updateSetting('customFlashPlayerPath', '')
+      }
+      // 如果启用内置播放器，清空自定义路径
+      if (enabled) {
+        this.updateSetting('customFlashPlayerPath', '')
+      }
+    },
+    
+    handleFlashPlayerBrowse({ path }: { path: string }) {
+      if (path) {
+        // 验证是否为exe文件
+        if (!path.toLowerCase().endsWith('.exe')) {
+          notify.error('文件格式错误', '请选择.exe格式的可执行文件')
+          return
+        }
+        this.updateSetting('customFlashPlayerPath', path)
+        this.updateSetting('useBuiltInFlashPlayer', false)
+        this.$emit('action', { type: 'save-settings' })
+        notify.success('Flash播放器已设置', `已设置自定义Flash播放器: ${path}`)
       }
     },
     

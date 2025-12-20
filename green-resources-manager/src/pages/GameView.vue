@@ -1094,6 +1094,20 @@ export default {
       console.log('全局快捷键不可用，应用内快捷键已禁用')
     }
 
+    // 监听 Flash 播放器错误事件
+    if (this.isElectronEnvironment && window.electronAPI && window.electronAPI.onFlashPlayerError) {
+      window.electronAPI.onFlashPlayerError((event, data) => {
+        console.error('Flash 播放器错误:', data)
+        if (data.type === 'no-path') {
+          // 未指定路径，使用 alert
+          alert(data.message)
+        } else {
+          // 其他错误，使用 toast
+          notify.toast('error', 'Flash 播放器错误', data.message)
+        }
+      })
+    }
+
     // 初始化全局快捷键
     this.initializeGlobalShortcut()
   },
@@ -1110,6 +1124,15 @@ export default {
       // 降级方案：移除所有监听器
       window.electronAPI.removeAllListeners('global-screenshot-trigger')
       console.log('清理所有全局截图事件监听器')
+    }
+
+    // 清理 Flash 播放器错误事件监听器
+    if (this.isElectronEnvironment && window.electronAPI && window.electronAPI.removeFlashPlayerErrorListener) {
+      window.electronAPI.removeFlashPlayerErrorListener()
+      console.log('清理 Flash 播放器错误事件监听器')
+    } else if (this.isElectronEnvironment && window.electronAPI && window.electronAPI.removeAllListeners) {
+      window.electronAPI.removeAllListeners('flash-player-error')
+      console.log('清理 Flash 播放器错误事件监听器（降级方案）')
     }
   }
 }

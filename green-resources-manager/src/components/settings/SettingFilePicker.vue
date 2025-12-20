@@ -46,7 +46,7 @@ export default {
       default: '浏览'
     },
     pickerType: {
-      type: String as () => 'file' | 'directory' | 'screenshots' | 'saveData',
+      type: String as () => 'file' | 'directory' | 'screenshots' | 'saveData' | 'executable',
       default: 'directory'
     }
   },
@@ -79,6 +79,12 @@ export default {
           if (result) {
             this.$emit('update:modelValue', result)
             this.$emit('browse', { type: 'file', path: result })
+          }
+        } else if (this.pickerType === 'executable' && window.electronAPI?.selectExecutableFile) {
+          result = await window.electronAPI.selectExecutableFile()
+          if (result) {
+            this.$emit('update:modelValue', result)
+            this.$emit('browse', { type: 'executable', path: result })
           }
         } else {
           alert('当前环境不支持选择文件/目录功能')

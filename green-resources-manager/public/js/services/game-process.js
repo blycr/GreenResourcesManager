@@ -41,9 +41,53 @@ const { exec } = require('child_process')
 const fs = require('fs')
 const path = require('path')
 const windowsUtils = require('../utils/windows-utils')
+const fileUtils = require('../utils/file-utils')
 
 // 存储游戏进程信息的 Map，键为 PID，值为游戏信息对象
 const gameProcesses = new Map()
+
+/**
+ * 加载设置文件
+ * @returns {Promise<Object|null>} 设置对象，如果加载失败则返回null
+ */
+async function loadSettings() {
+  try {
+    // 获取当前文件所在目录（public/js/services/）
+    const currentDir = __dirname
+    // 获取应用根目录（public/）
+    const publicDir = path.join(currentDir, '../..')
+    // 获取项目根目录（green-resources-manager/）
+    const projectRoot = path.join(publicDir, '..')
+    
+    // 可能的设置文件路径
+    const possibleSettingsPaths = [
+      path.join(projectRoot, 'SaveData', 'Settings', 'settings.json'),
+      path.join(publicDir, '..', 'SaveData', 'Settings', 'settings.json'),
+      path.join(process.cwd(), 'SaveData', 'Settings', 'settings.json')
+    ]
+    
+    for (const settingsPath of possibleSettingsPaths) {
+      try {
+        const normalizedPath = path.normalize(settingsPath)
+        if (fs.existsSync(normalizedPath)) {
+          const result = await fileUtils.readJsonFile(normalizedPath)
+          if (result.success && result.data && result.data.settings) {
+            console.log('✅ 成功加载设置文件:', normalizedPath)
+            return result.data.settings
+          }
+        }
+      } catch (error) {
+        continue
+      }
+    }
+    
+    console.warn('⚠️ 未找到设置文件，使用默认设置')
+    return null
+  } catch (error) {
+    console.error('加载设置文件失败:', error)
+    return null
+  }
+}
 
 /**
  * 查找 Ruffle 可执行文件路径
@@ -163,23 +207,61 @@ async function launchGame(executablePath, gameName, getMainWindow) {
     let actualExecutablePath = executablePath
 
     if (isFlashGame) {
-      // Flash游戏：使用 Ruffle 运行
-      console.log('🎮 检测到Flash游戏，使用 Ruffle 运行')
+      // Flash游戏：根据设置选择播放器
+      console.log('🎮 检测到Flash游戏')
       
-      const rufflePath = await findRufflePath()
-      if (!rufflePath) {
-        throw new Error('未找到 Ruffle。请确保 Ruffle 已正确安装到 third-party 目录。')
+      // 加载设置
+      const settings = await loadSettings()
+      const useBuiltInFlashPlayer = settings?.useBuiltInFlashPlayer !== false // 默认为true
+      const customFlashPlayerPath = settings?.customFlashPlayerPath || ''
+      
+      let flashPlayerPath = null
+      
+      if (useBuiltInFlashPlayer) {
+        // 使用内置 Ruffle
+        console.log('📦 使用内置 Flash 播放器 (Ruffle)')
+        flashPlayerPath = await findRufflePath()
+        if (!flashPlayerPath) {
+          throw new Error('未找到内置 Ruffle。请确保 Ruffle 已正确安装到 third-party 目录。')
+        }
+      } else {
+        // 使用自定义播放器
+        console.log('🔧 使用自定义 Flash 播放器')
+        if (!customFlashPlayerPath || customFlashPlayerPath.trim() === '') {
+          // 通知主窗口显示错误（通过返回错误信息）
+          const mainWindow = getMainWindow()
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('flash-player-error', {
+              type: 'no-path',
+              message: '已选择使用自定义 Flash 播放器，但未指定播放器路径。请在设置中配置自定义播放器路径。'
+            })
+          }
+          throw new Error('未指定自定义 Flash 播放器路径。请在设置中配置。')
+        }
+        
+        // 验证自定义播放器路径
+        if (!fs.existsSync(customFlashPlayerPath)) {
+          const mainWindow = getMainWindow()
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('flash-player-error', {
+              type: 'path-not-found',
+              message: `自定义 Flash 播放器路径不存在: ${customFlashPlayerPath}`
+            })
+          }
+          throw new Error(`自定义 Flash 播放器路径不存在: ${customFlashPlayerPath}`)
+        }
+        
+        flashPlayerPath = customFlashPlayerPath
       }
 
-      // 使用 Ruffle 运行.swf文件
-      // Ruffle 命令行格式: ruffle.exe "path/to/game.swf"
-      actualExecutablePath = rufflePath
-      gameProcess = spawn(rufflePath, [executablePath], {
+      // 使用选定的播放器运行.swf文件
+      actualExecutablePath = flashPlayerPath
+      gameProcess = spawn(flashPlayerPath, [executablePath], {
         detached: true,
         stdio: 'ignore'
       })
       
-      console.log(`✅ 使用 Ruffle 运行: ${rufflePath} "${executablePath}"`)
+      console.log(`✅ 使用 Flash 播放器运行: ${flashPlayerPath} "${executablePath}"`)
     } else {
       // 普通游戏：直接运行可执行文件
       gameProcess = spawn(executablePath, [], {
@@ -235,10 +317,19 @@ async function launchGame(executablePath, gameName, getMainWindow) {
     gameProcess.on('error', (error) => {
       console.error(`游戏进程 ${gameProcess.pid} 发生错误:`, error)
       if (isFlashGame) {
+        // 通知主窗口显示错误提示
+        const mainWindow = getMainWindow()
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          const errorMessage = error.message || String(error)
+          mainWindow.webContents.send('flash-player-error', {
+            type: 'launch-failed',
+            message: `Flash 游戏启动失败: ${errorMessage}\n\n可能的原因：\n1. Flash 播放器路径不正确\n2. .swf文件损坏或格式不正确\n3. Flash 播放器版本不兼容`
+          })
+        }
         console.error('Flash游戏启动失败，可能的原因：')
-        console.error('1. Ruffle 未正确安装或路径不正确')
+        console.error('1. Flash 播放器未正确安装或路径不正确')
         console.error('2. .swf文件损坏或格式不正确')
-        console.error('3. Ruffle 版本不兼容')
+        console.error('3. Flash 播放器版本不兼容')
       }
       gameProcesses.delete(gameProcess.pid)
     })
