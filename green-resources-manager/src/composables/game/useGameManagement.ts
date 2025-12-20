@@ -51,6 +51,21 @@ export function useGameManagement(
     games.value.push(game)
     await saveGames()
     await checkGameCollectionAchievements()
+    
+    // 检查是否为 Flash 游戏，如果是则触发"老资历"成就
+    if (game.executablePath) {
+      const filePath = game.executablePath.toLowerCase()
+      const isFlashGame = filePath.endsWith('.swf')
+      if (isFlashGame) {
+        try {
+          await unlockAchievement('flash_game_collector')
+          console.log('✅ 检测到 Flash 游戏，触发"老资历"成就')
+        } catch (error) {
+          console.warn('触发 Flash 游戏成就失败:', error)
+        }
+      }
+    }
+    
     extractAllTags()
   }
 

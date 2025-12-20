@@ -334,6 +334,16 @@ const allAchievementDefinitions: Achievement[] = [
     hiddenTip: '唯歌声与月夜相伴...'
   }),
 
+  new Achievement({
+    id: 'flash_game_collector',
+    title: '老资历',
+    description: '添加了一个Flash游戏',
+    group: 'flashGameCollector',
+    type: new TriggerAchievementType(),
+    isHidden: true,
+    hiddenTip: '游戏界曾经的辉煌'
+  }),
+
 ]
 
 const achievementDefinitionMap = new Map(
