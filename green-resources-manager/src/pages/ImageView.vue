@@ -372,8 +372,7 @@ export default {
         { key: 'edit', icon: '✏️', label: '编辑信息' },
         { key: 'remove', icon: '🗑️', label: '删除漫画' }
       ],
-      // 漫画阅读器相关
-      showComicViewer: false,
+      // 漫画阅读器相关（showComicViewer 已在 setup() 中定义）
       currentPageIndex: 0,
       // 分页相关（详情页内图片分页，避免与 composable 的变量名冲突）
       detailCurrentPage: 1,
@@ -749,21 +748,33 @@ export default {
        this.editAlbumForm.tags.splice(index, 1)
      },
     async openAlbum(album) {
-      // 直接打开漫画阅读器，从第一页开始
-      this.currentAlbum = album
-      this.currentPageIndex = 0
-      
-      // 清空之前的页面数据，确保重新加载
-      this.pages = []
-      
-      // 增加浏览次数（使用 composable 的方法）
-      await this.updateViewInfo(album)
-      
-      // 先加载当前漫画的图片文件，再显示阅读器
-      await this.loadAlbumPages()
-      
-      // 确保pages数组已加载完成后再显示阅读器
-      this.showComicViewer = true
+      try {
+        console.log('开始打开漫画:', album.name)
+        // 直接打开漫画阅读器，从第一页开始
+        this.currentAlbum = album
+        this.currentPageIndex = 0
+        
+        // 清空之前的页面数据，确保重新加载
+        this.pages = []
+        
+        // 增加浏览次数（使用 composable 的方法）
+        try {
+          await this.updateViewInfo(album)
+        } catch (error) {
+          console.warn('更新浏览信息失败:', error)
+          // 不阻止打开阅读器，继续执行
+        }
+        
+        // 先加载当前漫画的图片文件，再显示阅读器
+        await this.loadAlbumPages()
+        
+        // 确保pages数组已加载完成后再显示阅读器
+        console.log('页面加载完成，显示漫画阅读器')
+        this.showComicViewer = true
+      } catch (error) {
+        console.error('打开漫画失败:', error)
+        notify.toast('error', '打开失败', `无法打开漫画 "${album.name}": ${error.message || '未知错误'}`)
+      }
     },
     async showAlbumDetail(album) {
       try {

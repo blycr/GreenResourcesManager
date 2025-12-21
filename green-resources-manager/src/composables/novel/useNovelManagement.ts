@@ -185,19 +185,63 @@ export function useNovelManagement() {
   /**
    * 分析小说文件
    */
-  const analyzeNovelFile = async (filePath: string): Promise<{ totalWords?: number; fileSize?: number; encoding?: string }> => {
+  const analyzeNovelFile = async (filePath: string): Promise<{ totalWords?: number; fileSize?: number; encoding?: string; fileType?: string }> => {
     try {
-      if (window.electronAPI && window.electronAPI.readTextFile) {
-        const result = await window.electronAPI.readTextFile(filePath)
-        if (result.success && result.content) {
+      // 检测文件类型
+      const getFileType = (path: string): 'txt' | 'epub' | 'mobi' => {
+        if (!path) return 'txt'
+        const ext = path.toLowerCase().substring(path.lastIndexOf('.'))
+        if (ext === '.epub') return 'epub'
+        if (ext === '.mobi') return 'mobi'
+        return 'txt'
+      }
+      
+      const fileType = getFileType(filePath)
+      
+      if (fileType === 'epub') {
+        // EPUB 文件分析
+        try {
+          const { EpubParser } = await import('../../utils/EpubParser')
+          const parser = new EpubParser()
+          await parser.loadEpub(filePath)
+          const metadata = await parser.getMetadata()
+          
+          // 获取文件大小
+          let fileSize = 0
+          if (window.electronAPI && window.electronAPI.getFileStats) {
+            const stats = await window.electronAPI.getFileStats(filePath)
+            if (stats.success) {
+              fileSize = stats.size || 0
+            }
+          }
+          
+          parser.destroy()
+          
           return {
-            totalWords: result.wordCount || 0,
-            fileSize: result.fileSize || 0,
-            encoding: result.encoding || 'utf-8'
+            totalWords: metadata.totalWords || 0,
+            fileSize: fileSize,
+            encoding: 'utf-8',
+            fileType: 'epub'
+          }
+        } catch (error) {
+          console.error('分析 EPUB 文件失败:', error)
+          return { fileType: 'epub' }
+        }
+      } else {
+        // TXT 文件分析（原有逻辑）
+        if (window.electronAPI && window.electronAPI.readTextFile) {
+          const result = await window.electronAPI.readTextFile(filePath)
+          if (result.success && result.content) {
+            return {
+              totalWords: result.wordCount || 0,
+              fileSize: result.fileSize || 0,
+              encoding: result.encoding || 'utf-8',
+              fileType: fileType
+            }
           }
         }
+        return { fileType: fileType }
       }
-      return {}
     } catch (error) {
       console.error('分析文件失败:', error)
       return {}

@@ -8,6 +8,10 @@
 
 [English](README_EN.md) | [中文](#)
 
+
+QQ客服群：853149421
+
+
 ## 📑 目录
 
 * [📖 产品介绍](#-产品介绍)
@@ -139,12 +143,9 @@ npm install
 
 直接在网页里面点击RENDER
 
-
 ## 第三方软件声明
 
-
 本项目使用了 [Ruffle](https://ruffle.rs)来运行flash游戏。
-
 
 ## 🚀 未来规划
 

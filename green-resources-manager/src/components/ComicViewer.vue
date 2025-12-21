@@ -23,9 +23,6 @@
               <option value="low">低质量</option>
             </select>
           </div>
-          <button class="btn-performance" @click="logPerformanceInfo" title="查看性能信息">
-            <span class="btn-icon">📊</span>
-          </button>
           <button class="btn-fullscreen" @click="toggleFullscreen">
             <span class="btn-icon">⛶</span>
             全屏
@@ -361,57 +358,6 @@ export default {
       }
     },
 
-    // 性能监控
-    logPerformanceInfo() {
-      console.log('=== 图片性能信息 ===')
-      console.log('缓存大小:', this.imageCacheSize, 'bytes')
-      console.log('缓存条目数:', this.imageCache.size)
-      console.log('预加载状态:', this.isPreloading)
-      console.log('当前页索引:', this.currentPageIndex)
-      console.log('总页数:', this.pages.length)
-      console.log('缩放级别:', this.zoomLevel)
-      console.log('图片质量:', this.imageQuality)
-      
-      // 统计各种图片类型数量
-      let thumbnailCount = 0
-      let coverCount = 0
-      let fullImageCount = 0
-      let otherCount = 0
-      
-      for (const [key, value] of this.imageCache.entries()) {
-        if (key.startsWith('thumb_')) {
-          thumbnailCount++
-        } else if (key.startsWith('cover_')) {
-          coverCount++
-        } else if (key.startsWith('full_')) {
-          fullImageCount++
-        } else {
-          otherCount++
-        }
-      }
-      
-      console.log('缩略图数量:', thumbnailCount)
-      console.log('封面图数量:', coverCount)
-      console.log('阅读器原图数量:', fullImageCount)
-      console.log('其他图片数量:', otherCount)
-      
-      // 内存使用情况（如果可用）
-      if (performance.memory) {
-        console.log('内存使用:', {
-          used: Math.round(performance.memory.usedJSHeapSize / 1024 / 1024) + 'MB',
-          total: Math.round(performance.memory.totalJSHeapSize / 1024 / 1024) + 'MB',
-          limit: Math.round(performance.memory.jsHeapSizeLimit / 1024 / 1024) + 'MB'
-        })
-      }
-      
-      // 估算内存节省
-      if (this.pages && this.pages.length > 0) {
-        const estimatedOriginalSize = this.pages.length * 3 * 1024 * 1024 // 假设每张3MB
-        const actualCacheSize = this.imageCacheSize
-        const savedMemory = Math.max(0, estimatedOriginalSize - actualCacheSize)
-        console.log('估算内存节省:', Math.round(savedMemory / 1024 / 1024) + 'MB')
-      }
-    },
 
     // 异步图片解析 - 用于需要DataURL的场景（如封面预览）
     async resolveImageAsync(imagePath) {

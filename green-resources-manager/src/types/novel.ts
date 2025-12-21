@@ -13,6 +13,7 @@ export interface Novel {
   genre?: string
   language?: string
   filePath?: string
+  fileType?: 'txt' | 'epub' | 'mobi' // 文件类型
   fileSize?: number
   encoding?: string
   totalWords?: number
@@ -35,7 +36,7 @@ export interface Novel {
   isbn?: string
   series?: string
   volume?: string
-  chapters?: any[]
+  chapters?: any[] // EPUB 章节列表
   bookmarks?: any[]
   highlights?: any[]
   fileExists?: boolean

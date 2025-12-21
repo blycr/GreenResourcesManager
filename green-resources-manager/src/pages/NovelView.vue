@@ -73,6 +73,15 @@
           </div>
 
           <div class="reader-content" ref="readerContent" :style="readerContentStyle">
+            <!-- EPUB 章节导航（仅 EPUB 文件显示） -->
+            <div v-if="currentReadingNovel?.fileType === 'epub' && epubChapters && epubChapters.length > 0" class="epub-chapter-nav">
+              <select v-model="currentChapterIndex" @change="loadEpubChapter" class="chapter-select">
+                <option v-for="(chapter, index) in epubChapters" :key="chapter.id" :value="index">
+                  {{ chapter.label }}
+                </option>
+              </select>
+            </div>
+            
             <div v-if="novelContent" class="novel-text" :style="novelTextStyle" v-html="formattedContent"></div>
             <div v-else-if="loadingContent" class="loading-content">
               <div class="loading-spinner"></div>
@@ -86,6 +95,20 @@
 
           <div class="reader-footer">
             <div class="reader-navigation">
+              <!-- EPUB 文件显示章节导航 -->
+              <template v-if="currentReadingNovel?.fileType === 'epub' && epubChapters && epubChapters.length > 0">
+                <button class="btn-prev" @click="previousChapter" :disabled="!canGoPreviousChapter">
+                  <span class="btn-icon">←</span>
+                  上一章
+                </button>
+                <span class="page-info">第 {{ currentChapterIndex + 1 }} / {{ epubChapters.length }} 章</span>
+                <button class="btn-next" @click="nextChapter" :disabled="!canGoNextChapter">
+                  下一章
+                  <span class="btn-icon">→</span>
+                </button>
+              </template>
+              <!-- TXT 文件显示分页导航 -->
+              <template v-else>
               <button class="btn-prev" @click="previousPage" :disabled="!canGoPrevious">
                 <span class="btn-icon">←</span>
                 上一页
@@ -95,6 +118,7 @@
                 下一页
                 <span class="btn-icon">→</span>
               </button>
+              </template>
             </div>
           </div>
         </div>
@@ -261,6 +285,7 @@ import saveManager from '../utils/SaveManager.ts'
 import { useNovelManagement } from '../composables/novel/useNovelManagement'
 import { useNovelFilter } from '../composables/novel/useNovelFilter'
 import { ref } from 'vue'
+import { EpubParser, type EpubChapter } from '../utils/EpubParser'
 
 import notify from '../utils/NotificationService.ts'
 
@@ -372,6 +397,10 @@ export default {
       currentPage: 1,
       totalPages: 1,
       wordsPerPage: 1000, // 每页显示的字数
+      // EPUB 相关状态
+      epubParser: null as EpubParser | null,
+      epubChapters: [] as EpubChapter[],
+      currentChapterIndex: 0,
       readerSettings: {
         fontSize: 16,
         lineHeight: 1.6,
@@ -619,8 +648,74 @@ export default {
       
       return cleanName.charAt(0).toUpperCase() + cleanName.slice(1)
     },
+    /**
+     * 检测文件类型
+     */
+    getFileType(filePath: string): 'txt' | 'epub' | 'mobi' {
+      if (!filePath) return 'txt'
+      const ext = filePath.toLowerCase().substring(filePath.lastIndexOf('.'))
+      if (ext === '.epub') return 'epub'
+      if (ext === '.mobi') return 'mobi'
+      return 'txt'
+    },
     async analyzeNovelFile(filePath) {
       try {
+        const fileType = this.getFileType(filePath)
+        
+        if (fileType === 'epub') {
+          // EPUB 文件分析
+          try {
+            const parser = new EpubParser()
+            await parser.loadEpub(filePath)
+            const metadata = await parser.getMetadata()
+            const chapters = await parser.getChapters()
+            
+            // 获取文件大小
+            let fileSize = 0
+            if (window.electronAPI && window.electronAPI.getFileStats) {
+              const stats = await window.electronAPI.getFileStats(filePath)
+              if (stats.success) {
+                fileSize = stats.size || 0
+              }
+            }
+            
+            // 更新新小说信息
+            this.newNovel.totalWords = metadata.totalWords || 0
+            this.newNovel.fileSize = fileSize
+            this.newNovel.encoding = 'utf-8'
+            
+            // 如果名称或作者为空，使用 EPUB 元数据填充
+            if (!this.newNovel.name.trim() && metadata.title) {
+              this.newNovel.name = metadata.title
+            }
+            if (!this.newNovel.author.trim() && metadata.author) {
+              this.newNovel.author = metadata.author
+            }
+            if (!this.newNovel.description.trim() && metadata.description) {
+              this.newNovel.description = metadata.description
+            }
+            
+            // 获取封面
+            const cover = await parser.getCover()
+            if (cover && !this.newNovel.coverImage) {
+              this.newNovel.coverImage = cover
+            }
+            
+            parser.destroy()
+            
+            console.log('EPUB 文件分析结果:', {
+              title: metadata.title,
+              author: metadata.author,
+              totalWords: metadata.totalWords,
+              totalChapters: chapters.length,
+              fileSize
+            })
+          } catch (error) {
+            console.error('分析 EPUB 文件失败:', error)
+            notify.toast('error', '分析失败', `无法分析 EPUB 文件: ${error.message}`)
+          }
+        } else {
+          // TXT 文件分析（原有逻辑）
         if (window.electronAPI && window.electronAPI.readTextFile) {
           const result = await window.electronAPI.readTextFile(filePath)
           if (result.success && result.content) {
@@ -633,6 +728,7 @@ export default {
               fileSize: result.fileSize, 
               encoding: result.encoding 
             })
+            }
           }
         }
       } catch (error) {
@@ -648,6 +744,8 @@ export default {
           novelName = this.extractNovelNameFromPath(this.newNovel.filePath)
         }
         
+        const fileType = this.getFileType(this.newNovel.filePath)
+        
         const novelData = {
           name: novelName,
           author: this.newNovel.author.trim() || '未知作者',
@@ -655,6 +753,7 @@ export default {
           description: this.newNovel.description.trim() || '',
           tags: [...this.newNovel.tags],
           filePath: this.newNovel.filePath.trim(),
+          fileType: fileType,
           coverImage: this.newNovel.coverImage.trim(),
           readProgress: 0,
           readTime: 0,
@@ -1048,6 +1147,14 @@ export default {
     async selectNovelForReading(novel) {
       try {
         console.log('选择小说进行阅读:', novel.name)
+        // 重置 EPUB 相关状态
+        if (this.epubParser) {
+          this.epubParser.destroy()
+          this.epubParser = null
+        }
+        this.epubChapters = []
+        this.currentChapterIndex = 0
+        
         this.currentReadingNovel = novel
         this.currentPage = 1
         await this.loadNovelContent()
@@ -1066,6 +1173,55 @@ export default {
         this.loadingContent = true
         console.log('正在加载小说内容:', this.currentReadingNovel.filePath)
         
+        const fileType = this.currentReadingNovel.fileType || this.getFileType(this.currentReadingNovel.filePath)
+        
+        if (fileType === 'epub') {
+          // 加载 EPUB 文件
+          try {
+            // 确保 epubChapters 已初始化
+            if (!this.epubChapters) {
+              this.epubChapters = []
+            }
+            
+            // 创建或重用 EPUB 解析器
+            if (!this.epubParser) {
+              this.epubParser = new EpubParser()
+              await this.epubParser.loadEpub(this.currentReadingNovel.filePath)
+              
+              // 获取章节列表
+              const chapters = await this.epubParser.getChapters()
+              this.epubChapters = chapters || []
+              
+              // 如果小说没有保存章节信息，更新它
+              if (this.epubChapters.length > 0 && (!this.currentReadingNovel.chapters || this.currentReadingNovel.chapters.length === 0)) {
+                this.currentReadingNovel.chapters = this.epubChapters
+                this.currentReadingNovel.totalChapters = this.epubChapters.length
+                await this.updateNovelInManager(this.currentReadingNovel.id, {
+                  chapters: this.epubChapters,
+                  totalChapters: this.epubChapters.length
+                })
+              }
+            }
+            
+            // 加载当前章节（如果有保存的进度，否则加载第一章）
+            const savedChapterIndex = this.currentReadingNovel.currentChapter || 0
+            this.currentChapterIndex = Math.min(savedChapterIndex, Math.max(0, this.epubChapters.length - 1))
+            
+            if (this.epubChapters && this.epubChapters.length > 0) {
+              await this.loadEpubChapter()
+            } else {
+              console.warn('EPUB 文件没有章节')
+              this.novelContent = '<p>该 EPUB 文件没有可用的章节内容</p>'
+            }
+          } catch (error) {
+            console.error('加载 EPUB 内容失败:', error)
+            this.novelContent = ''
+            // 确保 epubChapters 始终是数组
+            this.epubChapters = []
+            notify.toast('error', '加载失败', `无法加载 EPUB 文件: ${error.message}`)
+          }
+        } else {
+          // 加载 TXT 文件（原有逻辑）
         if (window.electronAPI && window.electronAPI.readTextFile) {
           const result = await window.electronAPI.readTextFile(this.currentReadingNovel.filePath)
           if (result.success && result.content) {
@@ -1079,6 +1235,7 @@ export default {
         } else {
           console.error('readTextFile API 不可用')
           this.novelContent = ''
+          }
         }
       } catch (error) {
         console.error('加载小说内容失败:', error)
@@ -1087,11 +1244,80 @@ export default {
         this.loadingContent = false
       }
     },
+    /**
+     * 加载 EPUB 章节
+     */
+    async loadEpubChapter() {
+      if (!this.epubParser || this.epubChapters.length === 0) {
+        return
+      }
+      
+      try {
+        this.loadingContent = true
+        const chapter = this.epubChapters[this.currentChapterIndex]
+        const content = await this.epubParser.getChapterContent(chapter.href)
+        this.novelContent = content
+        
+        // 更新当前章节索引
+        if (this.currentReadingNovel) {
+          this.currentReadingNovel.currentChapter = this.currentChapterIndex
+          await this.updateNovelInManager(this.currentReadingNovel.id, {
+            currentChapter: this.currentChapterIndex
+          })
+        }
+        
+        console.log('EPUB 章节加载成功:', chapter.label)
+      } catch (error) {
+        console.error('加载 EPUB 章节失败:', error)
+        this.novelContent = '<p>无法加载章节内容</p>'
+        notify.toast('error', '加载失败', `无法加载章节: ${error.message}`)
+      } finally {
+        this.loadingContent = false
+      }
+    },
+    /**
+     * 上一章
+     */
+    previousChapter() {
+      if (this.currentChapterIndex > 0) {
+        this.currentChapterIndex--
+        this.loadEpubChapter()
+      }
+    },
+    /**
+     * 下一章
+     */
+    nextChapter() {
+      if (this.currentChapterIndex < this.epubChapters.length - 1) {
+        this.currentChapterIndex++
+        this.loadEpubChapter()
+      }
+    },
+    /**
+     * 是否可以上一章
+     */
+    get canGoPreviousChapter() {
+      return this.epubChapters && this.epubChapters.length > 0 && this.currentChapterIndex > 0
+    },
+    /**
+     * 是否可以下一章
+     */
+    get canGoNextChapter() {
+      return this.epubChapters && this.epubChapters.length > 0 && this.currentChapterIndex < this.epubChapters.length - 1
+    },
     closeReader() {
+      // 释放 EPUB 解析器资源
+      if (this.epubParser) {
+        this.epubParser.destroy()
+        this.epubParser = null
+      }
+      
       this.currentReadingNovel = null
       this.novelContent = ''
       this.currentPage = 1
       this.totalPages = 1
+      this.epubChapters = []
+      this.currentChapterIndex = 0
     },
     nextPage() {
       if (this.canGoNext) {
@@ -1341,10 +1567,14 @@ export default {
         // 重新分析文件信息
         await this.analyzeNovelFile(newPath)
         
+        // 检测文件类型
+        const fileType = this.getFileType(newPath)
+        
         // 保存更新后的数据
         await this.updateNovelInManager(existingNovel.id, {
           filePath: newPath,
           fileExists: true,
+          fileType: fileType,
           totalWords: this.newNovel.totalWords,
           fileSize: this.newNovel.fileSize,
           encoding: this.newNovel.encoding
@@ -1695,6 +1925,37 @@ export default {
   color: var(--text-secondary);
   font-size: 0.9rem;
   font-weight: 500;
+}
+
+/* EPUB 章节导航样式 */
+.epub-chapter-nav {
+  margin-bottom: 20px;
+  padding: 15px;
+  background: var(--bg-tertiary);
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+}
+
+.chapter-select {
+  width: 100%;
+  padding: 10px 15px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.chapter-select:focus {
+  outline: none;
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 3px rgba(102, 192, 244, 0.1);
+}
+
+.chapter-select:hover {
+  border-color: var(--accent-color);
 }
 
 

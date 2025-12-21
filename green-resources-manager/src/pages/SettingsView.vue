@@ -220,30 +220,13 @@ export default {
       this.applyTheme(newTheme)
     },
     
-    'settings.autoStart'(newValue) {
-      // 避免在初始化时触发
-      if (!this.isInitializing) {
-        this.onAutoStartChange()
-      }
-    },
-    
-    'settings.minimizeToTray'(newValue) {
-      // 避免在初始化时触发
-      if (!this.isInitializing) {
-        this.onMinimizeToTrayChange()
-      }
-    },
-    
-    'settings.screenshotKey'(newKey) {
-      this.onScreenshotKeyChange()
-    },
-    
-    'settings.screenshotLocation'(newLocation) {
-      this.onScreenshotLocationChange()
-    },
-    
-    // 'settings.saveDataLocation' watcher 已移至对应的子组件
-    // 'settings.safetyKeyUrl' watcher 已移至 GeneralSettings 组件
+    // 以下设置项的变化处理已移至对应的子组件：
+    // 'settings.autoStart' - 已移至 GeneralSettings 组件
+    // 'settings.minimizeToTray' - 已移至 GeneralSettings 组件
+    // 'settings.screenshotKey' - 已移至 GameSettings 组件
+    // 'settings.screenshotLocation' - 已移至 GameSettings 组件
+    // 'settings.saveDataLocation' - 已移至 GeneralSettings 组件
+    // 'settings.safetyKeyUrl' - 已移至 GeneralSettings 组件
   },
   methods: {
     selectCategory(categoryId) {

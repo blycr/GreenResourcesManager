@@ -256,18 +256,28 @@ async function launchGame(executablePath, gameName, getMainWindow) {
 
       // 使用选定的播放器运行.swf文件
       actualExecutablePath = flashPlayerPath
+      // 获取 .swf 文件所在目录作为工作目录
+      const swfDir = path.dirname(executablePath)
       gameProcess = spawn(flashPlayerPath, [executablePath], {
         detached: true,
-        stdio: 'ignore'
+        stdio: 'ignore',
+        cwd: swfDir,  // 设置工作目录为 .swf 文件所在目录
+        env: { ...process.env }  // 继承当前环境变量（包含 locale 相关设置）
       })
       
       console.log(`✅ 使用 Flash 播放器运行: ${flashPlayerPath} "${executablePath}"`)
+      console.log(`   工作目录: ${swfDir}`)
     } else {
       // 普通游戏：直接运行可执行文件
+      // 获取游戏可执行文件所在目录作为工作目录
+      const gameDir = path.dirname(executablePath)
       gameProcess = spawn(executablePath, [], {
         detached: true,
-        stdio: 'ignore'
+        stdio: 'ignore',
+        cwd: gameDir,  // 设置工作目录为游戏所在目录
+        env: { ...process.env }  // 继承当前环境变量（包含 locale 相关设置）
       })
+      console.log(`✅ 游戏启动，工作目录: ${gameDir}`)
     }
 
     // 记录游戏启动时间
