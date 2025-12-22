@@ -19,7 +19,6 @@
           @click="onLogoClick"
         >
         <h1> 绿色资源管理器</h1>
-        <p>绿色、全能的资源管理器</p>
         <p class="version">v{{ version }}</p>
       </div>
 

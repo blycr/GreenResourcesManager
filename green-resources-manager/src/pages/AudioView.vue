@@ -1056,8 +1056,8 @@ export default {
 }
 </script>
 
-<style scoped>
-/* 音频主内容区域 */
+<style lang="scss" scoped>
+// 音频主内容区域
 .audio-content {
   flex: 1;
   display: flex;
@@ -1066,9 +1066,35 @@ export default {
   padding: 0;
   height: 100%;
   overflow-y: auto;
+  position: relative;
+  transition: all 0.3s ease;
+
+  &.drag-over {
+    background-color: rgba(102, 192, 244, 0.1);
+    background: rgba(59, 130, 246, 0.1);
+    border: 2px dashed var(--accent-color);
+    border-radius: 12px;
+
+    &::before {
+      content: '拖拽音频文件到这里添加音频（支持多选）';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: var(--accent-color);
+      color: white;
+      padding: 20px 40px;
+      border-radius: 12px;
+      font-size: 18px;
+      font-weight: 600;
+      z-index: 1000;
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+      pointer-events: none;
+    }
+  }
 }
 
-/* 主要内容区域 */
+// 主要内容区域
 .audio-main-content {
   display: flex;
   flex-direction: column;
@@ -1078,14 +1104,7 @@ export default {
   box-sizing: border-box;
 }
 
-/* 拖拽状态样式 */
-.audio-content.drag-over {
-  background-color: rgba(102, 192, 244, 0.1);
-  border: 2px dashed var(--accent-color);
-}
-
-/* 工具栏样式 */
-
+// 工具栏样式
 .search-box {
   position: relative;
   display: flex;
@@ -1100,12 +1119,12 @@ export default {
   color: var(--text-primary);
   width: 300px;
   transition: all 0.3s ease;
-}
 
-.search-input:focus {
-  outline: none;
-  border-color: var(--accent-color);
-  box-shadow: 0 0 0 3px rgba(102, 192, 244, 0.1);
+  &:focus {
+    outline: none;
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 3px rgba(102, 192, 244, 0.1);
+  }
 }
 
 .search-icon {
@@ -1123,14 +1142,14 @@ export default {
   color: var(--text-primary);
   cursor: pointer;
   transition: all 0.3s ease;
+
+  &:focus {
+    outline: none;
+    border-color: var(--accent-color);
+  }
 }
 
-.sort-select:focus {
-  outline: none;
-  border-color: var(--accent-color);
-}
-
-/* 模态框样式 */
+// 模态框样式
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -1161,11 +1180,11 @@ export default {
   align-items: center;
   padding: 20px;
   border-bottom: 1px solid var(--border-color);
-}
 
-.modal-header h3 {
-  color: var(--text-primary);
-  margin: 0;
+  h3 {
+    color: var(--text-primary);
+    margin: 0;
+  }
 }
 
 .btn-close {
@@ -1177,11 +1196,11 @@ export default {
   padding: 5px;
   border-radius: 4px;
   transition: all 0.3s ease;
-}
 
-.btn-close:hover {
-  background: var(--bg-tertiary);
-  color: var(--text-primary);
+  &:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+  }
 }
 
 .modal-body {
@@ -1196,9 +1215,16 @@ export default {
   border-top: 1px solid var(--border-color);
 }
 
-/* 表单样式 */
+// 表单样式
 .form-group {
   margin-bottom: 20px;
+
+  label {
+    display: block;
+    margin-bottom: 5px;
+    color: var(--text-primary);
+    font-weight: 500;
+  }
 }
 
 .form-row {
@@ -1207,14 +1233,8 @@ export default {
   gap: 15px;
 }
 
-.form-group label {
-  display: block;
-  margin-bottom: 5px;
-  color: var(--text-primary);
-  font-weight: 500;
-}
-
-.form-input, .form-textarea {
+.form-input,
+.form-textarea {
   width: 100%;
   padding: 10px 12px;
   border: 1px solid var(--border-color);
@@ -1223,12 +1243,12 @@ export default {
   color: var(--text-primary);
   font-size: 0.9rem;
   transition: all 0.3s ease;
-}
 
-.form-input:focus, .form-textarea:focus {
-  outline: none;
-  border-color: var(--accent-color);
-  box-shadow: 0 0 0 3px rgba(102, 192, 244, 0.1);
+  &:focus {
+    outline: none;
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 3px rgba(102, 192, 244, 0.1);
+  }
 }
 
 .file-input-group {
@@ -1250,13 +1270,13 @@ export default {
   cursor: pointer;
   font-weight: 500;
   transition: background 0.3s ease;
+
+  &:hover {
+    background: var(--accent-hover);
+  }
 }
 
-.btn-browse:hover {
-  background: var(--accent-hover);
-}
-
-/* 按钮样式 */
+// 按钮样式
 .btn-cancel {
   background: var(--bg-secondary);
   color: var(--text-primary);
@@ -1266,10 +1286,10 @@ export default {
   cursor: pointer;
   font-weight: 500;
   transition: all 0.3s ease;
-}
 
-.btn-cancel:hover {
-  background: var(--bg-tertiary);
+  &:hover {
+    background: var(--bg-tertiary);
+  }
 }
 
 .btn-confirm {
@@ -1281,13 +1301,13 @@ export default {
   cursor: pointer;
   font-weight: 500;
   transition: background 0.3s ease;
+
+  &:hover {
+    background: var(--accent-hover);
+  }
 }
 
-.btn-confirm:hover {
-  background: var(--accent-hover);
-}
-
-/* 音频详情样式 */
+// 音频详情样式
 .audio-detail-modal {
   max-width: 800px;
 }
@@ -1306,13 +1326,13 @@ export default {
   border-radius: 12px;
   height: 200px;
   overflow: hidden;
-}
 
-.audio-detail-thumbnail img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  border-radius: 12px;
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 12px;
+  }
 }
 
 .audio-detail-icon {
@@ -1327,12 +1347,12 @@ export default {
 
 .detail-section {
   margin-bottom: 25px;
-}
 
-.detail-section h4 {
-  color: var(--text-primary);
-  margin-bottom: 15px;
-  font-size: 1.1rem;
+  h4 {
+    color: var(--text-primary);
+    margin-bottom: 15px;
+    font-size: 1.1rem;
+  }
 }
 
 .detail-grid {
@@ -1381,7 +1401,7 @@ export default {
   margin: 0;
 }
 
-/* 详情按钮样式 */
+// 详情按钮样式
 .btn-play {
   background: var(--accent-color);
   color: white;
@@ -1391,10 +1411,10 @@ export default {
   cursor: pointer;
   font-weight: 500;
   transition: background 0.3s ease;
-}
 
-.btn-play:hover {
-  background: var(--accent-hover);
+  &:hover {
+    background: var(--accent-hover);
+  }
 }
 
 .btn-open-folder {
@@ -1406,10 +1426,10 @@ export default {
   cursor: pointer;
   font-weight: 500;
   transition: background 0.3s ease;
-}
 
-.btn-open-folder:hover {
-  background: #059669;
+  &:hover {
+    background: #059669;
+  }
 }
 
 .btn-edit {
@@ -1421,10 +1441,10 @@ export default {
   cursor: pointer;
   font-weight: 500;
   transition: background 0.3s ease;
-}
 
-.btn-edit:hover {
-  background: #d97706;
+  &:hover {
+    background: #d97706;
+  }
 }
 
 .btn-delete {
@@ -1436,10 +1456,10 @@ export default {
   cursor: pointer;
   font-weight: 500;
   transition: background 0.3s ease;
-}
 
-.btn-delete:hover {
-  background: #dc2626;
+  &:hover {
+    background: #dc2626;
+  }
 }
 
 .btn-add-to-playlist {
@@ -1451,10 +1471,10 @@ export default {
   cursor: pointer;
   font-weight: 500;
   transition: background 0.3s ease;
-}
 
-.btn-add-to-playlist:hover {
-  background: #7c3aed;
+  &:hover {
+    background: #7c3aed;
+  }
 }
 
 .btn-update-duration {
@@ -1469,25 +1489,25 @@ export default {
   align-items: center;
   gap: 6px;
   transition: all 0.3s ease;
+
+  &:hover {
+    background: #138496;
+    transform: translateY(-1px);
+  }
 }
 
-.btn-update-duration:hover {
-  background: #138496;
-  transform: translateY(-1px);
-}
-
-/* 标签输入样式 */
+// 标签输入样式
 .tags-input-container {
   border: 1px solid var(--border-color);
   border-radius: 6px;
   padding: 8px;
   background: var(--bg-secondary);
   transition: all 0.3s ease;
-}
 
-.tags-input-container:focus-within {
-  border-color: var(--accent-color);
-  box-shadow: 0 0 0 3px rgba(102, 192, 244, 0.1);
+  &:focus-within {
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 3px rgba(102, 192, 244, 0.1);
+  }
 }
 
 .tags-display {
@@ -1527,10 +1547,10 @@ export default {
   justify-content: center;
   border-radius: 50%;
   transition: background 0.2s ease;
-}
 
-.tag-remove:hover {
-  background: rgba(255, 255, 255, 0.2);
+  &:hover {
+    background: rgba(255, 255, 255, 0.2);
+  }
 }
 
 .tag-input {
@@ -1541,10 +1561,10 @@ export default {
   color: var(--text-primary);
   font-size: 0.9rem;
   padding: 4px 0;
-}
 
-.tag-input::placeholder {
-  color: var(--text-tertiary);
+  &::placeholder {
+    color: var(--text-tertiary);
+  }
 }
 
 .tag-hint {
@@ -1553,12 +1573,12 @@ export default {
   margin-top: 4px;
 }
 
-/* 演员标签样式 */
+// 演员标签样式
 .actor-tag {
   background: #8b5cf6 !important;
 }
 
-/* 缩略图预览样式 */
+// 缩略图预览样式
 .thumbnail-preview {
   margin-top: 15px;
   text-align: center;
@@ -1575,48 +1595,19 @@ export default {
   box-shadow: 0 4px 12px var(--shadow-light);
   object-fit: cover;
   transition: transform 0.3s ease;
+
+  &:hover {
+    transform: scale(1.05);
+  }
 }
 
-.preview-image:hover {
-  transform: scale(1.05);
-}
-
-/* 拖拽样式 */
-.audio-content {
-  position: relative;
-  transition: all 0.3s ease;
-}
-
-.audio-content.drag-over {
-  background: rgba(59, 130, 246, 0.1);
-  border: 2px dashed var(--accent-color);
-  border-radius: 12px;
-}
-
-.audio-content.drag-over::before {
-  content: '拖拽音频文件到这里添加音频（支持多选）';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  background: var(--accent-color);
-  color: white;
-  padding: 20px 40px;
-  border-radius: 12px;
-  font-size: 18px;
-  font-weight: 600;
-  z-index: 1000;
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
-  pointer-events: none;
-}
-
-/* 响应式设计 */
+// 响应式设计
 @media (max-width: 768px) {
   .audio-detail-content {
     grid-template-columns: 1fr;
     gap: 20px;
   }
-  
+
   .detail-grid {
     grid-template-columns: 1fr;
   }

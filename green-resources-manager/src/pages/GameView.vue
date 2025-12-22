@@ -1145,28 +1145,48 @@ export default {
 }
 </script>
 
-<style scoped>
-/* 游戏主内容区域 */
+<style lang="scss" scoped>
+// 游戏主内容区域
 .game-content {
   flex: 1;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  padding: 20px;
+  padding: var(--spacing-xl);
   height: 100%;
   overflow-y: auto;
   position: relative;
-  transition: all 0.3s ease;
+  transition: all var(--transition-base);
   box-sizing: border-box;
+
+  // 拖拽样式
+  &.drag-over {
+    background: rgba(59, 130, 246, 0.1);
+    border: 2px dashed var(--accent-color);
+    border-radius: var(--radius-xl);
+
+    &::before {
+      content: '拖拽游戏文件到这里添加游戏 (.exe / .app / .swf / .zip / .rar / .7z 等)';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: var(--accent-color);
+      color: white;
+      padding: var(--spacing-xl) calc(var(--spacing-xl) * 2);
+      border-radius: var(--radius-xl);
+      font-size: 18px;
+      font-weight: 600;
+      z-index: 1000;
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+      pointer-events: none;
+    }
+  }
 }
 
+// 游戏网格样式已移至 GameGrid.vue 组件
 
-
-/* 游戏网格样式已移至 GameGrid.vue 组件 */
-
-
-
-/* 强制结束游戏确认对话框样式 */
+// 强制结束游戏确认对话框样式
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -1177,32 +1197,32 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  z-index: var(--z-modal-backdrop);
 }
 
 .modal-content {
   background: var(--bg-secondary);
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   width: 500px;
   max-width: 90vw;
   max-height: 90vh;
   overflow-y: auto;
   box-shadow: 0 20px 40px var(--shadow-medium);
-  transition: background-color 0.3s ease;
+  transition: background-color var(--transition-base);
 }
 
 .modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 20px;
+  padding: var(--spacing-xl);
   border-bottom: 1px solid var(--border-color);
-}
 
-.modal-header h3 {
-  color: var(--text-primary);
-  margin: 0;
-  transition: color 0.3s ease;
+  h3 {
+    color: var(--text-primary);
+    margin: 0;
+    transition: color var(--transition-base);
+  }
 }
 
 .modal-close {
@@ -1211,22 +1231,22 @@ export default {
   font-size: 1.5rem;
   cursor: pointer;
   color: var(--text-secondary);
-  transition: color 0.3s ease;
-}
+  transition: color var(--transition-base);
 
-.modal-close:hover {
-  color: var(--text-primary);
+  &:hover {
+    color: var(--text-primary);
+  }
 }
 
 .modal-body {
-  padding: 20px;
+  padding: var(--spacing-xl);
 }
 
 .modal-footer {
   display: flex;
   justify-content: flex-end;
-  gap: 10px;
-  padding: 20px;
+  gap: var(--spacing-md);
+  padding: var(--spacing-xl);
   border-top: 1px solid var(--border-color);
 }
 
@@ -1234,41 +1254,41 @@ export default {
   background: var(--bg-tertiary);
   color: var(--text-primary);
   border: 1px solid var(--border-color);
-  padding: 10px 20px;
-  border-radius: 6px;
+  padding: var(--spacing-md) var(--spacing-xl);
+  border-radius: var(--radius-md);
   cursor: pointer;
-  transition: all 0.3s ease;
-}
+  transition: all var(--transition-base);
 
-.btn-cancel:hover {
-  background: var(--bg-secondary);
+  &:hover {
+    background: var(--bg-secondary);
+  }
 }
 
 .btn-confirm {
   background: var(--accent-color);
   color: white;
   border: none;
-  padding: 10px 20px;
-  border-radius: 6px;
+  padding: var(--spacing-md) var(--spacing-xl);
+  border-radius: var(--radius-md);
   cursor: pointer;
   font-weight: 600;
-  transition: background 0.3s ease;
+  transition: background var(--transition-base);
+
+  &:hover:not(:disabled) {
+    background: var(--accent-hover);
+  }
 }
 
-.btn-confirm:hover:not(:disabled) {
-  background: var(--accent-hover);
-}
-
-/* 响应式设计 */
+// 响应式设计
 @media (max-width: 768px) {
   .modal-content {
     width: 95vw;
-    margin: 20px;
+    margin: var(--spacing-xl);
   }
 
   .detail-body {
     flex-direction: column;
-    gap: 20px;
+    gap: var(--spacing-xl);
   }
 
   .detail-image {
@@ -1283,29 +1303,5 @@ export default {
   .detail-actions {
     flex-direction: column;
   }
-}
-
-/* 拖拽样式 */
-.game-content.drag-over {
-  background: rgba(59, 130, 246, 0.1);
-  border: 2px dashed var(--accent-color);
-  border-radius: 12px;
-}
-
-.game-content.drag-over::before {
-  content: '拖拽游戏文件到这里添加游戏 (.exe / .app / .swf / .zip / .rar / .7z 等)';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  background: var(--accent-color);
-  color: white;
-  padding: 20px 40px;
-  border-radius: 12px;
-  font-size: 18px;
-  font-weight: 600;
-  z-index: 1000;
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
-  pointer-events: none;
 }
 </style>

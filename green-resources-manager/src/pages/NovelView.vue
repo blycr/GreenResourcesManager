@@ -1825,8 +1825,8 @@ export default {
 }
 </script>
 
-<style scoped>
-/* 小说主内容区域 */
+<style lang="scss" scoped>
+// 小说主内容区域
 .novel-content {
   flex: 1;
   display: flex;
@@ -1835,9 +1835,34 @@ export default {
   padding: 0;
   height: 100%;
   overflow-y: auto;
+  position: relative;
+  transition: all 0.3s ease;
+
+  &.drag-over {
+    background: rgba(59, 130, 246, 0.1);
+    border: 2px dashed var(--accent-color);
+    border-radius: 12px;
+
+    &::before {
+      content: '拖拽小说文件到这里添加小说（支持多选）';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: var(--accent-color);
+      color: white;
+      padding: 20px 40px;
+      border-radius: 12px;
+      font-size: 18px;
+      font-weight: 600;
+      z-index: 1000;
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+      pointer-events: none;
+    }
+  }
 }
 
-/* 主要内容区域 */
+// 主要内容区域
 .novel-main-content {
   display: flex;
   gap: 20px;
@@ -1846,17 +1871,17 @@ export default {
   box-sizing: border-box;
 }
 
-/* 小说列表区域 */
+// 小说列表区域
 .novel-list-section {
   flex: 1;
   transition: flex 0.3s ease;
+
+  &.with-reader {
+    flex: 0 0 50%;
+  }
 }
 
-.novel-list-section.with-reader {
-  flex: 0 0 50%;
-}
-
-/* 阅读器区域 */
+// 阅读器区域
 .reader-section {
   flex: 0 0 50%;
   display: flex;
@@ -1868,7 +1893,7 @@ export default {
   transition: all 0.3s ease;
 }
 
-/* 阅读器头部 */
+// 阅读器头部
 .reader-header {
   display: flex;
   justify-content: space-between;
@@ -1876,24 +1901,26 @@ export default {
   padding: 15px 20px;
   border-bottom: 1px solid var(--border-color);
   background: var(--bg-tertiary);
-}
 
-.reader-title h3 {
-  margin: 0 0 5px 0;
-  color: var(--text-primary);
-  font-size: 1.2rem;
-  font-weight: 600;
-}
+  .reader-title {
+    h3 {
+      margin: 0 0 5px 0;
+      color: var(--text-primary);
+      font-size: 1.2rem;
+      font-weight: 600;
+    }
+  }
 
-.reader-author {
-  margin: 0;
-  color: var(--text-secondary);
-  font-size: 0.9rem;
-}
+  .reader-author {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+  }
 
-.reader-controls {
-  display: flex;
-  gap: 8px;
+  .reader-controls {
+    display: flex;
+    gap: 8px;
+  }
 }
 
 .btn-close-reader {
@@ -1907,29 +1934,28 @@ export default {
   align-items: center;
   gap: 4px;
   transition: background 0.3s ease;
+
+  &:hover {
+    background: #c82333;
+  }
 }
 
-.btn-close-reader:hover {
-  background: #c82333;
-}
-
-
-/* 阅读进度 */
+// 阅读进度
 .reader-progress {
   padding: 10px 20px;
   border-bottom: 1px solid var(--border-color);
   background: var(--bg-tertiary);
+
+  .progress-info {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+  }
 }
 
-.progress-info {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 8px;
-  font-size: 0.9rem;
-  color: var(--text-secondary);
-}
-
-/* 阅读内容 */
+// 阅读内容
 .reader-content {
   flex: 1;
   padding: 20px;
@@ -1965,8 +1991,12 @@ export default {
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 .no-content {
@@ -1987,13 +2017,13 @@ export default {
   cursor: pointer;
   margin-top: 10px;
   transition: background 0.3s ease;
+
+  &:hover {
+    background: var(--accent-hover);
+  }
 }
 
-.btn-retry:hover {
-  background: var(--accent-hover);
-}
-
-/* 阅读器底部 */
+// 阅读器底部
 .reader-footer {
   padding: 15px 20px;
   border-top: 1px solid var(--border-color);
@@ -2018,18 +2048,16 @@ export default {
   align-items: center;
   gap: 5px;
   transition: background 0.3s ease;
-}
 
-.btn-prev:hover:not(:disabled),
-.btn-next:hover:not(:disabled) {
-  background: var(--accent-hover);
-}
+  &:hover:not(:disabled) {
+    background: var(--accent-hover);
+  }
 
-.btn-prev:disabled,
-.btn-next:disabled {
-  background: var(--bg-secondary);
-  color: var(--text-tertiary);
-  cursor: not-allowed;
+  &:disabled {
+    background: var(--bg-secondary);
+    color: var(--text-tertiary);
+    cursor: not-allowed;
+  }
 }
 
 .page-info {
@@ -2038,7 +2066,7 @@ export default {
   font-weight: 500;
 }
 
-/* EPUB 章节导航样式 */
+// EPUB 章节导航样式
 .epub-chapter-nav {
   margin-bottom: 20px;
   padding: 15px;
@@ -2057,27 +2085,27 @@ export default {
   font-size: 0.95rem;
   cursor: pointer;
   transition: all 0.3s ease;
+
+  &:focus {
+    outline: none;
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 3px rgba(102, 192, 244, 0.1);
+  }
+
+  &:hover {
+    border-color: var(--accent-color);
+  }
 }
 
-.chapter-select:focus {
-  outline: none;
-  border-color: var(--accent-color);
-  box-shadow: 0 0 0 3px rgba(102, 192, 244, 0.1);
+// 选中状态的小说卡片
+.novel-card {
+  &.selected {
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 2px rgba(102, 192, 244, 0.2);
+  }
 }
 
-.chapter-select:hover {
-  border-color: var(--accent-color);
-}
-
-
-/* 选中状态的小说卡片 */
-.novel-card.selected {
-  border-color: var(--accent-color);
-  box-shadow: 0 0 0 2px rgba(102, 192, 244, 0.2);
-}
-
-/* 工具栏样式 */
-
+// 工具栏样式
 .search-box {
   position: relative;
   display: flex;
@@ -2092,12 +2120,12 @@ export default {
   color: var(--text-primary);
   width: 250px;
   transition: all 0.3s ease;
-}
 
-.search-input:focus {
-  outline: none;
-  border-color: var(--accent-color);
-  box-shadow: 0 0 0 3px rgba(102, 192, 244, 0.1);
+  &:focus {
+    outline: none;
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 3px rgba(102, 192, 244, 0.1);
+  }
 }
 
 .search-icon {
@@ -2113,7 +2141,8 @@ export default {
   gap: 10px;
 }
 
-.sort-select, .filter-select {
+.sort-select,
+.filter-select {
   padding: 8px 12px;
   border: 1px solid var(--border-color);
   border-radius: 6px;
@@ -2121,14 +2150,14 @@ export default {
   color: var(--text-primary);
   cursor: pointer;
   transition: all 0.3s ease;
+
+  &:focus {
+    outline: none;
+    border-color: var(--accent-color);
+  }
 }
 
-.sort-select:focus, .filter-select:focus {
-  outline: none;
-  border-color: var(--accent-color);
-}
-
-/* 小说网格样式 */
+// 小说网格样式
 .novels-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
@@ -2136,29 +2165,29 @@ export default {
   padding: 10px 0;
 }
 
-/* 空状态样式 */
+// 空状态样式
 .empty-state {
   text-align: center;
   padding: 60px 20px;
   color: var(--text-secondary);
+
+  h3 {
+    color: var(--text-primary);
+    font-size: 1.5rem;
+    margin-bottom: 10px;
+    transition: color 0.3s ease;
+  }
+
+  p {
+    margin-bottom: 30px;
+    transition: color 0.3s ease;
+  }
 }
 
 .empty-icon {
   font-size: 4rem;
   margin-bottom: 20px;
   opacity: 0.6;
-}
-
-.empty-state h3 {
-  color: var(--text-primary);
-  font-size: 1.5rem;
-  margin-bottom: 10px;
-  transition: color 0.3s ease;
-}
-
-.empty-state p {
-  margin-bottom: 30px;
-  transition: color 0.3s ease;
 }
 
 .btn-add-first-novel {
@@ -2170,13 +2199,13 @@ export default {
   cursor: pointer;
   font-weight: 600;
   transition: background 0.3s ease;
+
+  &:hover {
+    background: var(--accent-hover);
+  }
 }
 
-.btn-add-first-novel:hover {
-  background: var(--accent-hover);
-}
-
-/* 模态框样式 */
+// 模态框样式
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -2207,12 +2236,12 @@ export default {
   align-items: center;
   padding: 20px;
   border-bottom: 1px solid var(--border-color);
-}
 
-.modal-header h3 {
-  color: var(--text-primary);
-  margin: 0;
-  transition: color 0.3s ease;
+  h3 {
+    color: var(--text-primary);
+    margin: 0;
+    transition: color 0.3s ease;
+  }
 }
 
 .modal-close {
@@ -2222,10 +2251,10 @@ export default {
   cursor: pointer;
   color: var(--text-secondary);
   transition: color 0.3s ease;
-}
 
-.modal-close:hover {
-  color: var(--text-primary);
+  &:hover {
+    color: var(--text-primary);
+  }
 }
 
 .modal-body {
@@ -2234,14 +2263,14 @@ export default {
 
 .form-group {
   margin-bottom: 20px;
-}
 
-.form-group label {
-  display: block;
-  color: var(--text-primary);
-  font-weight: 600;
-  margin-bottom: 8px;
-  transition: color 0.3s ease;
+  label {
+    display: block;
+    color: var(--text-primary);
+    font-weight: 600;
+    margin-bottom: 8px;
+    transition: color 0.3s ease;
+  }
 }
 
 .required {
@@ -2249,7 +2278,8 @@ export default {
   font-weight: bold;
 }
 
-.form-input, .form-select {
+.form-input,
+.form-select {
   width: 100%;
   padding: 10px 12px;
   border: 1px solid var(--border-color);
@@ -2257,12 +2287,12 @@ export default {
   background: var(--bg-tertiary);
   color: var(--text-primary);
   transition: all 0.3s ease;
-}
 
-.form-input:focus, .form-select:focus {
-  outline: none;
-  border-color: var(--accent-color);
-  box-shadow: 0 0 0 3px rgba(102, 192, 244, 0.1);
+  &:focus {
+    outline: none;
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 3px rgba(102, 192, 244, 0.1);
+  }
 }
 
 .form-textarea {
@@ -2276,26 +2306,26 @@ export default {
   resize: vertical;
   min-height: 80px;
   font-family: inherit;
+
+  &:focus {
+    outline: none;
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 3px rgba(102, 192, 244, 0.1);
+  }
 }
 
-.form-textarea:focus {
-  outline: none;
-  border-color: var(--accent-color);
-  box-shadow: 0 0 0 3px rgba(102, 192, 244, 0.1);
-}
-
-/* 标签输入样式 */
+// 标签输入样式
 .tags-input-container {
   border: 1px solid var(--border-color);
   border-radius: 6px;
   background: var(--bg-tertiary);
   padding: 8px;
   transition: all 0.3s ease;
-}
 
-.tags-input-container:focus-within {
-  border-color: var(--accent-color);
-  box-shadow: 0 0 0 3px rgba(102, 192, 244, 0.1);
+  &:focus-within {
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 3px rgba(102, 192, 244, 0.1);
+  }
 }
 
 .tags-display {
@@ -2317,10 +2347,10 @@ export default {
   font-weight: 500;
   gap: 4px;
   transition: background 0.3s ease;
-}
 
-.tag-item:hover {
-  background: var(--accent-hover);
+  &:hover {
+    background: var(--accent-hover);
+  }
 }
 
 .tag-remove {
@@ -2339,10 +2369,10 @@ export default {
   align-items: center;
   justify-content: center;
   transition: background 0.3s ease;
-}
 
-.tag-remove:hover {
-  background: rgba(255, 255, 255, 0.2);
+  &:hover {
+    background: rgba(255, 255, 255, 0.2);
+  }
 }
 
 .tag-input {
@@ -2353,19 +2383,19 @@ export default {
   font-size: 0.9rem;
   padding: 4px 0;
   outline: none;
-}
 
-.tag-input::placeholder {
-  color: var(--text-tertiary);
+  &::placeholder {
+    color: var(--text-tertiary);
+  }
 }
 
 .file-input-group {
   display: flex;
   gap: 10px;
-}
 
-.file-input-group .form-input {
-  flex: 1;
+  .form-input {
+    flex: 1;
+  }
 }
 
 .btn-browse {
@@ -2377,10 +2407,10 @@ export default {
   cursor: pointer;
   font-weight: 600;
   transition: background 0.3s ease;
-}
 
-.btn-browse:hover {
-  background: var(--accent-hover);
+  &:hover {
+    background: var(--accent-hover);
+  }
 }
 
 .file-hint {
@@ -2406,10 +2436,10 @@ export default {
   border-radius: 6px;
   cursor: pointer;
   transition: all 0.3s ease;
-}
 
-.btn-cancel:hover {
-  background: var(--bg-secondary);
+  &:hover {
+    background: var(--bg-secondary);
+  }
 }
 
 .btn-confirm {
@@ -2421,19 +2451,18 @@ export default {
   cursor: pointer;
   font-weight: 600;
   transition: background 0.3s ease;
+
+  &:hover:not(:disabled) {
+    background: var(--accent-hover);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
 }
 
-.btn-confirm:hover:not(:disabled) {
-  background: var(--accent-hover);
-}
-
-.btn-confirm:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-
-/* 小说详情页面样式 */
+// 小说详情页面样式
 .novel-detail-overlay {
   position: fixed;
   top: 0;
@@ -2472,10 +2501,10 @@ export default {
   cursor: pointer;
   color: var(--text-secondary);
   transition: color 0.3s ease;
-}
 
-.detail-close:hover {
-  color: var(--text-primary);
+  &:hover {
+    color: var(--text-primary);
+  }
 }
 
 .detail-body {
@@ -2491,12 +2520,12 @@ export default {
   border-radius: 8px;
   overflow: hidden;
   box-shadow: 0 8px 25px var(--shadow-medium);
-}
 
-.detail-cover img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
 }
 
 .detail-info {
@@ -2586,10 +2615,10 @@ export default {
   font-size: 0.9rem;
   font-weight: 500;
   transition: background 0.3s ease;
-}
 
-.detail-tag:hover {
-  background: var(--accent-hover);
+  &:hover {
+    background: var(--accent-hover);
+  }
 }
 
 .detail-stats {
@@ -2642,13 +2671,14 @@ export default {
   transition: background 0.3s ease;
   flex: 1;
   justify-content: center;
+
+  &:hover {
+    background: var(--accent-hover);
+  }
 }
 
-.btn-read-novel:hover {
-  background: var(--accent-hover);
-}
-
-.btn-edit-novel, .btn-remove-novel {
+.btn-edit-novel,
+.btn-remove-novel {
   background: var(--bg-tertiary);
   color: var(--text-primary);
   border: 1px solid var(--border-color);
@@ -2662,18 +2692,20 @@ export default {
   transition: all 0.3s ease;
 }
 
-.btn-edit-novel:hover {
-  background: var(--bg-secondary);
+.btn-edit-novel {
+  &:hover {
+    background: var(--bg-secondary);
+  }
 }
 
 .btn-remove-novel {
   background: #fee2e2;
   color: #dc2626;
   border-color: #fecaca;
-}
 
-.btn-remove-novel:hover {
-  background: #fecaca;
+  &:hover {
+    background: #fecaca;
+  }
 }
 
 .btn-open-folder {
@@ -2688,44 +2720,13 @@ export default {
   align-items: center;
   gap: 8px;
   transition: all 0.3s ease;
+
+  &:hover {
+    background: var(--bg-secondary);
+  }
 }
 
-.btn-open-folder:hover {
-  background: var(--bg-secondary);
-}
-
-
-/* 拖拽样式 */
-.novel-content {
-  position: relative;
-  transition: all 0.3s ease;
-}
-
-.novel-content.drag-over {
-  background: rgba(59, 130, 246, 0.1);
-  border: 2px dashed var(--accent-color);
-  border-radius: 12px;
-}
-
-.novel-content.drag-over::before {
-  content: '拖拽小说文件到这里添加小说（支持多选）';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  background: var(--accent-color);
-  color: white;
-  padding: 20px 40px;
-  border-radius: 12px;
-  font-size: 18px;
-  font-weight: 600;
-  z-index: 1000;
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
-  pointer-events: none;
-}
-
-/* 响应式设计 */
-/* EPUB阅读器V2全屏覆盖层 */
+// EPUB阅读器V2全屏覆盖层
 .ebook-reader-v2-overlay {
   position: fixed;
   top: 0;
@@ -2739,36 +2740,36 @@ export default {
   overflow: hidden;
 }
 
+// 响应式设计
 @media (max-width: 768px) {
   .novels-grid {
     grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
     gap: 15px;
   }
-  
+
   .novel-cover {
     height: 200px;
   }
-  
-  
+
   .modal-content {
     width: 95vw;
     margin: 20px;
   }
-  
+
   .detail-body {
     flex-direction: column;
     gap: 20px;
   }
-  
+
   .detail-cover {
     width: 100%;
     height: 250px;
   }
-  
+
   .detail-stats {
     grid-template-columns: 1fr;
   }
-  
+
   .detail-actions {
     flex-direction: column;
   }
