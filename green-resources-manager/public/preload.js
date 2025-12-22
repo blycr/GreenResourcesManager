@@ -58,6 +58,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getDiskInfo: () => ipcRenderer.invoke('get-disk-info'),
   getDiskTypeByPath: (filePath) => ipcRenderer.invoke('get-disk-type-by-path', filePath),
   
+  // 检测 WinRAR 是否已安装
+  checkWinRARInstalled: () => ipcRenderer.invoke('check-winrar-installed'),
+  
+  // 解压压缩包文件
+  extractArchive: (archivePath, outputDir) => ipcRenderer.invoke('extract-archive', archivePath, outputDir),
+  
+  // 压缩文件或文件夹
+  compressFile: (sourcePath, archivePath) => ipcRenderer.invoke('compress-file', sourcePath, archivePath),
+  
   // 通知
   showNotification: (title, body) => ipcRenderer.invoke('show-notification', title, body),
   

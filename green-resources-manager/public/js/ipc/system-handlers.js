@@ -111,6 +111,159 @@ function registerIpcHandlers(ipcMain, app, windowsUtils, shell, getMainWindow) {
     }
   })
 
+  // 压缩文件或文件夹
+  ipcMain.handle('compress-file', async (event, sourcePath, archivePath) => {
+    try {
+      if (process.platform !== 'win32') {
+        return { success: false, error: '此功能仅在 Windows 系统上可用' }
+      }
+
+      const fs = require('fs')
+      const path = require('path')
+      const { spawn } = require('child_process')
+
+      // 检查源文件/文件夹是否存在
+      if (!fs.existsSync(sourcePath)) {
+        return { success: false, error: '源文件或文件夹不存在' }
+      }
+
+      // 检测 WinRAR
+      const winrarResult = await new Promise((resolve) => {
+        const possiblePaths = [
+          'C:\\Program Files\\WinRAR\\WinRAR.exe',
+          'C:\\Program Files (x86)\\WinRAR\\WinRAR.exe',
+          path.join(process.env.ProgramFiles || 'C:\\Program Files', 'WinRAR', 'WinRAR.exe'),
+          path.join(process.env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)', 'WinRAR', 'WinRAR.exe')
+        ]
+
+        for (const winrarPath of possiblePaths) {
+          if (fs.existsSync(winrarPath)) {
+            resolve({ found: true, path: winrarPath })
+            return
+          }
+        }
+
+        // 尝试通过注册表查找
+        try {
+          const { execSync } = require('child_process')
+          const regQuery = 'reg query "HKLM\\SOFTWARE\\WinRAR" /v "exe64" 2>nul || reg query "HKLM\\SOFTWARE\\WinRAR" /v "exe32" 2>nul'
+          const result = execSync(regQuery, { encoding: 'utf-8', timeout: 3000 })
+          const pathMatch = result.match(/REG_SZ\s+(.+)/i)
+          if (pathMatch && pathMatch[1]) {
+            const regPath = pathMatch[1].trim()
+            if (fs.existsSync(regPath)) {
+              resolve({ found: true, path: regPath })
+              return
+            }
+          }
+        } catch (regError) {
+          // 注册表查询失败，继续
+        }
+
+        resolve({ found: false })
+      })
+
+      // 检测 7-Zip
+      const sevenZipResult = await new Promise((resolve) => {
+        const possiblePaths = [
+          'C:\\Program Files\\7-Zip\\7z.exe',
+          'C:\\Program Files (x86)\\7-Zip\\7z.exe',
+          path.join(process.env.ProgramFiles || 'C:\\Program Files', '7-Zip', '7z.exe'),
+          path.join(process.env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)', '7-Zip', '7z.exe')
+        ]
+
+        for (const sevenZipPath of possiblePaths) {
+          if (fs.existsSync(sevenZipPath)) {
+            resolve({ found: true, path: sevenZipPath })
+            return
+          }
+        }
+
+        resolve({ found: false })
+      })
+
+      // 选择压缩工具（优先 WinRAR，其次 7-Zip）
+      let compressTool = null
+      let command = null
+      let args = []
+
+      if (winrarResult.found) {
+        compressTool = winrarResult.path
+        command = compressTool
+        // WinRAR 压缩命令: WinRAR a -r -ep1 "archive.zip" "source\"
+        // a = 添加文件到压缩包
+        // -r = 递归处理子文件夹
+        // -ep1 = 从路径中排除基本文件夹
+        args = ['a', '-r', '-ep1', archivePath, sourcePath]
+      } else if (sevenZipResult.found) {
+        compressTool = sevenZipResult.path
+        command = compressTool
+        // 7-Zip 压缩命令: 7z a "archive.zip" "source\" -r
+        args = ['a', archivePath, sourcePath, '-r']
+      } else {
+        return { success: false, error: '未找到 WinRAR 或 7-Zip，请先安装压缩工具' }
+      }
+
+      console.log('使用压缩工具:', command)
+      console.log('压缩参数:', args)
+      console.log('源路径:', sourcePath)
+      console.log('压缩包路径:', archivePath)
+
+      // 执行压缩命令
+      return new Promise((resolve) => {
+        const childProcess = spawn(command, args, {
+          cwd: path.dirname(command),
+          shell: false,
+          windowsVerbatimArguments: false
+        })
+
+        let stdout = ''
+        let stderr = ''
+
+        childProcess.stdout.on('data', (data) => {
+          stdout += data.toString()
+        })
+
+        childProcess.stderr.on('data', (data) => {
+          stderr += data.toString()
+        })
+
+        childProcess.on('close', (code) => {
+          if (code === 0 || code === null) {
+            console.log('✅ 压缩成功')
+            resolve({
+              success: true,
+              archivePath: archivePath,
+              message: '压缩成功'
+            })
+          } else {
+            console.error('❌ 压缩失败，退出码:', code)
+            console.error('stdout:', stdout)
+            console.error('stderr:', stderr)
+            resolve({
+              success: false,
+              error: `压缩失败 (退出码: ${code}): ${stderr || stdout || '未知错误'}`
+            })
+          }
+        })
+
+        childProcess.on('error', (error) => {
+          console.error('❌ 压缩进程错误:', error)
+          resolve({
+            success: false,
+            error: `压缩进程错误: ${error.message}`
+          })
+        })
+      })
+    } catch (error) {
+      console.error('压缩文件异常:', error)
+      return {
+        success: false,
+        error: error.message
+      }
+    }
+  })
+
   // 根据文件路径获取所在磁盘的类型（SSD/HDD）
   ipcMain.handle('get-disk-type-by-path', async (event, filePath) => {
     try {
@@ -198,6 +351,272 @@ function registerIpcHandlers(ipcMain, app, windowsUtils, shell, getMainWindow) {
       console.error('❌ 打开外部文件失败:', error)
       console.error('错误堆栈:', error.stack)
       return { success: false, error: error.message }
+    }
+  })
+
+  // 检测 WinRAR 是否已安装
+  ipcMain.handle('check-winrar-installed', async () => {
+    try {
+      if (process.platform !== 'win32') {
+        return { success: false, installed: false, error: '此功能仅在 Windows 系统上可用' }
+      }
+
+      const fs = require('fs')
+      const path = require('path')
+
+      // WinRAR 常见的安装路径
+      const possiblePaths = [
+        'C:\\Program Files\\WinRAR\\WinRAR.exe',
+        'C:\\Program Files\\WinRAR\\unrar.exe',
+        'C:\\Program Files (x86)\\WinRAR\\WinRAR.exe',
+        'C:\\Program Files (x86)\\WinRAR\\unrar.exe',
+        path.join(process.env.ProgramFiles || 'C:\\Program Files', 'WinRAR', 'WinRAR.exe'),
+        path.join(process.env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)', 'WinRAR', 'WinRAR.exe'),
+        path.join(process.env.ProgramFiles || 'C:\\Program Files', 'WinRAR', 'unrar.exe'),
+        path.join(process.env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)', 'WinRAR', 'unrar.exe')
+      ]
+
+      // 检查每个可能的路径
+      for (const winrarPath of possiblePaths) {
+        if (fs.existsSync(winrarPath)) {
+          console.log('✅ 找到 WinRAR:', winrarPath)
+          return {
+            success: true,
+            installed: true,
+            path: winrarPath,
+            executable: path.basename(winrarPath) // WinRAR.exe 或 unrar.exe
+          }
+        }
+      }
+
+      // 如果常见路径都没找到，尝试通过注册表查找（Windows）
+      try {
+        const { execSync } = require('child_process')
+        // 查询注册表中 WinRAR 的安装路径
+        const regQuery = 'reg query "HKLM\\SOFTWARE\\WinRAR" /v "exe64" 2>nul || reg query "HKLM\\SOFTWARE\\WinRAR" /v "exe32" 2>nul'
+        const result = execSync(regQuery, { encoding: 'utf-8', timeout: 3000 })
+        
+        // 解析注册表输出，查找路径
+        const pathMatch = result.match(/REG_SZ\s+(.+)/i)
+        if (pathMatch && pathMatch[1]) {
+          const regPath = pathMatch[1].trim()
+          if (fs.existsSync(regPath)) {
+            console.log('✅ 通过注册表找到 WinRAR:', regPath)
+            return {
+              success: true,
+              installed: true,
+              path: regPath,
+              executable: path.basename(regPath)
+            }
+          }
+        }
+      } catch (regError) {
+        // 注册表查询失败，继续使用文件系统检测结果
+        console.log('注册表查询失败（可能未安装）:', regError.message)
+      }
+
+      console.log('❌ 未找到 WinRAR')
+      return {
+        success: true,
+        installed: false,
+        path: null,
+        executable: null
+      }
+    } catch (error) {
+      console.error('检测 WinRAR 安装状态失败:', error)
+      return {
+        success: false,
+        installed: false,
+        error: error.message
+      }
+    }
+  })
+
+  // 解压压缩包文件
+  ipcMain.handle('extract-archive', async (event, archivePath, outputDir) => {
+    try {
+      if (process.platform !== 'win32') {
+        return { success: false, error: '此功能仅在 Windows 系统上可用' }
+      }
+
+      const fs = require('fs')
+      const path = require('path')
+      const { spawn } = require('child_process')
+
+      // 检查压缩包文件是否存在
+      if (!fs.existsSync(archivePath)) {
+        return { success: false, error: '压缩包文件不存在' }
+      }
+
+      // 检查输出目录是否存在，不存在则创建
+      if (!fs.existsSync(outputDir)) {
+        fs.mkdirSync(outputDir, { recursive: true })
+      }
+
+      // 检测 WinRAR
+      const winrarResult = await new Promise((resolve) => {
+        const possiblePaths = [
+          'C:\\Program Files\\WinRAR\\WinRAR.exe',
+          'C:\\Program Files\\WinRAR\\unrar.exe',
+          'C:\\Program Files (x86)\\WinRAR\\WinRAR.exe',
+          'C:\\Program Files (x86)\\WinRAR\\unrar.exe',
+          path.join(process.env.ProgramFiles || 'C:\\Program Files', 'WinRAR', 'WinRAR.exe'),
+          path.join(process.env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)', 'WinRAR', 'WinRAR.exe')
+        ]
+
+        for (const winrarPath of possiblePaths) {
+          if (fs.existsSync(winrarPath)) {
+            resolve({ found: true, path: winrarPath })
+            return
+          }
+        }
+
+        // 尝试通过注册表查找
+        try {
+          const { execSync } = require('child_process')
+          const regQuery = 'reg query "HKLM\\SOFTWARE\\WinRAR" /v "exe64" 2>nul || reg query "HKLM\\SOFTWARE\\WinRAR" /v "exe32" 2>nul'
+          const result = execSync(regQuery, { encoding: 'utf-8', timeout: 3000 })
+          const pathMatch = result.match(/REG_SZ\s+(.+)/i)
+          if (pathMatch && pathMatch[1]) {
+            const regPath = pathMatch[1].trim()
+            if (fs.existsSync(regPath)) {
+              resolve({ found: true, path: regPath })
+              return
+            }
+          }
+        } catch (regError) {
+          // 注册表查询失败，继续
+        }
+
+        resolve({ found: false })
+      })
+
+      // 检测 7-Zip
+      const sevenZipResult = await new Promise((resolve) => {
+        const possiblePaths = [
+          'C:\\Program Files\\7-Zip\\7z.exe',
+          'C:\\Program Files (x86)\\7-Zip\\7z.exe',
+          path.join(process.env.ProgramFiles || 'C:\\Program Files', '7-Zip', '7z.exe'),
+          path.join(process.env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)', '7-Zip', '7z.exe')
+        ]
+
+        for (const sevenZipPath of possiblePaths) {
+          if (fs.existsSync(sevenZipPath)) {
+            resolve({ found: true, path: sevenZipPath })
+            return
+          }
+        }
+
+        resolve({ found: false })
+      })
+
+      // 选择解压工具（优先 WinRAR，其次 7-Zip）
+      let extractTool = null
+      let extractCommand = null
+      let extractArgs = []
+
+      if (winrarResult.found) {
+        extractTool = winrarResult.path
+        const isUnrar = path.basename(extractTool).toLowerCase() === 'unrar.exe'
+        
+        if (isUnrar) {
+          // 使用 unrar.exe
+          extractCommand = extractTool
+          extractArgs = ['x', '-o+', `"${archivePath}"`, `"${outputDir}\\"`]
+        } else {
+          // 使用 WinRAR.exe
+          extractCommand = extractTool
+          extractArgs = ['x', '-o+', `"${archivePath}"`, `"${outputDir}\\"`]
+        }
+      } else if (sevenZipResult.found) {
+        extractTool = sevenZipResult.path
+        extractCommand = extractTool
+        extractArgs = ['x', `"${archivePath}"`, `-o"${outputDir}\\"`, '-y']
+      } else {
+        return { success: false, error: '未找到 WinRAR 或 7-Zip，请先安装解压工具' }
+      }
+
+      console.log('使用解压工具:', extractCommand)
+      console.log('解压参数:', extractArgs)
+      console.log('压缩包路径:', archivePath)
+      console.log('输出目录:', outputDir)
+
+      // 执行解压命令
+      return new Promise((resolve) => {
+        const isUnrar = path.basename(extractCommand).toLowerCase() === 'unrar.exe'
+        const isWinRAR = extractCommand.toLowerCase().includes('winrar')
+        const is7Zip = extractCommand.toLowerCase().includes('7z')
+
+        let command = extractCommand
+        let args = []
+
+        if (isUnrar) {
+          // unrar.exe 命令格式: unrar x -o+ "archive.rar" "output\"
+          args = ['x', '-o+', archivePath, outputDir + '\\']
+        } else if (isWinRAR) {
+          // WinRAR.exe 命令格式: WinRAR x -o+ "archive.rar" "output\"
+          args = ['x', '-o+', archivePath, outputDir + '\\']
+        } else if (is7Zip) {
+          // 7z.exe 命令格式: 7z x "archive.zip" -o"output\" -y
+          args = ['x', archivePath, `-o${outputDir}\\`, '-y']
+        } else {
+          // 默认尝试 WinRAR 格式
+          args = ['x', '-o+', archivePath, outputDir + '\\']
+        }
+
+        console.log('执行解压命令:', command)
+        console.log('命令参数:', args)
+
+        const childProcess = spawn(command, args, {
+          cwd: path.dirname(extractCommand),
+          shell: false, // 不使用 shell，直接执行命令
+          windowsVerbatimArguments: false
+        })
+
+        let stdout = ''
+        let stderr = ''
+
+        childProcess.stdout.on('data', (data) => {
+          stdout += data.toString()
+        })
+
+        childProcess.stderr.on('data', (data) => {
+          stderr += data.toString()
+        })
+
+        childProcess.on('close', (code) => {
+          if (code === 0 || code === null) {
+            console.log('✅ 解压成功')
+            resolve({
+              success: true,
+              outputDir: outputDir,
+              message: '解压成功'
+            })
+          } else {
+            console.error('❌ 解压失败，退出码:', code)
+            console.error('stdout:', stdout)
+            console.error('stderr:', stderr)
+            resolve({
+              success: false,
+              error: `解压失败 (退出码: ${code}): ${stderr || stdout || '未知错误'}`
+            })
+          }
+        })
+
+        childProcess.on('error', (error) => {
+          console.error('❌ 解压进程错误:', error)
+          resolve({
+            success: false,
+            error: `解压进程错误: ${error.message}`
+          })
+        })
+      })
+    } catch (error) {
+      console.error('解压文件异常:', error)
+      return {
+        success: false,
+        error: error.message
+      }
     }
   })
 }

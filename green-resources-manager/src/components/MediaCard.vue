@@ -14,9 +14,16 @@
       <div v-if="badgeText" class="media-badge">
         {{ badgeText }}
       </div>
-      <!-- 文件不存在错误图标 -->
-      <div v-if="showFileError" class="file-error-icon" title="本地文件不存在">
-        ⚠️
+      <!-- 左上角标识容器（文件丢失 + 压缩包） -->
+      <div v-if="showFileError || showArchiveIcon" class="top-left-indicators">
+        <!-- 文件不存在错误图标 -->
+        <div v-if="showFileError" class="file-error-icon" title="本地文件不存在">
+          ⚠️
+        </div>
+        <!-- 压缩包标识 -->
+        <div v-if="showArchiveIcon" class="archive-icon" title="压缩包文件">
+          📦
+        </div>
       </div>
       <!-- 文件夹标识 -->
       <div v-if="type === 'folder'" class="folder-indicator" title="文件夹">
@@ -235,8 +242,7 @@ export default {
     showActionButton() {
       // 对于压缩包类型的游戏，不显示 action 按钮
       if (this.type === 'game') {
-        const isArchive = this.item?.isArchive || (this.item?.executablePath && this.isArchiveFile(this.item.executablePath))
-        return !isArchive
+        return !this.isArchive
       }
       return true
     },
@@ -308,6 +314,13 @@ export default {
     },
     showFileError() {
       return ['game', 'audio', 'image', 'novel', 'video', 'folder'].includes(this.type) && this.fileExists === false
+    },
+    isArchive() {
+      if (this.type !== 'game') return false
+      return this.item?.isArchive || (this.item?.executablePath && this.isArchiveFile(this.item.executablePath))
+    },
+    showArchiveIcon() {
+      return this.type === 'game' && this.isArchive
     }
   },
   methods: {
@@ -892,11 +905,19 @@ export default {
   font-weight: 600;
 }
 
-/* 文件错误图标样式 */
-.file-error-icon {
+/* 左上角标识容器 */
+.top-left-indicators {
   position: absolute;
   top: 8px;
   left: 8px;
+  display: flex;
+  gap: 6px;
+  z-index: 10;
+  align-items: center;
+}
+
+/* 文件错误图标样式 */
+.file-error-icon {
   background: rgba(239, 68, 68, 0.9);
   color: white;
   border-radius: 50%;
@@ -907,9 +928,25 @@ export default {
   justify-content: center;
   font-size: 12px;
   font-weight: bold;
-  z-index: 10;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
   animation: pulse 2s infinite;
+  flex-shrink: 0;
+}
+
+/* 压缩包图标样式 */
+.archive-icon {
+  background: rgba(59, 130, 246, 0.9);
+  color: white;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: bold;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  flex-shrink: 0;
 }
 
 .folder-indicator {

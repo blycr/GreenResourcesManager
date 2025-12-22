@@ -16,16 +16,18 @@
 </template>
 
 <script lang="ts">
+import { defineComponent, type PropType } from 'vue'
 import MediaCard from '../MediaCard.vue'
+import type { Game } from '../../types/game'
 
-export default {
+export default defineComponent({
   name: 'GameGrid',
   components: {
     MediaCard
   },
   props: {
     games: {
-      type: Array,
+      type: Array as PropType<Game[]>,
       required: true,
       default: () => []
     },
@@ -39,7 +41,7 @@ export default {
     }
   },
   emits: ['game-click', 'game-contextmenu', 'game-action']
-}
+})
 </script>
 
 <style scoped>

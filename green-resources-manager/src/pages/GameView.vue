@@ -246,13 +246,31 @@ export default {
         { value: 'playTime', label: '按游戏时长' },
         { value: 'added', label: '按添加时间' }
       ],
-      // 右键菜单配置
-      gameContextMenuItems: [
+      // 右键菜单基础配置
+      baseGameContextMenuItems: [
         { key: 'detail', icon: '👁️', label: '查看详情' },
         { key: 'launch', icon: '▶️', label: '启动游戏' },
         { key: 'folder', icon: '📁', label: '打开文件夹' },
         { key: 'screenshot-folder', icon: '📸', label: '打开截图文件夹' },
         { key: 'update-folder-size', icon: '📊', label: '更新文件夹大小' },
+        { 
+          key: 'compress', 
+          icon: '🗜️', 
+          label: '压缩文件',
+          children: [
+            { key: 'compress-to', icon: '🗜️', label: '压缩到指定目录...' },
+            { key: 'compress-here', icon: '🗜️', label: '压缩到当前目录' }
+          ]
+        },
+        { 
+          key: 'extract', 
+          icon: '📦', 
+          label: '解压文件',
+          children: [
+            { key: 'extract', icon: '📦', label: '解压到指定目录...' },
+            { key: 'extract-here', icon: '📦', label: '解压到当前目录' }
+          ]
+        },
         { key: 'edit', icon: '✏️', label: '编辑信息' },
         { key: 'remove', icon: '🗑️', label: '删除游戏' }
       ],
@@ -313,6 +331,18 @@ export default {
         totalItems: 0,
         itemType: '游戏'
       }
+    },
+    // 动态生成右键菜单项（根据选中的游戏是否为压缩包）
+    gameContextMenuItems() {
+      // 基础菜单项
+      const menuItems = [...this.baseGameContextMenuItems]
+      
+      // 如果当前选中的游戏是压缩包，确保"解压文件"选项存在
+      // 如果不是压缩包，移除"解压文件"选项
+      // 注意：这里无法直接获取当前选中的游戏，所以我们在 handleContextMenuClick 中处理
+      // 但为了简化，我们始终显示"解压文件"选项，在点击时判断是否为压缩包
+      
+      return menuItems
     }
   },
   methods: {
@@ -479,6 +509,18 @@ export default {
           break
         case 'remove':
           this.removeGame(selectedItem)
+          break
+        case 'compress-to':
+          this.compressFile(selectedItem)
+          break
+        case 'compress-here':
+          this.compressFileToCurrentDir(selectedItem)
+          break
+        case 'extract':
+          this.extractArchive(selectedItem)
+          break
+        case 'extract-here':
+          this.extractArchiveToCurrentDir(selectedItem)
           break
       }
     },
@@ -855,6 +897,332 @@ export default {
     // openGameScreenshotFolder 已移至 useGameScreenshot composable
     async openGameScreenshotFolder(game) {
       await this.openGameScreenshotFolder(game)
+    },
+    // 解压压缩包文件（选择目录）
+    async extractArchive(game) {
+      try {
+        // 检查是否为压缩包
+        const isArchive = game.isArchive || (game.executablePath && isArchiveFile(game.executablePath))
+        if (!isArchive) {
+          notify.toast('warning', '无法解压', '选中的游戏不是压缩包文件')
+          return
+        }
+
+        // 检查文件是否存在
+        if (!game.executablePath) {
+          notify.toast('error', '解压失败', '游戏文件路径不存在')
+          return
+        }
+
+        if (this.isElectronEnvironment && window.electronAPI && window.electronAPI.checkFileExists) {
+          const existsResult = await window.electronAPI.checkFileExists(game.executablePath)
+          if (!existsResult.success || !existsResult.exists) {
+            notify.toast('error', '解压失败', '压缩包文件不存在或无法访问')
+            return
+          }
+        }
+
+        // 让用户选择解压目录
+        if (!this.isElectronEnvironment || !window.electronAPI || !window.electronAPI.selectFolder) {
+          notify.toast('error', '解压失败', '当前环境不支持选择文件夹')
+          return
+        }
+
+        const folderResult = await window.electronAPI.selectFolder()
+        if (!folderResult.success || !folderResult.path) {
+          // 用户取消了选择
+          return
+        }
+
+        const outputDir = folderResult.path
+
+        // 执行解压
+        await this.performExtraction(game, outputDir)
+      } catch (error) {
+        console.error('解压文件异常:', error)
+        notify.toast('error', '解压失败', `解压过程中发生错误: ${error.message}`)
+      }
+    },
+    // 解压到压缩包所在目录（创建同名子文件夹）
+    async extractArchiveToCurrentDir(game) {
+      try {
+        // 检查是否为压缩包
+        const isArchive = game.isArchive || (game.executablePath && isArchiveFile(game.executablePath))
+        if (!isArchive) {
+          notify.toast('warning', '无法解压', '选中的游戏不是压缩包文件')
+          return
+        }
+
+        // 检查文件是否存在
+        if (!game.executablePath) {
+          notify.toast('error', '解压失败', '游戏文件路径不存在')
+          return
+        }
+
+        if (this.isElectronEnvironment && window.electronAPI && window.electronAPI.checkFileExists) {
+          const existsResult = await window.electronAPI.checkFileExists(game.executablePath)
+          if (!existsResult.success || !existsResult.exists) {
+            notify.toast('error', '解压失败', '压缩包文件不存在或无法访问')
+            return
+          }
+        }
+
+        // 获取压缩包所在目录和文件名
+        const archivePath = game.executablePath
+        // 使用字符串操作获取目录路径（兼容 Windows 和 Unix 路径）
+        const lastBackslash = archivePath.lastIndexOf('\\')
+        const lastSlash = archivePath.lastIndexOf('/')
+        const lastSeparator = Math.max(lastBackslash, lastSlash)
+        const archiveDir = lastSeparator >= 0 ? archivePath.substring(0, lastSeparator) : archivePath
+        
+        // 获取压缩包文件名（不含扩展名）
+        const fileName = lastSeparator >= 0 ? archivePath.substring(lastSeparator + 1) : archivePath
+        // 移除扩展名（支持多种压缩格式，按长度从长到短排序，优先匹配长扩展名如 .tar.gz）
+        const archiveExtensions = ['.tar.gz', '.tar.bz2', '.tar.xz', '.zip', '.rar', '.7z', '.tar', '.gz', '.bz2', '.xz']
+        let fileNameWithoutExt = fileName
+        for (const ext of archiveExtensions) {
+          if (fileNameWithoutExt.toLowerCase().endsWith(ext.toLowerCase())) {
+            fileNameWithoutExt = fileNameWithoutExt.substring(0, fileNameWithoutExt.length - ext.length)
+            break
+          }
+        }
+        
+        // 创建子文件夹路径（Windows 使用反斜杠）
+        const pathSeparator = archivePath.includes('\\') ? '\\' : '/'
+        const outputDir = archiveDir + (archiveDir.endsWith('\\') || archiveDir.endsWith('/') ? '' : pathSeparator) + fileNameWithoutExt
+        
+        // 确认是否解压到当前目录的子文件夹
+        const confirmMessage = `确定要将 ${game.name} 解压到当前目录吗？\n\n解压位置: ${outputDir}\n\n注意：将在压缩包所在目录创建同名子文件夹。`
+        if (!confirm(confirmMessage)) {
+          return
+        }
+
+        // 执行解压（会自动创建目录）
+        await this.performExtraction(game, outputDir)
+      } catch (error) {
+        console.error('解压文件异常:', error)
+        notify.toast('error', '解压失败', `解压过程中发生错误: ${error.message}`)
+      }
+    },
+    // 压缩文件（选择目录）
+    async compressFile(game) {
+      try {
+        // 检查文件是否存在
+        if (!game.executablePath) {
+          notify.toast('error', '压缩失败', '游戏文件路径不存在')
+          return
+        }
+
+        if (this.isElectronEnvironment && window.electronAPI && window.electronAPI.checkFileExists) {
+          const existsResult = await window.electronAPI.checkFileExists(game.executablePath)
+          if (!existsResult.success || !existsResult.exists) {
+            notify.toast('error', '压缩失败', '文件不存在或无法访问')
+            return
+          }
+        }
+
+        // 让用户选择压缩包保存位置和名称
+        if (!this.isElectronEnvironment || !window.electronAPI || !window.electronAPI.selectFolder) {
+          notify.toast('error', '压缩失败', '当前环境不支持选择文件夹')
+          return
+        }
+
+        // 获取要压缩的文件夹路径
+        let folderToCompress = game.executablePath
+        let isFile = false
+
+        // 检查路径是文件还是文件夹
+        if (window.electronAPI && window.electronAPI.getFileStats) {
+          const statsResult = await window.electronAPI.getFileStats(game.executablePath)
+          if (statsResult.success) {
+            isFile = statsResult.isFile === true
+            if (statsResult.isFile) {
+              // 如果是文件，获取其所在文件夹
+              const filePath = game.executablePath
+              const lastBackslash = filePath.lastIndexOf('\\')
+              const lastSlash = filePath.lastIndexOf('/')
+              const lastSeparator = Math.max(lastBackslash, lastSlash)
+              
+              if (lastSeparator >= 0) {
+                folderToCompress = filePath.substring(0, lastSeparator)
+              }
+            }
+            // 如果是文件夹，folderToCompress 已经是正确的路径，不需要修改
+          }
+        }
+
+        // 如果 getFileStats 失败，通过文件扩展名判断（后备方案）
+        if (!isFile) {
+          const filePath = game.executablePath
+          const commonExtensions = ['.exe', '.swf', '.bat', '.cmd', '.com', '.scr', '.msi', '.app', '.dmg', '.zip', '.rar', '.7z']
+          const lowerPath = filePath.toLowerCase()
+          const hasExtension = commonExtensions.some(ext => lowerPath.endsWith(ext))
+          
+          if (hasExtension) {
+            // 看起来是文件，获取其所在文件夹
+            const lastBackslash = filePath.lastIndexOf('\\')
+            const lastSlash = filePath.lastIndexOf('/')
+            const lastSeparator = Math.max(lastBackslash, lastSlash)
+            
+            if (lastSeparator >= 0) {
+              folderToCompress = filePath.substring(0, lastSeparator)
+            }
+          }
+        }
+
+        // 让用户选择保存位置
+        const folderResult = await window.electronAPI.selectFolder()
+        if (!folderResult.success || !folderResult.path) {
+          // 用户取消了选择
+          return
+        }
+
+        const outputDir = folderResult.path
+        const pathSeparator = outputDir.includes('\\') ? '\\' : '/'
+        const archivePath = outputDir + (outputDir.endsWith('\\') || outputDir.endsWith('/') ? '' : pathSeparator) + game.name + '.zip'
+
+        // 确认压缩
+        const confirmMessage = `确定要压缩 ${game.name} 的文件夹吗？\n\n压缩包保存位置: ${archivePath}`
+        if (!confirm(confirmMessage)) {
+          return
+        }
+
+        // 执行压缩
+        await this.performCompression(game, folderToCompress, archivePath)
+      } catch (error) {
+        console.error('压缩文件异常:', error)
+        notify.toast('error', '压缩失败', `压缩过程中发生错误: ${error.message}`)
+      }
+    },
+    // 压缩到当前目录
+    async compressFileToCurrentDir(game) {
+      try {
+        // 检查文件是否存在
+        if (!game.executablePath) {
+          notify.toast('error', '压缩失败', '游戏文件路径不存在')
+          return
+        }
+
+        if (this.isElectronEnvironment && window.electronAPI && window.electronAPI.checkFileExists) {
+          const existsResult = await window.electronAPI.checkFileExists(game.executablePath)
+          if (!existsResult.success || !existsResult.exists) {
+            notify.toast('error', '压缩失败', '文件不存在或无法访问')
+            return
+          }
+        }
+
+        // 获取要压缩的文件夹路径和压缩包保存目录
+        let folderToCompress = game.executablePath
+        let currentDir = game.executablePath
+
+        // 检查路径是文件还是文件夹
+        let isFile = false
+        if (window.electronAPI && window.electronAPI.getFileStats) {
+          const statsResult = await window.electronAPI.getFileStats(game.executablePath)
+          if (statsResult.success) {
+            isFile = statsResult.isFile === true
+            if (statsResult.isFile) {
+              // 如果是文件，获取其所在文件夹
+              const filePath = game.executablePath
+              const lastBackslash = filePath.lastIndexOf('\\')
+              const lastSlash = filePath.lastIndexOf('/')
+              const lastSeparator = Math.max(lastBackslash, lastSlash)
+              
+              if (lastSeparator >= 0) {
+                folderToCompress = filePath.substring(0, lastSeparator)
+                currentDir = folderToCompress
+              }
+            }
+            // 如果是文件夹，folderToCompress 和 currentDir 已经是正确的路径，不需要修改
+          }
+        }
+
+        // 如果 getFileStats 失败，通过文件扩展名判断（后备方案）
+        if (!isFile) {
+          const filePath = game.executablePath
+          const commonExtensions = ['.exe', '.swf', '.bat', '.cmd', '.com', '.scr', '.msi', '.app', '.dmg', '.zip', '.rar', '.7z']
+          const lowerPath = filePath.toLowerCase()
+          const hasExtension = commonExtensions.some(ext => lowerPath.endsWith(ext))
+          
+          if (hasExtension) {
+            // 看起来是文件，获取其所在文件夹
+            const lastBackslash = filePath.lastIndexOf('\\')
+            const lastSlash = filePath.lastIndexOf('/')
+            const lastSeparator = Math.max(lastBackslash, lastSlash)
+            
+            if (lastSeparator >= 0) {
+              folderToCompress = filePath.substring(0, lastSeparator)
+              currentDir = folderToCompress
+            }
+          }
+        }
+
+        // 创建压缩包路径（在当前目录）
+        const pathSeparator = currentDir.includes('\\') ? '\\' : '/'
+        const archivePath = currentDir + (currentDir.endsWith('\\') || currentDir.endsWith('/') ? '' : pathSeparator) + game.name + '.zip'
+
+        // 确认压缩
+        const confirmMessage = `确定要将 ${game.name} 的文件夹压缩到当前目录吗？\n\n压缩包保存位置: ${archivePath}`
+        if (!confirm(confirmMessage)) {
+          return
+        }
+
+        // 执行压缩
+        await this.performCompression(game, folderToCompress, archivePath)
+      } catch (error) {
+        console.error('压缩文件异常:', error)
+        notify.toast('error', '压缩失败', `压缩过程中发生错误: ${error.message}`)
+      }
+    },
+    // 执行压缩操作（通用方法）
+    async performCompression(game, sourcePath, archivePath) {
+      try {
+        // 显示压缩中提示
+        notify.toast('info', '正在压缩', `正在压缩 ${game.name}...`)
+
+        // 调用压缩 API（sourcePath 是要压缩的文件夹路径）
+        if (window.electronAPI && window.electronAPI.compressFile) {
+          const result = await window.electronAPI.compressFile(sourcePath, archivePath)
+
+          if (result.success) {
+            notify.toast('success', '压缩成功', `文件夹已压缩到: ${archivePath}`)
+            console.log('✅ 压缩成功:', result.archivePath)
+          } else {
+            notify.toast('error', '压缩失败', result.error || '压缩过程中发生错误')
+            console.error('❌ 压缩失败:', result.error)
+          }
+        } else {
+          notify.toast('error', '压缩失败', '压缩功能不可用')
+        }
+      } catch (error) {
+        console.error('执行压缩操作异常:', error)
+        notify.toast('error', '压缩失败', `压缩过程中发生错误: ${error.message}`)
+      }
+    },
+    // 执行解压操作（通用方法）
+    async performExtraction(game, outputDir) {
+      try {
+        // 显示解压中提示
+        notify.toast('info', '正在解压', `正在解压 ${game.name}...`)
+
+        // 调用解压 API
+        if (window.electronAPI && window.electronAPI.extractArchive) {
+          const result = await window.electronAPI.extractArchive(game.executablePath, outputDir)
+
+          if (result.success) {
+            notify.toast('success', '解压成功', `文件已解压到: ${outputDir}`)
+            console.log('✅ 解压成功:', result.outputDir)
+          } else {
+            notify.toast('error', '解压失败', result.error || '解压过程中发生错误')
+            console.error('❌ 解压失败:', result.error)
+          }
+        } else {
+          notify.toast('error', '解压失败', '解压功能不可用')
+        }
+      } catch (error) {
+        console.error('执行解压操作异常:', error)
+        notify.toast('error', '解压失败', `解压过程中发生错误: ${error.message}`)
+      }
     },
     // 拖拽处理方法
     // 拖拽相关方法已移至 useGameDragAndDrop composable

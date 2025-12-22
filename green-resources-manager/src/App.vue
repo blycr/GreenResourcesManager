@@ -176,6 +176,10 @@ export default {
       appUsageTimer: null, // 应用使用时长定时器
       // 文件丢失检测控制
       hasCheckedFileLoss: false, // 是否已经检测过文件丢失（应用启动时检测一次）
+      // WinRAR 检测相关
+      winRARInstalled: false,
+      winRARPath: null as string | null,
+      winRARExecutable: null as string | null,
       // 安全键相关
       safetyKeyEnabled: false,
       safetyKeyUrl: '',
@@ -836,6 +840,40 @@ export default {
       }
     },
     
+    // 检测 WinRAR 是否已安装
+    async checkWinRARInstallation() {
+      try {
+        if (window.electronAPI && window.electronAPI.checkWinRARInstalled) {
+          const result = await window.electronAPI.checkWinRARInstalled()
+          
+          if (result.success) {
+            this.winRARInstalled = result.installed
+            this.winRARPath = result.path || null
+            this.winRARExecutable = result.executable || null
+            
+            if (result.installed) {
+              console.log('✅ WinRAR 已安装:', result.path)
+              console.log('   可执行文件:', result.executable)
+            } else {
+              console.log('❌ WinRAR 未安装')
+            }
+          } else {
+            console.warn('检测 WinRAR 安装状态失败:', result.error)
+            this.winRARInstalled = false
+            this.winRARPath = null
+            this.winRARExecutable = null
+          }
+        } else {
+          console.warn('WinRAR 检测 API 不可用')
+        }
+      } catch (error) {
+        console.error('检测 WinRAR 安装状态异常:', error)
+        this.winRARInstalled = false
+        this.winRARPath = null
+        this.winRARExecutable = null
+      }
+    },
+    
     // 执行自动备份
     async performAutoBackup() {
       try {
@@ -999,6 +1037,9 @@ export default {
     
     // 加载自动备份设置
     await this.loadAutoBackupSettings()
+    
+    // 检测 WinRAR 安装状态
+    await this.checkWinRARInstallation()
     
     // 监听安全键设置变化事件
     window.addEventListener('safety-key-changed', async (event: CustomEvent) => {
