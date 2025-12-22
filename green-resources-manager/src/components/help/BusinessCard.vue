@@ -1,27 +1,20 @@
 <template>
-  <div class="business-card-container">
-    <div class="personal-header">
-      <h2 class="personal-title">关于开发者</h2>
-      <p class="personal-subtitle">Made by YanChenXiang ❤️</p>
-    </div>
-
-    <div class="business-card-wrapper" 
-         @click="flipCard"
-         @mousemove="handleMouseMove"
-         @mouseleave="handleMouseLeave"
-         :style="cardTransformStyle">
-      <div class="business-card" :class="{ 'flipped': isCardFlipped }">
-        <div class="card-face card-front">
-          <img src="/imgs/名片 - 正面.png" alt="名片正面" class="card-image" />
-          <div class="card-overlay">
-            <span class="flip-hint">点击翻转</span>
-          </div>
+  <div class="business-card-wrapper" 
+       @click="flipCard"
+       @mousemove="handleMouseMove"
+       @mouseleave="handleMouseLeave"
+       :style="cardTransformStyle">
+    <div class="business-card" :class="{ 'flipped': isCardFlipped }">
+      <div class="card-face card-front">
+        <img src="/imgs/名片 - 正面.png" alt="名片正面" class="card-image" />
+        <div class="card-overlay">
+          <span class="flip-hint">点击翻转</span>
         </div>
-        <div class="card-face card-back">
-          <img src="/imgs/名片 - 背面.png" alt="名片背面" class="card-image" />
-          <div class="card-overlay">
-            <span class="flip-hint">点击翻转</span>
-          </div>
+      </div>
+      <div class="card-face card-back">
+        <img src="/imgs/名片 - 背面.png" alt="名片背面" class="card-image" />
+        <div class="card-overlay">
+          <span class="flip-hint">点击翻转</span>
         </div>
       </div>
     </div>
@@ -41,38 +34,11 @@ const {
 </script>
 
 <style scoped>
-.business-card-container {
-  max-width: 900px;
-  margin: 60px auto 40px;
-  padding: 0 20px;
-}
-
-.personal-header {
-  text-align: center;
-  margin-bottom: 50px;
-}
-
-.personal-title {
-  font-size: 2.5rem;
-  font-weight: 700;
-  color: var(--text-primary);
-  margin: 0 0 10px 0;
-  letter-spacing: 1px;
-}
-
-.personal-subtitle {
-  font-size: 1.2rem;
-  color: var(--text-secondary);
-  margin: 0;
-  font-style: italic;
-}
-
 .business-card-wrapper {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 30px;
-  margin: 40px 0;
+  justify-content: center;
   perspective: 1200px;
   cursor: pointer;
   transition: transform 0.1s ease-out;
@@ -152,10 +118,6 @@ const {
 
 /* 响应式设计 */
 @media (max-width: 768px) {
-  .personal-title {
-    font-size: 2rem;
-  }
-
   .business-card {
     width: 400px;
     height: 240px;

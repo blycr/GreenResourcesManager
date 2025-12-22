@@ -66,7 +66,17 @@
               v-for="action in computedActions" 
               :key="action.key"
               :class="action.class"
-              @click="handleAction(action.key)"
+              @click="(e) => {
+                console.log('📋 [DetailPanel] 按钮被点击:', {
+                  actionKey: action.key,
+                  actionLabel: action.label,
+                  event: e,
+                  target: e.target,
+                  currentTarget: e.currentTarget,
+                  timestamp: new Date().toISOString()
+                })
+                handleAction(action.key)
+              }"
             >
               <span class="btn-icon">{{ action.icon }}</span>
               {{ action.label }}
@@ -159,8 +169,17 @@ export default {
       return defaultStats.filter(stat => stat.value !== undefined && stat.value !== null)
     },
     computedActions() {
+      console.log('📋 [DetailPanel] computedActions 被调用:', {
+        type: this.type,
+        actions: this.actions,
+        actionsIsArray: Array.isArray(this.actions),
+        actionsLength: this.actions ? this.actions.length : 0,
+        timestamp: new Date().toISOString()
+      })
+      
       // 如果传递了 actions prop 且不为空，使用传递的 actions
       if (this.actions && Array.isArray(this.actions) && this.actions.length > 0) {
+        console.log('📋 [DetailPanel] 使用传递的 actions:', this.actions)
         return this.actions
       }
       
@@ -168,7 +187,11 @@ export default {
       const defaultActions = []
       
       if (this.type === 'game') {
+        // 检查是否为压缩包
+        const isArchive = this.item?.isArchive || (this.item?.executablePath && this.isArchiveFile(this.item.executablePath))
+        
         // 如果游戏正在运行，显示"结束游戏"按钮，否则显示"开始游戏"按钮
+        // 压缩包不能运行，所以不显示启动按钮
         if (this.isRunning) {
           defaultActions.push(
             { key: 'terminate', icon: '⏹️', label: '结束游戏', class: 'btn-stop-game' },
@@ -177,8 +200,13 @@ export default {
             { key: 'remove', icon: '🗑️', label: '删除游戏', class: 'btn-remove-game' }
           )
         } else {
+          // 压缩包不显示启动按钮
+          if (!isArchive) {
+            defaultActions.push(
+              { key: 'launch', icon: '▶️', label: '开始游戏', class: 'btn-play-game' }
+            )
+          }
           defaultActions.push(
-            { key: 'launch', icon: '▶️', label: '开始游戏', class: 'btn-play-game' },
             { key: 'folder', icon: '📁', label: '打开文件夹', class: 'btn-open-folder' },
             { key: 'edit', icon: '✏️', label: '编辑信息', class: 'btn-edit-game' },
             { key: 'remove', icon: '🗑️', label: '删除游戏', class: 'btn-remove-game' }
@@ -193,6 +221,7 @@ export default {
         )
       }
       
+      console.log('📋 [DetailPanel] 使用默认 actions:', defaultActions)
       return defaultActions
     }
   },
@@ -204,7 +233,22 @@ export default {
       this.close()
     },
     handleAction(actionKey) {
+      console.log('📋 [DetailPanel] handleAction 被调用:', {
+        actionKey,
+        type: this.type,
+        item: this.item ? { id: this.item.id, name: this.item.name } : null,
+        actions: this.actions,
+        computedActions: this.computedActions,
+        timestamp: new Date().toISOString()
+      })
       this.$emit('action', actionKey, this.item)
+      console.log('📋 [DetailPanel] action 事件已发出:', actionKey)
+    },
+    isArchiveFile(filePath) {
+      if (!filePath) return false
+      const fileName = filePath.toLowerCase()
+      const archiveExtensions = ['.zip', '.rar', '.7z', '.tar', '.gz', '.tar.gz', '.bz2', '.tar.bz2', '.xz', '.tar.xz']
+      return archiveExtensions.some(ext => fileName.endsWith(ext))
     },
     resolveImage(imagePath) {
       // 空值返回默认图片

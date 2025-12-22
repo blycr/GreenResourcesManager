@@ -136,10 +136,11 @@ function registerIpcHandlers(ipcMain, getMainWindow, dialog) {
     try {
       const mainWindow = getMainWindow()
       const result = await dialog.showOpenDialog(mainWindow, {
-        title: '选择游戏可执行文件',
+        title: '选择游戏文件',
         filters: [
           { name: '可执行文件', extensions: ['exe', 'app', 'sh'] },
           { name: 'Flash游戏', extensions: ['swf'] },
+          { name: '压缩包', extensions: ['zip', 'rar', '7z', 'tar', 'gz', 'bz2', 'xz'] },
           { name: '所有文件', extensions: ['*'] }
         ],
         properties: ['openFile']
@@ -150,7 +151,7 @@ function registerIpcHandlers(ipcMain, getMainWindow, dialog) {
       }
       return null
     } catch (error) {
-      console.error('选择可执行文件失败:', error)
+      console.error('选择游戏文件失败:', error)
       throw error
     }
   })

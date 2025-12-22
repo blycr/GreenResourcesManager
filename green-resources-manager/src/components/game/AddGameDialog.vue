@@ -40,10 +40,10 @@
           @remove-tag="handleRemoveTag" 
         />
         <FormField 
-          label="游戏可执行文件" 
+          label="游戏文件" 
           type="file" 
           v-model="formData.executablePath" 
-          placeholder="选择游戏可执行文件"
+          placeholder="选择游戏可执行文件或压缩包"
           @browse="handleBrowseExecutable" 
         />
         <!-- 封面图片选择区域 -->
@@ -208,7 +208,7 @@ export default {
     showFileInput(type) {
       const input = document.createElement('input')
       input.type = 'file'
-      input.accept = type === 'executable' ? '.exe,.app,.swf' : 'image/*'
+      input.accept = type === 'executable' ? '.exe,.app,.swf,.zip,.rar,.7z,.tar,.gz,.tar.gz,.bz2,.tar.bz2,.xz,.tar.xz' : 'image/*'
       input.onchange = (e) => {
         const file = (e.target as HTMLInputElement).files?.[0]
         if (file) {
@@ -232,6 +232,13 @@ export default {
         .replace(/\.exe$/i, '')
         .replace(/\.app$/i, '')
         .replace(/\.swf$/i, '')
+        .replace(/\.zip$/i, '')
+        .replace(/\.rar$/i, '')
+        .replace(/\.7z$/i, '')
+        .replace(/\.tar$/i, '')
+        .replace(/\.gz$/i, '')
+        .replace(/\.bz2$/i, '')
+        .replace(/\.xz$/i, '')
         .replace(/^game[-_\s]*/i, '')
         .replace(/[-_\s]+/g, ' ')
         .trim()
@@ -329,14 +336,30 @@ export default {
       }
 
       let folderSize = 0
-      if (this.isElectronEnvironment && window.electronAPI && window.electronAPI.getFolderSize) {
+      const filePath = this.formData.executablePath.trim()
+      const isArchive = this.isArchiveFile(filePath)
+      
+      // 只有非压缩包文件才尝试获取文件夹大小（压缩包本身就是文件）
+      if (!isArchive && this.isElectronEnvironment && window.electronAPI && window.electronAPI.getFolderSize) {
         try {
-          const result = await window.electronAPI.getFolderSize(this.formData.executablePath)
+          const result = await window.electronAPI.getFolderSize(filePath)
           if (result.success) {
             folderSize = result.size
           }
         } catch (error) {
           console.error('获取文件夹大小失败:', error)
+        }
+      } else if (isArchive) {
+        // 对于压缩包，尝试获取文件大小
+        if (this.isElectronEnvironment && window.electronAPI && window.electronAPI.getFileStats) {
+          try {
+            const result = await window.electronAPI.getFileStats(filePath)
+            if (result.success && result.size) {
+              folderSize = result.size
+            }
+          } catch (error) {
+            console.error('获取压缩包文件大小失败:', error)
+          }
         }
       }
 
@@ -347,7 +370,7 @@ export default {
         publisher: (this.formData.publisher || '').trim(),
         description: (this.formData.description || '').trim(),
         tags: [...this.formData.tags],
-        executablePath: this.formData.executablePath.trim(),
+        executablePath: filePath,
         image: this.formData.imagePath.trim(),
         folderSize: folderSize,
         playTime: 0,
@@ -355,7 +378,8 @@ export default {
         lastPlayed: null,
         firstPlayed: null,
         addedDate: new Date().toISOString(),
-        fileExists: true
+        fileExists: true,
+        isArchive: isArchive
       }
 
       this.$emit('confirm', game)
@@ -381,6 +405,11 @@ export default {
       if (!imagePath) return ''
       const fileName = imagePath.split(/[\\/]/).pop()
       return fileName || imagePath
+    },
+    isArchiveFile(filePath) {
+      const fileName = filePath.toLowerCase()
+      const archiveExtensions = ['.zip', '.rar', '.7z', '.tar', '.gz', '.tar.gz', '.bz2', '.tar.bz2', '.xz', '.tar.xz']
+      return archiveExtensions.some(ext => fileName.endsWith(ext))
     }
   }
 }

@@ -4,6 +4,21 @@ import notify from '../../utils/NotificationService'
 import type { Game, GameDragDropOptions } from '../../types/game'
 
 /**
+ * 压缩包文件扩展名列表
+ */
+const ARCHIVE_EXTENSIONS = ['.zip', '.rar', '.7z', '.tar', '.gz', '.tar.gz', '.bz2', '.tar.bz2', '.xz', '.tar.xz']
+
+/**
+ * 检查文件是否为压缩包
+ * @param filePath - 文件路径或文件名
+ * @returns 是否为压缩包
+ */
+export function isArchiveFile(filePath: string): boolean {
+  const fileName = filePath.toLowerCase()
+  return ARCHIVE_EXTENSIONS.some(ext => fileName.endsWith(ext))
+}
+
+/**
  * 从文件路径提取游戏名称
  * @param filePath - 文件路径或文件名
  * @returns 提取的游戏名称
@@ -16,6 +31,13 @@ function extractGameNameFromPath(filePath: string): string {
     .replace(/\.exe$/i, '')
     .replace(/\.app$/i, '')
     .replace(/\.swf$/i, '')
+    .replace(/\.zip$/i, '')
+    .replace(/\.rar$/i, '')
+    .replace(/\.7z$/i, '')
+    .replace(/\.tar$/i, '')
+    .replace(/\.gz$/i, '')
+    .replace(/\.bz2$/i, '')
+    .replace(/\.xz$/i, '')
     .replace(/^game[-_\s]*/i, '')
     .replace(/[-_\s]+/g, ' ')
     .trim()
@@ -47,7 +69,7 @@ export function useGameDragAndDrop(options: GameDragDropOptions) {
 
   // 使用通用拖拽 composable
   const dragDrop = useDragAndDrop({
-    acceptedExtensions: ['.exe', '.app', '.swf'],
+    acceptedExtensions: ['.exe', '.app', '.swf', '.zip', '.rar', '.7z', '.tar', '.gz', '.tar.gz', '.bz2', '.tar.bz2', '.xz', '.tar.xz'],
     enabled: true,
     onDrop: handleGameDrop
   })
@@ -128,6 +150,9 @@ export function useGameDragAndDrop(options: GameDragDropOptions) {
             return
           }
 
+          // 检查是否为压缩包
+          const isArchive = isArchiveFile(filePath)
+
           // 创建新的游戏对象
           const game: Game = {
             id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
@@ -144,7 +169,8 @@ export function useGameDragAndDrop(options: GameDragDropOptions) {
             lastPlayed: null,
             firstPlayed: null,
             addedDate: new Date().toISOString(),
-            fileExists: true // 拖拽添加的游戏默认文件存在
+            fileExists: true, // 拖拽添加的游戏默认文件存在
+            isArchive: isArchive // 标记是否为压缩包
           }
 
           console.log('创建游戏对象:', game)
@@ -191,7 +217,7 @@ export function useGameDragAndDrop(options: GameDragDropOptions) {
         notify.toast(
           'error',
           '添加失败',
-          `没有成功添加任何游戏文件\n原因：${failureReason}\n\n提示：\n• 请确保拖拽的是 .exe、.app 或 .swf 文件\n• 检查文件是否已存在于游戏库中\n• 尝试重新拖拽文件`
+          `没有成功添加任何游戏文件\n原因：${failureReason}\n\n提示：\n• 请确保拖拽的是 .exe、.app、.swf 或压缩包文件（.zip、.rar、.7z 等）\n• 检查文件是否已存在于游戏库中\n• 尝试重新拖拽文件`
         )
       }
 

@@ -99,7 +99,7 @@ import { useGameScreenshot } from '../composables/game/useGameScreenshot'
 import { useGameRunning } from '../composables/game/useGameRunning'
 import { useGamePlayTime } from '../composables/game/useGamePlayTime'
 import { usePagination } from '../composables/usePagination'
-import { useGameDragAndDrop } from '../composables/game/useGameDragAndDrop'
+import { useGameDragAndDrop, isArchiveFile } from '../composables/game/useGameDragAndDrop'
 
 export default {
   name: 'GameView',
@@ -273,7 +273,7 @@ export default {
       gameEmptyStateConfig: {
         emptyIcon: '🎮',
         emptyTitle: '你的游戏库是空的',
-        emptyDescription: '点击"添加游戏"按钮来添加你的第一个游戏，或直接拖拽 .exe、.app 或 .swf 文件到此处',
+        emptyDescription: '点击"添加游戏"按钮来添加你的第一个游戏，或直接拖拽游戏文件（.exe、.app、.swf）或压缩包（.zip、.rar、.7z 等）到此处',
         emptyButtonText: '添加第一个游戏',
         emptyButtonAction: 'showAddGameDialog',
         noResultsIcon: '🔍',
@@ -329,6 +329,13 @@ export default {
     },
     async launchGame(game) {
       try {
+        // 检查是否为压缩包，压缩包不能运行
+        const isArchive = game.isArchive || (game.executablePath && isArchiveFile(game.executablePath))
+        if (isArchive) {
+          notify.toast('warning', '无法运行', `压缩包文件无法直接运行。请先解压后再运行游戏。`)
+          return
+        }
+
         // 检查游戏是否正在运行
         if (this.isGameRunning(game)) {
           // 如果游戏正在运行，显示确认对话框
@@ -1286,7 +1293,7 @@ export default {
 }
 
 .game-content.drag-over::before {
-  content: '拖拽游戏文件到这里添加游戏 (.exe / .app / .swf)';
+  content: '拖拽游戏文件到这里添加游戏 (.exe / .app / .swf / .zip / .rar / .7z 等)';
   position: absolute;
   top: 50%;
   left: 50%;

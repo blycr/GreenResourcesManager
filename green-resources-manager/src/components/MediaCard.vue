@@ -22,7 +22,7 @@
       <div v-if="type === 'folder'" class="folder-indicator" title="文件夹">
         📁
       </div>
-      <div class="media-overlay">
+      <div class="media-overlay" v-if="showActionButton">
         <div class="action-button" @click.stop="$emit('action', item)">
           <span class="action-icon">{{ actionIcon }}</span>
         </div>
@@ -231,6 +231,14 @@ export default {
       if (this.type === 'audio') return '▶️'
       if (this.type === 'folder') return '📁'
       return '📖' // image 类型也使用阅读图标
+    },
+    showActionButton() {
+      // 对于压缩包类型的游戏，不显示 action 按钮
+      if (this.type === 'game') {
+        const isArchive = this.item?.isArchive || (this.item?.executablePath && this.isArchiveFile(this.item.executablePath))
+        return !isArchive
+      }
+      return true
     },
     
     // 获取显示的名称（支持伪装模式）
@@ -634,6 +642,16 @@ export default {
         console.log('MediaCard: 检测到设置变化，更新伪装模式状态')
         this.updateDisguiseModeState()
       }
+    },
+    
+    /**
+     * 检查文件是否为压缩包
+     */
+    isArchiveFile(filePath) {
+      if (!filePath) return false
+      const fileName = filePath.toLowerCase()
+      const archiveExtensions = ['.zip', '.rar', '.7z', '.tar', '.gz', '.tar.gz', '.bz2', '.tar.bz2', '.xz', '.tar.xz']
+      return archiveExtensions.some(ext => fileName.endsWith(ext))
     }
     
   },
