@@ -1,5 +1,9 @@
 <template>
   <div v-if="visible" class="modal-overlay" @click="handleClose">
+    <!-- 调试信息 -->
+    <div style="position: fixed; top: 10px; right: 10px; background: green; color: white; padding: 10px; z-index: 10000; font-size: 12px;">
+      AlbumFormDialog 已渲染: visible={{ visible }}, mode={{ mode }}
+    </div>
     <div class="modal-content" @click.stop>
       <div class="modal-header">
         <h3>{{ mode === 'add' ? '添加漫画' : '编辑漫画' }}</h3>
@@ -29,7 +33,7 @@
           :label="mode === 'add' ? '漫画标签 (可选)' : '漫画标签'"
           type="tags"
           v-model="formData.tags"
-          v-model:tagInput="tagInput"
+          v-model:tagInput="localTagInput"
           @add-tag="handleAddTag"
           @remove-tag="handleRemoveTag"
         />
@@ -135,6 +139,16 @@ export default {
   setup(props, { emit }) {
     const localTagInput = ref(props.tagInput)
 
+    // 监听 visible 变化
+    watch(() => props.visible, (newVal) => {
+      console.log('📝 [AlbumFormDialog] visible 变化:', {
+        visible: newVal,
+        mode: props.mode,
+        formData: props.formData ? { name: props.formData.name, folderPath: props.formData.folderPath } : null,
+        timestamp: new Date().toISOString()
+      })
+    }, { immediate: true })
+
     watch(() => props.tagInput, (newVal) => {
       localTagInput.value = newVal
     })
@@ -148,6 +162,7 @@ export default {
     })
 
     const handleClose = () => {
+      console.log('📝 [AlbumFormDialog] handleClose 被调用')
       emit('update:visible', false)
       emit('close')
     }
@@ -214,7 +229,7 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  z-index: 3000; /* 高于 DetailPanel 的 z-index: 2000 */
 }
 
 .modal-content {

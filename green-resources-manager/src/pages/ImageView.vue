@@ -75,6 +75,7 @@
       :item="currentAlbum"
       type="album"
       :stats="albumStats"
+      :actions="albumActions"
       @close="closeAlbumDetail"
       @action="handleDetailAction"
     >
@@ -95,7 +96,12 @@
     </DetailPanel>
 
     <!-- 编辑漫画对话框 -->
+    <!-- 调试信息 -->
+    <div v-if="showEditDialog" style="position: fixed; top: 10px; left: 10px; background: red; color: white; padding: 10px; z-index: 10000; font-size: 12px;">
+      showEditDialog: {{ showEditDialog }}, editAlbumForm: {{ editAlbumForm ? editAlbumForm.name : 'null' }}
+    </div>
     <AlbumFormDialog
+      :key="'edit-dialog-' + (editAlbumForm.id || 'new')"
       :visible="showEditDialog"
       mode="edit"
       :formData="editAlbumForm"
@@ -108,7 +114,7 @@
       :selectImageFromFolder="selectImageFromFolderEdit"
       :browseForImage="browseForImageEdit"
       :clearCover="clearCoverEdit"
-      @update:visible="showEditDialog = $event"
+      @update:visible="(val) => { console.log('🖼️ [ImageView] @update:visible 事件:', val); showEditDialog = val }"
       @update:formData="editAlbumForm = $event"
       @update:cover="editAlbumCover = $event"
       @update:tagInput="editTagInput = $event"
@@ -190,7 +196,9 @@ export default {
     MediaCard,
     DetailPanel,
     ComicViewer,
-    PathUpdateDialog
+    PathUpdateDialog,
+    AlbumFormDialog,
+    AlbumPagesGrid
   },
   emits: ['filter-data-updated'],
   setup() {
@@ -464,6 +472,17 @@ export default {
     // 当前漫画页的起始索引（使用 composable 的 currentPageStartIndex）
     currentAlbumPageStartIndex() {
       return this.currentPageStartIndex || 0
+    },
+    // 专辑详情页操作按钮
+    albumActions() {
+      const actions = [
+        { key: 'open', icon: '📖', label: '开始阅读', class: 'btn-start-reading' },
+        { key: 'folder', icon: '📁', label: '打开文件夹', class: 'btn-open-folder' },
+        { key: 'edit', icon: '✏️', label: '编辑信息', class: 'btn-edit-album' },
+        { key: 'remove', icon: '🗑️', label: '删除漫画', class: 'btn-remove-album' }
+      ]
+      console.log('🖼️ [ImageView] albumActions computed 被调用，返回 actions:', actions)
+      return actions
     }
   },
   watch: {
@@ -516,6 +535,14 @@ export default {
     },
     editAlbumFolderPath(newVal) {
       this.editAlbumForm.folderPath = newVal
+    },
+    // 监听 showEditDialog 变化
+    showEditDialog(newVal, oldVal) {
+      console.log('🖼️ [ImageView] showEditDialog 变化:', {
+        oldValue: oldVal,
+        newValue: newVal,
+        timestamp: new Date().toISOString()
+      })
     }
   },
   methods: {
@@ -816,19 +843,31 @@ export default {
       this.resetPagination()
     },
     handleDetailAction(actionKey, album) {
+      console.log('🖼️ [ImageView] handleDetailAction 被调用:', {
+        actionKey,
+        album: album ? { id: album.id, name: album.name } : null,
+        timestamp: new Date().toISOString()
+      })
+      
       switch (actionKey) {
         case 'open':
+          console.log('🖼️ [ImageView] 执行 open 操作')
           this.openAlbum(album)
           break
         case 'folder':
+          console.log('🖼️ [ImageView] 执行 folder 操作')
           this.openAlbumFolder(album)
           break
         case 'edit':
+          console.log('🖼️ [ImageView] 执行 edit 操作')
           this.editAlbum(album)
           break
         case 'remove':
+          console.log('🖼️ [ImageView] 执行 remove 操作')
           this.removeAlbum(album)
           break
+        default:
+          console.warn('🖼️ [ImageView] 未知的 actionKey:', actionKey)
       }
     },
     /**
@@ -886,7 +925,24 @@ export default {
       }
     },
     editAlbum(album) {
-      if (!album) return
+      console.log('🖼️ [ImageView] editAlbum 方法被调用:', {
+        album: album ? { id: album.id, name: album.name } : null,
+        showDetailModal: this.showDetailModal,
+        showEditDialog: this.showEditDialog,
+        timestamp: new Date().toISOString()
+      })
+      
+      if (!album) {
+        console.warn('🖼️ [ImageView] editAlbum: album 为空，返回')
+        return
+      }
+      
+      console.log('🖼️ [ImageView] editAlbum: 开始设置编辑表单数据')
+      console.log('🖼️ [ImageView] editAlbum: 设置前的状态', {
+        showDetailModal: this.showDetailModal,
+        showEditDialog: this.showEditDialog
+      })
+      
       this.showDetailModal = false
       this.editAlbumForm = {
         id: album.id,
@@ -902,7 +958,28 @@ export default {
       this.editAlbumFolderPath = album.folderPath || ''
       this.editAlbumCover = album.cover || ''
       this.editTagInput = ''
+      
+      console.log('🖼️ [ImageView] editAlbum: 准备设置 showEditDialog = true')
       this.showEditDialog = true
+      
+      // 使用 nextTick 确保 DOM 更新后再检查
+      this.$nextTick(() => {
+        console.log('🖼️ [ImageView] editAlbum: nextTick 后的状态', {
+          showDetailModal: this.showDetailModal,
+          showEditDialog: this.showEditDialog,
+          editAlbumForm: this.editAlbumForm ? { id: this.editAlbumForm.id, name: this.editAlbumForm.name } : null
+        })
+        
+        // 检查 DOM 中是否存在对话框
+        const dialogElement = document.querySelector('.modal-overlay')
+        console.log('🖼️ [ImageView] editAlbum: DOM 中的对话框元素:', dialogElement)
+      })
+      
+      console.log('🖼️ [ImageView] editAlbum: 编辑对话框状态已更新', {
+        showDetailModal: this.showDetailModal,
+        showEditDialog: this.showEditDialog,
+        editAlbumForm: this.editAlbumForm ? { id: this.editAlbumForm.id, name: this.editAlbumForm.name } : null
+      })
     },
     closeEditAlbumDialog() {
       this.showEditDialog = false
