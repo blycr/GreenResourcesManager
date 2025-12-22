@@ -1,39 +1,45 @@
-/* 卡片组件样式 - 可复用 */
+// 卡片组件样式 - 可复用
 .card {
   background: var(--bg-secondary);
   border-radius: var(--radius-xl);
   overflow: hidden;
   border: 1px solid var(--border-color);
   transition: all var(--transition-slow);
+
+  &:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 25px var(--shadow-medium);
+    border-color: var(--accent-color);
+  }
 }
 
-.card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 25px var(--shadow-medium);
-  border-color: var(--accent-color);
-}
-
-/* 媒体卡片（视频/图片/游戏等） */
+// 媒体卡片（视频/图片/游戏等）
 .media-card {
   cursor: pointer;
   position: relative;
+
+  &:hover {
+    .media-card-image img {
+      transform: scale(1.05);
+    }
+
+    .media-card-overlay {
+      opacity: 1;
+    }
+  }
 }
 
 .media-card-image {
   position: relative;
   width: 100%;
   overflow: hidden;
-}
 
-.media-card-image img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  transition: transform var(--transition-slow);
-}
-
-.media-card:hover .media-card-image img {
-  transform: scale(1.05);
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform var(--transition-slow);
+  }
 }
 
 .media-card-overlay {
@@ -48,10 +54,6 @@
   justify-content: center;
   opacity: 0;
   transition: opacity var(--transition-slow);
-}
-
-.media-card:hover .media-card-overlay {
-  opacity: 1;
 }
 
 .media-card-info {
@@ -78,7 +80,7 @@
   overflow: hidden;
 }
 
-/* 徽章 */
+// 徽章
 .badge {
   position: absolute;
   bottom: var(--spacing-sm);

@@ -267,7 +267,7 @@ export default {
       
       // 依赖 disguiseModeState 以确保响应式更新
       const disguiseModeEnabled = this.disguiseModeState
-      console.log(`[displayTags] 伪装模式状态: ${disguiseModeEnabled}, 项目ID: ${this.item.id}, 原始标签:`, this.item.tags)
+      //console.log(`[displayTags] 伪装模式状态: ${disguiseModeEnabled}, 项目ID: ${this.item.id}, 原始标签:`, this.item.tags)
       
       if (disguiseModeEnabled) {
         // 为每个标签使用全局伪装方法（确保在所有地方显示一致）
@@ -283,11 +283,11 @@ export default {
           return tag // 先返回原始标签，等异步加载完成后再更新
         })
         
-        console.log(`[displayTags] 最终伪装标签:`, disguisedTags)
+        // console.log(`[displayTags] 最终伪装标签:`, disguisedTags)
         return disguisedTags
       }
       
-      console.log(`[displayTags] 伪装模式未启用，返回原始标签:`, this.item.tags)
+      // console.log(`[displayTags] 伪装模式未启用，返回原始标签:`, this.item.tags)
       return this.item.tags
     },
     badgeText() {
@@ -614,7 +614,7 @@ export default {
     updateDisguiseModeState() {
       const newState = isDisguiseModeEnabled()
       if (this.disguiseModeState !== newState) {
-        console.log('MediaCard: 伪装模式状态变化:', this.disguiseModeState, '->', newState)
+        //console.log('MediaCard: 伪装模式状态变化:', this.disguiseModeState, '->', newState)
         this.disguiseModeState = newState
         
         // 清除所有伪装缓存
@@ -639,7 +639,7 @@ export default {
      */
     handleStorageChange(event) {
       if (event.key === 'butter-manager-settings') {
-        console.log('MediaCard: 检测到设置变化，更新伪装模式状态')
+        //console.log('MediaCard: 检测到设置变化，更新伪装模式状态')
         this.updateDisguiseModeState()
       }
     },
@@ -658,7 +658,7 @@ export default {
   mounted() {
     // 初始化伪装模式状态
     this.disguiseModeState = isDisguiseModeEnabled()
-    console.log('MediaCard mounted: 初始伪装模式状态:', this.disguiseModeState)
+    //console.log('MediaCard mounted: 初始伪装模式状态:', this.disguiseModeState)
     
     // 监听 storage 事件以响应设置变化
     window.addEventListener('storage', this.handleStorageChange)

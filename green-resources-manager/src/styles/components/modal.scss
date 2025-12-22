@@ -1,4 +1,4 @@
-/* 模态框组件样式 - 可复用 */
+// 模态框组件样式 - 可复用
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -32,13 +32,13 @@
   padding: var(--spacing-xl) var(--spacing-2xl);
   border-bottom: 1px solid var(--border-color);
   flex-shrink: 0;
-}
 
-.modal-header h3 {
-  margin: 0;
-  font-size: var(--font-size-xl);
-  font-weight: 600;
-  color: var(--text-primary);
+  h3 {
+    margin: 0;
+    font-size: var(--font-size-xl);
+    font-weight: 600;
+    color: var(--text-primary);
+  }
 }
 
 .modal-close {
@@ -55,11 +55,11 @@
   justify-content: center;
   border-radius: var(--radius-sm);
   transition: all var(--transition-base);
-}
 
-.modal-close:hover {
-  background: var(--bg-tertiary);
-  color: var(--text-primary);
+  &:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+  }
 }
 
 .modal-body {
