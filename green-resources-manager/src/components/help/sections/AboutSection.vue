@@ -42,7 +42,7 @@
       <BusinessCard />
       <div class="personal-content">
         <p class="personal-description">
-          独立游戏设计师。擅长实验性叙事游戏设计、unity开发、WEB开发、作曲、2D美术。
+          独立游戏制作人。擅长实验性叙事游戏设计、unity开发、RPGMakerMV开发、Godot开发、WEB开发、作曲、2D美术、游戏理论研究。
         </p>
         <div class="personal-links">
           <div class="personal-link-item" @click="openExternalLink('https://klsdf.github.io/Profile/')">

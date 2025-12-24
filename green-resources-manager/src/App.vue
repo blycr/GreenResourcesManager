@@ -19,6 +19,7 @@
           @click="onLogoClick"
         >
         <h1> 绿色资源管理器</h1>
+        <p>绿色、全能的资源管理器</p>
         <p class="version">v{{ version }}</p>
       </div>
 
@@ -64,6 +65,9 @@
 
         <!-- 页面内容区域 -->
         <div class="page-content" :class="{ 'has-background': backgroundImageUrl }" :style="pageContentStyle">
+          <!-- 主页 -->
+          <HomeView v-if="currentView === 'home'" @navigate="switchView" />
+
           <!-- 游戏页面 -->
           <GameView v-if="currentView === 'games'" ref="gameView" @filter-data-updated="updateFilterData" />
 
@@ -109,6 +113,7 @@
 </template>
 
 <script lang="ts">
+import HomeView from './pages/HomeView.vue'
 import GameView from './pages/GameView.vue'
 import ImageView from './pages/ImageView.vue'
 import VideoView from './pages/VideoView.vue'
@@ -134,6 +139,7 @@ import { unlockAchievement } from './pages/user/AchievementView.vue'
 export default {
   name: 'App',
   components: {
+    HomeView,
     GameView,
     ImageView,
     VideoView,
@@ -151,7 +157,7 @@ export default {
   },
   data() {
     return {
-      currentView: 'games', // 默认页面，稍后会被设置覆盖
+      currentView: 'home', // 默认页面，稍后会被设置覆盖
       theme: 'light',
       version: '0.0.0',
       isLoading: true, // 应用加载状态
@@ -193,6 +199,11 @@ export default {
       // 统一的页面配置
       viewConfig: {
         // 主导航页面
+        home: {
+          name: '主页',
+          icon: '🏠',
+          description: '欢迎页面，快速访问各个功能模块'
+        },
         games: {
           name: '游戏',
           icon: '🎮',
@@ -245,11 +256,11 @@ export default {
           description: '管理应用设置和偏好'
         },
         // 合集页面（暂时注释）
-        // collections: {
-        //   name: '合集',
-        //   icon: '🗂️',
-        //   description: '管理你的合集'
-        // }
+        collections: {
+          name: '合集',
+          icon: '🗂️',
+          description: '管理你的合集'
+        }
       },
       navItems: []
     }
@@ -257,7 +268,7 @@ export default {
   computed: {
     // 主导航页面ID列表
     mainNavViewIds() {
-      return ['games', 'images', 'videos', 'novels', 'websites', 'audio']
+      return ['home', 'games', 'images', 'videos', 'novels', 'websites', 'audio', 'collections']
     },
     // 底部导航页面ID列表
     footerViews() {
@@ -361,8 +372,8 @@ export default {
       this.currentView = viewId
       // 保存当前页面到设置中
       this.saveCurrentView(viewId)
-      // 根据页面类型决定是否显示筛选器（主导航页面有筛选器）
-      this.showFilterSidebar = this.mainNavViewIds.includes(viewId)
+      // 根据页面类型决定是否显示筛选器（主导航页面有筛选器，但主页不需要筛选器）
+      this.showFilterSidebar = this.mainNavViewIds.includes(viewId) && viewId !== 'home'
       // 重置筛选器数据
       this.resetFilterData()
       // 设置加载状态
@@ -843,7 +854,7 @@ export default {
       } catch (error) {
         console.warn('加载最后访问页面失败:', error)
       }
-      return 'games' // 默认返回游戏页面
+      return 'home' // 默认返回主页
     },
     
     // 加载安全键设置
@@ -1024,7 +1035,7 @@ export default {
       console.log('🎯 已设置当前页面为:', lastView)
     } catch (error) {
       console.warn('加载最后访问页面失败，使用默认页面:', error)
-      this.currentView = 'games'
+      this.currentView = 'home'
     }
 
     // 初始化筛选器状态

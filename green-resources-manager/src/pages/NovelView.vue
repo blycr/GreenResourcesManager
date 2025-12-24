@@ -29,9 +29,8 @@
       
       <!-- 主要内容区域 -->
       <div class="novel-main-content">
-        <!-- 左侧：小说列表 -->
-        <div class="novel-list-section" :class="{ 'with-reader': currentReadingNovel }">
-      
+        <!-- 小说列表 -->
+        <div class="novel-list-section">
           <!-- 小说网格 -->
           <div class="novels-grid" v-if="paginatedNovels.length > 0">
             <MediaCard
@@ -47,9 +46,11 @@
             />
           </div>
         </div>
+      </div>
 
-        <!-- 右侧：阅读器区域 -->
-        <div class="reader-section" v-if="currentReadingNovel">
+      <!-- 悬浮阅读器区域 -->
+      <div v-if="currentReadingNovel" class="novel-reader-overlay" @click="closeReader">
+        <div class="novel-reader-content" @click.stop>
           <div class="reader-header">
             <div class="reader-title">
               <h3>{{ currentReadingNovel.name }}</h3>
@@ -1864,33 +1865,43 @@ export default {
 
 // 主要内容区域
 .novel-main-content {
-  display: flex;
-  gap: 20px;
-  height: calc(100vh - 120px);
   padding: 20px;
   box-sizing: border-box;
 }
 
 // 小说列表区域
 .novel-list-section {
-  flex: 1;
-  transition: flex 0.3s ease;
-
-  &.with-reader {
-    flex: 0 0 50%;
-  }
+  width: 100%;
 }
 
-// 阅读器区域
-.reader-section {
-  flex: 0 0 50%;
+// 悬浮阅读器覆盖层
+.novel-reader-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.95);
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 3000;
+  backdrop-filter: blur(5px);
+}
+
+// 阅读器内容区域
+.novel-reader-content {
   background: var(--bg-secondary);
   border-radius: 12px;
-  border: 1px solid var(--border-color);
+  width: 95vw;
+  height: 95vh;
+  max-width: 1400px;
+  max-height: 900px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+  transition: background-color 0.3s ease;
   overflow: hidden;
-  transition: all 0.3s ease;
 }
 
 // 阅读器头部
@@ -1901,8 +1912,11 @@ export default {
   padding: 15px 20px;
   border-bottom: 1px solid var(--border-color);
   background: var(--bg-tertiary);
+  border-radius: 12px 12px 0 0;
+  flex-shrink: 0;
 
   .reader-title {
+    flex: 1;
     h3 {
       margin: 0 0 5px 0;
       color: var(--text-primary);
@@ -1945,6 +1959,7 @@ export default {
   padding: 10px 20px;
   border-bottom: 1px solid var(--border-color);
   background: var(--bg-tertiary);
+  flex-shrink: 0;
 
   .progress-info {
     display: flex;
@@ -2028,6 +2043,8 @@ export default {
   padding: 15px 20px;
   border-top: 1px solid var(--border-color);
   background: var(--bg-tertiary);
+  flex-shrink: 0;
+  border-radius: 0 0 12px 12px;
 }
 
 .reader-navigation {
