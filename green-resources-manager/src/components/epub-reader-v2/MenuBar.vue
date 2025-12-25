@@ -1,7 +1,6 @@
 <template> 
        <div class="menu-bar">
-            <transition name="slide-up">
-            <div class="menu-wrapper" :class="{'hide-box-shadow':ifSettingShow || !ifTitleAndMenuShow}" v-show="ifTitleAndMenuShow">
+            <div class="menu-wrapper" :class="{'hide-box-shadow':ifSettingShow}">
                 <div class="icon-wrapper">
                     <span class="icon-menu icon" @click="showSetting(3)"></span>
                 </div>
@@ -15,8 +14,7 @@
                     <span class="icon-a icon" @click="showSetting(0)">A</span>
                 </div>
             </div>
-            </transition>
-            <transition name="slide-up">
+            <transition name="slide-left">
                 <div class="setting-wrapper" v-show="ifSettingShow">
                 <div class="setting-font-size" v-if="showTag === 0">
                     <div class="preview" :style="{fontSize:fontSizeList[0].fontSize + 'px'}">
@@ -75,7 +73,6 @@
                 <div class="content-mask" v-show="ifShowContent"
                 @click="hideContent">
                 </div>
-
             </transition>
        </div>
 </template>
@@ -172,58 +169,82 @@ export default {
 @import '../../styles/epub-reader-v2/global';
 
     .menu-bar{
+        position: relative;
+        width: 60px;
+        height: 100%;
+        flex-shrink: 0;
+        background: var(--bg-secondary, #f5f5f5);
+        border-left: 1px solid var(--border-color, #e0e0e0);
+        display: flex;
+        flex-direction: column;
+        
         .menu-wrapper{
-            position: absolute;
             display: flex;
-            bottom: 0;
-            left: 0;
+            flex-direction: column;
             width: 100%;
-            height:px2rem(48);
+            height: 100%;
             z-index: 10;
-            background: white;
-            box-shadow: 0 px2rem(-8) px2rem(8) rgba(0,0,0,.15);
+            background: var(--bg-secondary, #f5f5f5);
+            box-shadow: -2px 0 8px rgba(0,0,0,.1);
             &.hide-box-shadow{
                 box-shadow: none;
             }
             .icon-wrapper{
-                flex: 1;
+                flex: 0 0 60px;
+                width: 100%;
                 @include center;
                 cursor: pointer;
+                border-bottom: 1px solid var(--border-color, #e0e0e0);
+                transition: background 0.2s ease;
+                &:hover {
+                    background: var(--bg-tertiary, #e8e8e8);
+                }
+                &:last-child {
+                    border-bottom: none;
+                }
                 .icon {
-                    font-size: px2rem(28);
+                    font-size: 24px;
+                    color: var(--text-primary, #333);
                 }
                 .icon-a{
-                    font-size:px2rem(24);
+                    font-size: 20px;
                     font-weight: 600;
                 }
             }
         }        
         .setting-wrapper{
             position: absolute;
-            bottom: px2rem(48);
-            left:0;
+            top: 0;
+            right: 60px;
             z-index: 11;
-            width:100%;
-            height: px2rem(60);
-            background:white;
-            box-shadow: 0 px2rem(-8) px2rem(8) rgba(0,0,0,.15);
+            width: 300px;
+            height: 100%;
+            background: var(--bg-secondary, white);
+            box-shadow: -2px 0 8px rgba(0,0,0,.15);
+            overflow-y: auto;
             .setting-font-size{
                 display: flex;
-                height: 100%;
+                flex-direction: column;
+                padding: 20px;
+                min-height: 100%;
                 .preview{
-                    flex: 0 0 px2rem(50);
+                    flex: 0 0 50px;
                     @include center;
                     font-weight: 600;
-                    font-size: px2rem(20);
+                    font-size: 20px;
+                    margin-bottom: 10px;
                 }
                 .select{
                     display: flex;
                     flex: 1;
-                    .select-wrapper{
-                        flex: 1;
+                    flex-direction: column;
+                    margin: 20px 0;
+                        .select-wrapper{
+                        flex: 0 0 40px;
                         display: flex;
                         align-items: center;
                         cursor: pointer;
+                        margin-bottom: 10px;
                         &:first-child{
                             .line{
                                 &:first-child{
@@ -242,28 +263,27 @@ export default {
                         .line{
                             flex: 1;
                             height: 0;
-                            border-top: px2rem(1) solid #ccc ;
+                            border-top: 1px solid #ccc ;
                         }
                         .point-wrapper{
                             position: relative;
-                            flex: 0 0 0;
-                            width: 0;
-                            height: px2rem(7);
-                            border-left: px2rem(1) solid #ccc; 
+                            flex: 0 0 20px;
+                            width: 20px;
+                            height: 20px;
                             .point{
                                 position: absolute;
-                                top:px2rem(-8);
-                                left: px2rem(-10);
-                                width: px2rem(20);
-                                height: px2rem(20);
+                                top: -10px;
+                                left: 0;
+                                width: 20px;
+                                height: 20px;
                                 border-radius: 50%;
                                 background: white;
-                                border: px2rem(1) solid #ccc;
-                                box-shadow: 0 px2rem(4) px2rem(4) rgba(0,0,0,.15);
+                                border: 1px solid #ccc;
+                                box-shadow: 0 4px 4px rgba(0,0,0,.15);
                                 @include center;
                                 .small-point{
-                                    width: px2rem(5);
-                                    height: px2rem(5);
+                                    width: 5px;
+                                    height: 5px;
                                     background: black;
                                     border-radius: 50%;
                                 }
@@ -274,31 +294,43 @@ export default {
             }
 
             .setting-theme{
-                height:100%;
+                padding: 20px;
                 display:flex;
-                .setting-theme-item{
-                    flex:1;
+                flex-direction: column;
+                gap: 15px;
+                    .setting-theme-item{
+                    flex: 0 0 auto;
                     display:flex;
-                    flex-direction:column;
-                    padding:px2rem(5);
+                    flex-direction:row;
+                    align-items: center;
+                    gap: 10px;
+                    padding: 10px;
                     box-sizing:border-box;
                     cursor: pointer;
+                    border: 1px solid var(--border-color, #e0e0e0);
+                    border-radius: 4px;
+                    transition: all 0.2s ease;
+                    &:hover {
+                        background: var(--bg-tertiary, #f5f5f5);
+                    }
                     .preview{
-                        flex:1;
-                        border:px2rem(1) solid #ccc;
+                        flex: 0 0 40px;
+                        width: 40px;
+                        height: 40px;
+                        border: 1px solid #ccc;
                         box-sizing:border-box;
+                        border-radius: 4px;
                         &.no-border{
                             border:none
                         }
                     }
                 
                     .text{
-                        flex:0 0 px2rem(24);
-                        font-size:px2rem(16);
-                        color:#ccc;
-                        @include center;
+                        flex: 1;
+                        font-size: 16px;
+                        color: var(--text-secondary, #999);
                         &.selected{
-                            color:#333;
+                            color: var(--text-primary, #333);
                             font-weight: 600;
                         }
                     }
@@ -308,18 +340,16 @@ export default {
             .setting-progress{
                 position:relative;
                 width:100%;
-                height:100%;
+                padding: 20px;
                 .progress-wrapper{
                     width:100%;
-                    height:100%;
-                    @include center;
-                    padding: 0 px2rem(30);
+                    padding: 20px 0;
                     box-sizing: border-box;
                     .progress{
                         width:100%;
                         -webkit-appearance: none;
                         appearance: none;
-                        height: px2rem(2);
+                        height: 2px;
                         background: -webkit-linear-gradient(#999, #999) no-repeat, #ddd;
                         background-size: 0 100%;
                         cursor: pointer;
@@ -329,35 +359,32 @@ export default {
                         &::-webkit-slider-thumb{
                             -webkit-appearance:none;
                             appearance: none;
-                            height:px2rem(20);
-                            width:px2rem(20);
+                            height: 20px;
+                            width: 20px;
                             border-radius:50%;
                             background:white;
                             box-shadow: 0 4px 4px 0 rgba(0, 0, 0, .15);
-                            border:px2rem(1) solid #ddd;
+                            border: 1px solid #ddd;
                         }
                     }
                 }
                 .text-wrapper{
-                    position: absolute;
                     width: 100%;
-                    bottom: 0;
-                    color: #333;
-                    font-size: px2rem(14);
-                    span{
-                        @include center;
-                    }
+                    margin-top: 15px;
+                    color: var(--text-primary, #333);
+                    font-size: 14px;
+                    text-align: center;
                 }
             }
         }
         .content-mask{
-            position: absolute;
+            position: fixed;
             top: 0;
             left: 0;
+            right: 0;
+            bottom: 0;
             z-index: 11;
             display: flex;
-            width: 100%;
-            height: 100%;
             background: rgba(51,51,51,.8);
             cursor: pointer;
         }

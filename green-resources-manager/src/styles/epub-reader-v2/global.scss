@@ -1,13 +1,6 @@
 @import 'reset';
 @import 'icon';
 
-// 1rem = fontSize px
-// 1px = (1 / fontSize)rem
-$fontSize: 37.5;
-@function px2rem($px) {
-  @return ($px / $fontSize) + rem;
-}
-
 @mixin center() {
   display: flex;
   justify-content: center;
@@ -16,7 +9,7 @@ $fontSize: 37.5;
 
 .icon {
   color: #333;
-  font-size: px2rem(28);
+  font-size: 28px;
   display: inline-block;
 }
 
@@ -26,11 +19,11 @@ $fontSize: 37.5;
 .slide-down-enter-to, .slide-down-leave, .slide-up-enter-to, .slide-up-leave {
   transform: translate3d(0, 0, 0)
 }
-.slide-down-enter-active, .slide-down-leave-active, .slide-up-enter-active, .slide-up-leave-active, .fade-enter-active, .fade-leave-active, .slide-right-enter-active, .slide-right-leave-active {
+.slide-down-enter-active, .slide-down-leave-active, .slide-up-enter-active, .slide-up-leave-active, .fade-enter-active, .fade-leave-active, .slide-right-enter-active, .slide-right-leave-active, .slide-left-enter-active, .slide-left-leave-active {
   transition: all .3s linear;
 }
 .slide-up-enter, .slide-up-leave-to {
-  transform: translate3d(0, px2rem(108), 0)
+  transform: translate3d(0, 108px, 0)
 }
 .fade-enter, .fade-leave-to {
   opacity: 0;
@@ -40,5 +33,11 @@ $fontSize: 37.5;
 }
 .slide-right-enter, .slide-right-leave-to {
   transform: translate3d(-100%, 0, 0);
+}
+.slide-left-enter, .slide-left-leave-to {
+  transform: translate3d(100%, 0, 0);
+}
+.slide-left-enter-to, .slide-left-leave {
+  transform: translate3d(0, 0, 0);
 }
 

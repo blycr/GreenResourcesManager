@@ -73,7 +73,7 @@
             </div>
           </div>
 
-          <div class="reader-content" ref="readerContent" :style="readerContentStyle">
+          <div class="reader-content" ref="readerContent">
             <!-- PDF 文件使用 PDF 阅读器 -->
             <PdfReader
               v-if="currentReadingNovel?.fileType === 'pdf'"
@@ -81,43 +81,14 @@
               :initial-page="currentReadingNovel.currentPage || 1"
               @page-changed="handlePdfPageChanged"
             />
-            <!-- EPUB 文件使用 EPUB 阅读器 -->
-            <EpubReader
-              v-else-if="currentReadingNovel?.fileType === 'epub'"
-              :file-path="currentReadingNovel.filePath"
-              :novel-name="currentReadingNovel.name"
-              :author="currentReadingNovel.author"
-              :initial-cfi="currentReadingNovel.currentCfi || ''"
-              @close="closeReader"
-              @progress-changed="handleEpubProgressChanged"
-            />
             <!-- TXT 文件使用文本阅读器 -->
-            <template v-else>
-              <div v-if="novelContent" class="novel-text" :style="novelTextStyle" v-html="formattedContent"></div>
-              <div v-else-if="loadingContent" class="loading-content">
-                <div class="loading-spinner"></div>
-                <p>正在加载小说内容...</p>
-              </div>
-              <div v-else class="no-content">
-                <p>无法加载小说内容</p>
-                <button class="btn-retry" @click="loadNovelContent">重试</button>
-              </div>
-            </template>
-          </div>
-
-          <!-- TXT 文件显示分页导航（PDF 和 EPUB 文件在各自组件内部处理导航） -->
-          <div class="reader-footer" v-if="currentReadingNovel?.fileType === 'txt'">
-            <div class="reader-navigation">
-              <button class="btn-prev" @click="previousPage" :disabled="!canGoPrevious">
-                <span class="btn-icon">←</span>
-                上一页
-              </button>
-              <span class="page-info">{{ currentPage }} / {{ totalPages }}</span>
-              <button class="btn-next" @click="nextPage" :disabled="!canGoNext">
-                下一页
-                <span class="btn-icon">→</span>
-              </button>
-            </div>
+            <TextReader
+              v-else-if="currentReadingNovel?.fileType === 'txt'"
+              :file-path="currentReadingNovel.filePath"
+              :initial-page="currentReadingNovel.currentPage || 1"
+              @page-changed="handleTextPageChanged"
+              @progress-changed="handleTextProgressChanged"
+            />
           </div>
         </div>
       </div>
@@ -270,12 +241,26 @@
       @cancel="closePathUpdateDialog"
     />
 
-    <!-- EPUB阅读器V2全屏模态框 -->
-    <div v-if="showEbookReaderV2" class="ebook-reader-v2-overlay">
-      <EbookReader
-        :file-path="ebookReaderV2FilePath"
-        @close="closeEbookReaderV2"
-      />
+    <!-- EPUB阅读器V2悬浮窗口 -->
+    <div v-if="showEbookReaderV2" class="novel-reader-overlay" @click="closeEbookReaderV2">
+      <div class="novel-reader-content" @click.stop>
+        <div class="reader-header">
+          <div class="reader-title">
+            <h3>{{ getNovelNameByPath(ebookReaderV2FilePath) }}</h3>
+          </div>
+          <div class="reader-controls">
+            <button class="btn-close-reader" @click="closeEbookReaderV2" title="关闭阅读器">
+              <span class="btn-icon">✕</span>
+            </button>
+          </div>
+        </div>
+        <div class="reader-content ebook-reader-v2-content">
+          <EbookReader
+            :file-path="ebookReaderV2FilePath"
+            @close="closeEbookReaderV2"
+          />
+        </div>
+      </div>
     </div>
   </BaseView>
 </template>
@@ -288,13 +273,13 @@ import MediaCard from '../components/MediaCard.vue'
 import DetailPanel from '../components/DetailPanel.vue'
 import PathUpdateDialog from '../components/PathUpdateDialog.vue'
 import PdfReader from '../components/PdfReader.vue'
-import EpubReader from '../components/EpubReader.vue'
+import TextReader from '../components/TextReader.vue'
 import EbookReader from '../components/epub-reader-v2/EbookReader.vue'
 import saveManager from '../utils/SaveManager.ts'
 import { useNovelManagement } from '../composables/novel/useNovelManagement'
 import { useNovelFilter } from '../composables/novel/useNovelFilter'
 import { ref } from 'vue'
-import { EpubParser, type EpubChapter } from '../utils/EpubParser'
+import { EpubParser } from '../utils/EpubParser'
 
 import notify from '../utils/NotificationService.ts'
 
@@ -308,7 +293,7 @@ export default {
     DetailPanel,
     PathUpdateDialog,
     PdfReader,
-    EpubReader,
+    TextReader,
     EbookReader
   },
   emits: ['filter-data-updated'],
@@ -404,23 +389,6 @@ export default {
       imageCache: {},
       // 阅读器相关状态
       currentReadingNovel: null,
-      novelContent: '',
-      loadingContent: false,
-      currentPage: 1,
-      totalPages: 1,
-      wordsPerPage: 1000, // 每页显示的字数
-      // EPUB 相关状态
-      epubParser: null as EpubParser | null,
-      epubChapters: [] as EpubChapter[],
-      currentChapterIndex: 0,
-      readerSettings: {
-        fontSize: 16,
-        lineHeight: 1.6,
-        fontFamily: 'Microsoft YaHei, sans-serif',
-        backgroundColor: '#ffffff',
-        textColor: '#333333',
-        showProgress: true
-      },
       // 全局设置缓存
       globalSettings: {
         novelDefaultOpenMode: 'internal',
@@ -491,43 +459,6 @@ export default {
     },
     canAddNovel() {
       return this.newNovel.filePath.trim()
-    },
-    formattedContent() {
-      if (!this.novelContent) return ''
-      
-      // 分页处理
-      const startIndex = (this.currentPage - 1) * this.wordsPerPage
-      const endIndex = startIndex + this.wordsPerPage
-      const pageContent = this.novelContent.slice(startIndex, endIndex)
-      
-      // 格式化文本，保持换行和段落
-      return pageContent
-        .replace(/\n/g, '<br>')
-        .replace(/\r\n/g, '<br>')
-        .replace(/\r/g, '<br>')
-    },
-    canGoPrevious() {
-      return this.currentPage > 1
-    },
-    canGoNext() {
-      return this.currentPage < this.totalPages
-    },
-    readerContentStyle() {
-      if (!this.currentReadingNovel) return {}
-      
-      return {
-        backgroundColor: this.globalSettings.novelBackgroundColor
-      }
-    },
-    novelTextStyle() {
-      if (!this.currentReadingNovel) return {}
-      
-      return {
-        color: this.globalSettings.novelTextColor,
-        fontSize: this.globalSettings.novelFontSize + 'px',
-        lineHeight: this.globalSettings.novelLineHeight,
-        fontFamily: this.globalSettings.novelFontFamily
-      }
     },
     novelStats() {
       if (!this.currentNovel) return []
@@ -1187,218 +1118,46 @@ export default {
     async selectNovelForReading(novel) {
       try {
         console.log('选择小说进行阅读:', novel.name)
-        // 重置 EPUB 相关状态
-        if (this.epubParser) {
-          this.epubParser.destroy()
-          this.epubParser = null
-        }
-        this.epubChapters = []
-        this.currentChapterIndex = 0
         
-        this.currentReadingNovel = novel
-        this.currentPage = 1
-        await this.loadNovelContent()
+        // 检测文件类型（根据文件扩展名，而不是已保存的 fileType）
+        const detectedType = this.getFileType(novel.filePath)
+        
+        // 如果检测到的类型与保存的类型不一致，更新文件类型
+        if (novel.fileType !== detectedType) {
+          console.log(`文件类型不匹配，更新: ${novel.fileType} -> ${detectedType}`)
+          // 保存文件类型到数据库
+          await this.updateNovelInManager(novel.id, {
+            fileType: detectedType
+          })
+          novel.fileType = detectedType
+        }
+        
+        const fileType = detectedType
+        console.log('使用的文件类型:', fileType, '文件路径:', novel.filePath)
+        
+        if (fileType === 'pdf') {
+          // PDF 文件由 PdfReader 组件自己处理
+          console.log('PDF 文件，交由 PdfReader 组件处理')
+          this.currentReadingNovel = novel
+        } else if (fileType === 'epub') {
+          // EPUB 文件应该使用 EPUB 阅读器 V2，不应该进入这里
+          console.warn('EPUB 文件不应该使用内部阅读器，应该使用 EPUB 阅读器 V2')
+          this.openEbookReaderV2(novel)
+          return
+        } else {
+          // TXT 文件由 TextReader 组件处理
+          console.log('TXT 文件，交由 TextReader 组件处理')
+          this.currentReadingNovel = novel
+        }
+        
         await this.updateReadingStats(novel)
       } catch (error) {
         console.error('选择小说失败:', error)
         alert(`选择小说失败: ${error.message}`)
       }
     },
-    async loadNovelContent() {
-      if (!this.currentReadingNovel || !this.currentReadingNovel.filePath) {
-        return
-      }
-      
-      try {
-        this.loadingContent = true
-        console.log('正在加载小说内容:', this.currentReadingNovel.filePath)
-        
-        // 检测文件类型（根据文件扩展名，而不是已保存的 fileType）
-        const detectedType = this.getFileType(this.currentReadingNovel.filePath)
-        
-        // 如果检测到的类型与保存的类型不一致，更新文件类型
-        if (this.currentReadingNovel.fileType !== detectedType) {
-          console.log(`文件类型不匹配，更新: ${this.currentReadingNovel.fileType} -> ${detectedType}`)
-          this.currentReadingNovel.fileType = detectedType
-          // 保存文件类型到数据库
-          await this.updateNovelInManager(this.currentReadingNovel.id, {
-            fileType: detectedType
-          })
-        }
-        
-        const fileType = detectedType
-        console.log('使用的文件类型:', fileType, '文件路径:', this.currentReadingNovel.filePath)
-        
-        if (fileType === 'pdf') {
-          // PDF 文件由 PdfReader 组件自己处理，这里只需要标记加载完成
-          console.log('PDF 文件，交由 PdfReader 组件处理')
-          this.loadingContent = false
-        } else if (fileType === 'epub') {
-          // 加载 EPUB 文件
-          try {
-            // 确保 epubChapters 已初始化
-            if (!this.epubChapters) {
-              this.epubChapters = []
-            }
-            
-            // 创建或重用 EPUB 解析器
-            if (!this.epubParser) {
-              this.epubParser = new EpubParser()
-              await this.epubParser.loadEpub(this.currentReadingNovel.filePath)
-              
-              // 获取章节列表
-              const chapters = await this.epubParser.getChapters()
-              this.epubChapters = chapters || []
-              
-              // 如果小说没有保存章节信息，更新它
-              if (this.epubChapters.length > 0 && (!this.currentReadingNovel.chapters || this.currentReadingNovel.chapters.length === 0)) {
-                this.currentReadingNovel.chapters = this.epubChapters
-                this.currentReadingNovel.totalChapters = this.epubChapters.length
-                await this.updateNovelInManager(this.currentReadingNovel.id, {
-                  chapters: this.epubChapters,
-                  totalChapters: this.epubChapters.length
-                })
-              }
-            }
-            
-            // 加载当前章节（如果有保存的进度，否则加载第一章）
-            const savedChapterIndex = this.currentReadingNovel.currentChapter || 0
-            this.currentChapterIndex = Math.min(savedChapterIndex, Math.max(0, this.epubChapters.length - 1))
-            
-            if (this.epubChapters && this.epubChapters.length > 0) {
-              await this.loadEpubChapter()
-            } else {
-              console.warn('EPUB 文件没有章节')
-              this.novelContent = '<p>该 EPUB 文件没有可用的章节内容</p>'
-            }
-          } catch (error) {
-            console.error('加载 EPUB 内容失败:', error)
-            this.novelContent = ''
-            // 确保 epubChapters 始终是数组
-            this.epubChapters = []
-            notify.toast('error', '加载失败', `无法加载 EPUB 文件: ${error.message}`)
-          }
-        } else {
-          // 加载 TXT 文件（原有逻辑）
-        if (window.electronAPI && window.electronAPI.readTextFile) {
-          const result = await window.electronAPI.readTextFile(this.currentReadingNovel.filePath)
-          if (result.success && result.content) {
-            this.novelContent = result.content
-            this.totalPages = Math.ceil(this.novelContent.length / this.wordsPerPage)
-            console.log('小说内容加载成功，总页数:', this.totalPages)
-          } else {
-            console.error('加载小说内容失败:', result.error)
-            this.novelContent = ''
-          }
-        } else {
-          console.error('readTextFile API 不可用')
-          this.novelContent = ''
-          }
-        }
-      } catch (error) {
-        console.error('加载小说内容失败:', error)
-        this.novelContent = ''
-      } finally {
-        this.loadingContent = false
-      }
-    },
-    /**
-     * 加载 EPUB 章节
-     */
-    async loadEpubChapter() {
-      if (!this.epubParser || this.epubChapters.length === 0) {
-        return
-      }
-      
-      try {
-        this.loadingContent = true
-        const chapter = this.epubChapters[this.currentChapterIndex]
-        const content = await this.epubParser.getChapterContent(chapter.href)
-        this.novelContent = content
-        
-        // 更新当前章节索引
-        if (this.currentReadingNovel) {
-          this.currentReadingNovel.currentChapter = this.currentChapterIndex
-          await this.updateNovelInManager(this.currentReadingNovel.id, {
-            currentChapter: this.currentChapterIndex
-          })
-        }
-        
-        console.log('EPUB 章节加载成功:', chapter.label)
-      } catch (error) {
-        console.error('加载 EPUB 章节失败:', error)
-        this.novelContent = '<p>无法加载章节内容</p>'
-        notify.toast('error', '加载失败', `无法加载章节: ${error.message}`)
-      } finally {
-        this.loadingContent = false
-      }
-    },
-    /**
-     * 上一章
-     */
-    previousChapter() {
-      if (this.currentChapterIndex > 0) {
-        this.currentChapterIndex--
-        this.loadEpubChapter()
-      }
-    },
-    /**
-     * 下一章
-     */
-    nextChapter() {
-      if (this.currentChapterIndex < this.epubChapters.length - 1) {
-        this.currentChapterIndex++
-        this.loadEpubChapter()
-      }
-    },
-    /**
-     * 是否可以上一章
-     */
-    get canGoPreviousChapter() {
-      return this.epubChapters && this.epubChapters.length > 0 && this.currentChapterIndex > 0
-    },
-    /**
-     * 是否可以下一章
-     */
-    get canGoNextChapter() {
-      return this.epubChapters && this.epubChapters.length > 0 && this.currentChapterIndex < this.epubChapters.length - 1
-    },
     closeReader() {
-      // 释放 EPUB 解析器资源
-      if (this.epubParser) {
-        this.epubParser.destroy()
-        this.epubParser = null
-      }
-      
       this.currentReadingNovel = null
-      this.novelContent = ''
-      this.currentPage = 1
-      this.totalPages = 1
-      this.epubChapters = []
-      this.currentChapterIndex = 0
-    },
-    nextPage() {
-      if (this.canGoNext) {
-        this.currentPage++
-        this.updateReadingProgress()
-      }
-    },
-    previousPage() {
-      if (this.canGoPrevious) {
-        this.currentPage--
-        this.updateReadingProgress()
-      }
-    },
-    updateReadingProgress() {
-      if (!this.currentReadingNovel || !this.novelContent) return
-      
-      const progress = Math.round((this.currentPage / this.totalPages) * 100)
-      this.currentReadingNovel.readProgress = progress
-      
-      // 保存进度
-      this.updateNovelInManager(this.currentReadingNovel.id, {
-        readProgress: progress
-      })
     },
     /**
      * 处理 PDF 页面变化
@@ -1419,9 +1178,27 @@ export default {
       }
     },
     /**
-     * 处理 EPUB 阅读进度变化
+     * 处理文本阅读器页面变化
      */
-    async handleEpubProgressChanged(progress: number) {
+    async handleTextPageChanged(pageNum: number) {
+      if (!this.currentReadingNovel) return
+      
+      // 更新当前页面（用于保存阅读进度）
+      this.currentReadingNovel.currentPage = pageNum
+      
+      // 保存进度
+      try {
+        await this.updateNovelInManager(this.currentReadingNovel.id, {
+          currentPage: pageNum
+        })
+      } catch (error) {
+        console.error('保存文本阅读进度失败:', error)
+      }
+    },
+    /**
+     * 处理文本阅读器进度变化
+     */
+    async handleTextProgressChanged(progress: number) {
       if (!this.currentReadingNovel) return
       
       // 更新阅读进度
@@ -1433,7 +1210,7 @@ export default {
           readProgress: progress
         })
       } catch (error) {
-        console.error('保存 EPUB 阅读进度失败:', error)
+        console.error('保存文本阅读进度失败:', error)
       }
     },
     async getGlobalSettings() {
@@ -1780,6 +1557,12 @@ export default {
     closeEbookReaderV2() {
       this.showEbookReaderV2 = false
       this.ebookReaderV2FilePath = ''
+    },
+    // 根据文件路径获取小说名称
+    getNovelNameByPath(filePath) {
+      if (!filePath) return '未知小说'
+      const novel = this.novels.find(n => n.filePath === filePath)
+      return novel ? novel.name : filePath.split(/[\\/]/).pop() || '未知小说'
     }
   },
   watch: {
@@ -1979,8 +1762,7 @@ export default {
 // 阅读内容
 .reader-content {
   flex: 1;
-  padding: 20px;
-  overflow-y: auto;
+  overflow: hidden;
   background: var(--bg-primary);
 }
 
@@ -2749,18 +2531,15 @@ export default {
   }
 }
 
-// EPUB阅读器V2全屏覆盖层
-.ebook-reader-v2-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 10000;
-  background: #fff;
-  width: 100vw;
-  height: 100vh;
+// EPUB阅读器V2内容区域
+.ebook-reader-v2-content {
+  padding: 0;
   overflow: hidden;
+  
+  :deep(.ebook) {
+    width: 100%;
+    height: 100%;
+  }
 }
 
 // 响应式设计

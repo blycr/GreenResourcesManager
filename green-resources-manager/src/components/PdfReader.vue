@@ -1,18 +1,7 @@
 <template>
   <div class="pdf-reader">
-    <!-- PDF 工具栏 -->
+    <!-- PDF 工具栏（仅缩放控制） -->
     <div class="pdf-toolbar">
-      <div class="toolbar-left">
-        <button class="btn-toolbar" @click="previousPage" :disabled="currentPage <= 1" title="上一页">
-          <span class="btn-icon">←</span>
-        </button>
-        <span class="page-info">
-          第 {{ currentPage }} / {{ totalPages }} 页
-        </span>
-        <button class="btn-toolbar" @click="nextPage" :disabled="currentPage >= totalPages" title="下一页">
-          <span class="btn-icon">→</span>
-        </button>
-      </div>
       <div class="toolbar-right">
         <button class="btn-toolbar" @click="zoomOut" :disabled="scale <= 0.5" title="缩小">
           <span class="btn-icon">−</span>
@@ -47,6 +36,21 @@
           :style="{ transform: `scale(${scale})`, transformOrigin: 'top left' }"
         ></canvas>
       </div>
+    </div>
+
+    <!-- 底部导航栏 -->
+    <div class="pdf-navigation">
+      <button class="btn-nav" @click="previousPage" :disabled="currentPage <= 1" title="上一页">
+        <span class="btn-icon">←</span>
+        上一页
+      </button>
+      <span class="page-info">
+        第 {{ currentPage }} / {{ totalPages }} 页
+      </span>
+      <button class="btn-nav" @click="nextPage" :disabled="currentPage >= totalPages" title="下一页">
+        下一页
+        <span class="btn-icon">→</span>
+      </button>
     </div>
   </div>
 </template>
@@ -487,14 +491,13 @@ export default {
 
 .pdf-toolbar {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   align-items: center;
   padding: 10px 20px;
   border-bottom: 1px solid var(--border-color);
   background: var(--bg-secondary);
 }
 
-.toolbar-left,
 .toolbar-right {
   display: flex;
   align-items: center;
@@ -527,7 +530,34 @@ export default {
   cursor: not-allowed;
 }
 
-.page-info,
+.btn-nav {
+  background: var(--accent-color);
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  transition: background 0.3s ease;
+  font-size: 14px;
+  min-width: auto;
+  height: auto;
+}
+
+.btn-nav:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.btn-nav:disabled {
+  background: var(--bg-tertiary);
+  color: var(--text-tertiary);
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
 .zoom-info {
   color: var(--text-secondary);
   font-size: 0.9rem;
@@ -541,6 +571,24 @@ export default {
   overflow-x: auto;
   padding: 20px;
   background: var(--bg-primary);
+}
+
+.pdf-navigation {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 20px;
+  border-top: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  flex-shrink: 0;
+}
+
+.page-info {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  font-weight: 500;
+  flex: 1;
+  text-align: center;
 }
 
 .pdf-pages {
