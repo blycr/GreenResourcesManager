@@ -15,6 +15,7 @@ export interface Album {
   viewCount: number
   addedDate: string
   fileExists?: boolean
+  isArchive?: boolean // 是否为压缩包文件
 }
 
 export interface AlbumForm {

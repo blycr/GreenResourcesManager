@@ -467,8 +467,8 @@ export default {
         if (window.electronAPI && window.electronAPI.getFileStats) {
           const result = await window.electronAPI.getFileStats(filePath)
           console.log('文件统计信息:', result)
-          if (result && result.success) {
-            return result.size || 0
+          if (result && result.success && result.stats) {
+            return result.stats.size || 0
           } else {
             console.error('获取文件统计信息失败:', result?.error || '未知错误')
             return 0

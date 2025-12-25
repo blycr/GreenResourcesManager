@@ -1,11 +1,26 @@
 /**
  * 图片专辑拖拽处理 Composable
- * 处理文件夹拖拽添加逻辑，支持批量添加
+ * 处理文件夹拖拽添加逻辑，支持批量添加和压缩包文件
  */
 import { ref, type Ref } from 'vue'
 import { useDragAndDrop } from '../useDragAndDrop'
 import notify from '../../utils/NotificationService'
 import type { Album, FolderInfo, ProcessResult, PathUpdateInfo } from '../../types/image'
+
+/**
+ * 压缩包文件扩展名列表
+ */
+const ARCHIVE_EXTENSIONS = ['.zip', '.rar', '.7z', '.tar', '.gz', '.tar.gz', '.bz2', '.tar.bz2', '.xz', '.tar.xz']
+
+/**
+ * 检查文件是否为压缩包
+ * @param filePath - 文件路径或文件名
+ * @returns 是否为压缩包
+ */
+export function isArchiveFile(filePath: string): boolean {
+  const fileName = filePath.toLowerCase()
+  return ARCHIVE_EXTENSIONS.some(ext => fileName.endsWith(ext))
+}
 
 export interface ImageDragDropOptions {
   /**
@@ -200,18 +215,30 @@ export function useImageDragDrop(options: ImageDragDropOptions) {
         })
       }
       
-      // 方法3: 处理单个文件拖拽的特殊情况
+      // 方法3: 处理单个文件拖拽的特殊情况（包括压缩包文件）
       if (folders.size === 0 && files.length === 1) {
         console.log('方法2失败，尝试方法3 - 单文件特殊情况')
         const singleFile = files[0]
         
         if ((singleFile as any).path) {
+          const filePath = (singleFile as any).path
           const fileName = singleFile.name || ''
           const hasImageExtension = /\.(jpg|jpeg|png|gif|bmp|webp|svg)$/i.test(fileName)
+          const isArchive = isArchiveFile(filePath)
           
-          if (!hasImageExtension) {
+          if (isArchive) {
+            // 压缩包文件，直接作为文件夹处理
+            console.log('检测到压缩包文件:', filePath)
+            const folderName = fileName || filePath.split(/[/\\]/).pop() || '未命名漫画'
+            
+            folders.set(filePath, {
+              path: filePath,
+              name: folderName,
+              files: [singleFile]
+            })
+          } else if (!hasImageExtension) {
             // 没有图片扩展名，可能是文件夹
-            const folderPath = (singleFile as any).path
+            const folderPath = filePath
             const folderName = fileName || folderPath.split(/[/\\]/).pop() || '未命名漫画'
             
             folders.set(folderPath, {
@@ -221,7 +248,7 @@ export function useImageDragDrop(options: ImageDragDropOptions) {
             })
           } else {
             // 有图片扩展名，尝试使用父目录
-            const parentDir = (singleFile as any).path.substring(0, (singleFile as any).path.lastIndexOf('/'))
+            const parentDir = filePath.substring(0, filePath.lastIndexOf('/'))
             if (parentDir) {
               const folderName = parentDir.split(/[/\\]/).pop() || '未命名漫画'
               
@@ -232,6 +259,31 @@ export function useImageDragDrop(options: ImageDragDropOptions) {
               })
             }
           }
+        }
+      }
+      
+      // 方法4: 检测多个压缩包文件拖拽
+      if (folders.size === 0 && files.length > 1) {
+        console.log('方法3失败，尝试方法4 - 多压缩包文件检测')
+        const archiveFiles = files.filter(file => {
+          if ((file as any).path) {
+            return isArchiveFile((file as any).path)
+          }
+          return false
+        })
+        
+        if (archiveFiles.length > 0) {
+          console.log('检测到多个压缩包文件:', archiveFiles.length)
+          archiveFiles.forEach(file => {
+            const filePath = (file as any).path
+            const fileName = file.name || filePath.split(/[/\\]/).pop() || '未命名漫画'
+            
+            folders.set(filePath, {
+              path: filePath,
+              name: fileName,
+              files: [file]
+            })
+          })
         }
       }
     }
@@ -311,6 +363,9 @@ export function useImageDragDrop(options: ImageDragDropOptions) {
           continue
         }
         
+        // 检查是否为压缩包文件
+        const isArchive = isArchiveFile(folder.path)
+        
         // 使用回调函数添加专辑
         const createdAlbum = await onAddAlbum({
           name: folder.name,
@@ -318,7 +373,8 @@ export function useImageDragDrop(options: ImageDragDropOptions) {
           description: '',
           tags: [],
           folderPath: folder.path,
-          cover: ''
+          cover: '',
+          isArchive: isArchive
         })
         
         console.log('专辑已添加到列表，当前专辑总数:', currentAlbums.length)

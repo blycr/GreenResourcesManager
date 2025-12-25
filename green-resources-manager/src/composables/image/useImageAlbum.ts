@@ -96,9 +96,12 @@ export function useImageAlbum() {
       throw new Error(`文件夹 "${albumData.folderPath}" 已经存在`)
     }
 
-    // 扫描图片文件
+    // 检查是否为压缩包
+    const isArchive = albumData.isArchive || false
+    
+    // 扫描图片文件（压缩包文件暂时不扫描，需要先解压）
     let pages: string[] = []
-    if (window.electronAPI?.listImageFiles) {
+    if (!isArchive && window.electronAPI?.listImageFiles) {
       const resp = await window.electronAPI.listImageFiles(albumData.folderPath.trim())
       if (resp.success) {
         pages = resp.files || []
@@ -119,7 +122,8 @@ export function useImageAlbum() {
       addedDate: new Date().toISOString(),
       lastViewed: null,
       viewCount: 0,
-      fileExists: true
+      fileExists: true,
+      isArchive: isArchive
     }
 
     albums.value.push(album)

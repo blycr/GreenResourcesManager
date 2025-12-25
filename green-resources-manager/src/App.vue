@@ -100,6 +100,9 @@
 
           <!-- 合集页面 -->
           <CollectionsView v-if="currentView === 'collections'" />
+
+          <!-- 最近浏览页面 -->
+          <RecentView v-if="currentView === 'recent'" @navigate="switchView" />
         </div>
       </div>
       <!-- 全局音频播放器 -->
@@ -125,6 +128,7 @@ import SettingsView from './pages/SettingsView.vue'
 import MessageCenterView from './pages/MessageCenterView.vue'
 import HelpView from './pages/HelpView.vue'
 import CollectionsView from './pages/CollectionsView.vue'
+import RecentView from './pages/RecentView.vue'
 import GlobalAudioPlayer from './components/GlobalAudioPlayer.vue'
 import ToastNotification from './components/ToastNotification.vue'
 import FilterSidebar from './components/FilterSidebar.vue'
@@ -151,6 +155,7 @@ export default {
     MessageCenterView,
     HelpView,
     CollectionsView,
+    RecentView,
     GlobalAudioPlayer,
     ToastNotification,
     FilterSidebar
@@ -268,7 +273,7 @@ export default {
   computed: {
     // 主导航页面ID列表
     mainNavViewIds() {
-      return ['home', 'games', 'images', 'videos', 'novels', 'websites', 'audio', 'collections']
+      return ['home', 'games', 'images', 'videos', 'novels', 'websites', 'audio']
     },
     // 底部导航页面ID列表
     footerViews() {

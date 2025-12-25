@@ -169,7 +169,7 @@ import notify from '../utils/NotificationService.ts'
 import { unlockAchievement } from './user/AchievementView.vue'
 import { ref, computed, toRefs, watch } from 'vue'
 import { usePagination } from '../composables/usePagination'
-import { useImageDragDrop } from '../composables/image/useImageDragDrop'
+import { useImageDragDrop, isArchiveFile } from '../composables/image/useImageDragDrop'
 import { useImageFilter } from '../composables/image/useImageFilter'
 import { useImageAlbum } from '../composables/image/useImageAlbum'
 import { useImageCache } from '../composables/image/useImageCache'
@@ -292,6 +292,12 @@ export default {
       folderPathRef: editAlbumFolderPath
     })
 
+    // 解构 composable，排除 removeAlbum 避免与 methods 冲突
+    const { removeAlbum, ...restAlbumComposable } = imageAlbumComposable
+    
+    // 解构拖拽 composable，重命名 handleDrop 避免与 methods 冲突
+    const { handleDrop: dragDropHandleDrop, ...restDragDropComposable } = imageDragDropComposable
+
     return {
       filteredAlbumsRef,
       showPathUpdateDialog,
@@ -303,14 +309,16 @@ export default {
       newAlbumFolderPath,
       editAlbumCover,
       editAlbumFolderPath,
-      // 专辑管理相关（只展开一次，避免重复）
-      ...imageAlbumComposable,
+      // 专辑管理相关（排除 removeAlbum，使用重命名版本）
+      ...restAlbumComposable,
+      removeAlbumById: removeAlbum,
       // 筛选相关
       ...imageFilterComposable,
       // 分页相关
       ...albumPaginationComposable,
-      // 拖拽相关
-      ...imageDragDropComposable,
+      // 拖拽相关（排除 handleDrop，使用重命名版本）
+      ...restDragDropComposable,
+      dragDropHandleDrop: dragDropHandleDrop,
       // 图片缓存相关
       ...imageCacheComposable,
       // 详情页图片分页相关
@@ -388,7 +396,7 @@ export default {
       albumEmptyStateConfig: {
         emptyIcon: '🖼️',
         emptyTitle: '还没有添加漫画',
-        emptyDescription: '点击"添加漫画"按钮选择文件夹，或直接拖拽文件夹到此处（支持多选）',
+        emptyDescription: '点击"添加漫画"按钮选择文件夹或压缩包，或直接拖拽文件夹/压缩包到此处（支持多选，支持 .zip、.rar、.7z 等格式）',
         emptyButtonText: '添加第一个漫画',
         emptyButtonAction: 'showAddAlbumDialog',
         noResultsIcon: '🔍',
@@ -590,15 +598,9 @@ export default {
     
     async handleDrop(event: DragEvent) {
       event.preventDefault()
-      // 更新拖拽状态（使用 composable 的状态）
-      if (this.isDragOver !== undefined) {
-        this.isDragOver = false
-      }
-      
-      // 使用 composable 的 handleDrop 方法
-      if (this.handleDrop) {
-        const files = Array.from(event.dataTransfer?.files || []) as File[]
-        await this.handleDrop(files)
+      // 调用 composable 的 handleDrop 方法（已重命名为 dragDropHandleDrop）
+      if (this.dragDropHandleDrop && typeof this.dragDropHandleDrop === 'function') {
+        await this.dragDropHandleDrop(event)
       }
     },
     
@@ -892,10 +894,10 @@ export default {
       if (!confirm(`确定要删除漫画 "${album.name}" 吗？`)) return
       
       try {
-        await this.removeAlbum(album.id)
+        await this.removeAlbumById(album.id)
           
-          // 重新提取标签和作者信息，更新筛选器
-          this.extractAllTags()
+        // 重新提取标签和作者信息，更新筛选器
+        this.extractAllTags()
           
         this.closeAlbumDetail()
       } catch (error) {

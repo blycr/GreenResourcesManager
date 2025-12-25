@@ -1,32 +1,16 @@
 <template>
-  <div class="home-view">
-    <div class="home-content">
-      <!-- 为您推荐 -->
-      <div class="recommended-section">
-        <div class="section-header">
-          <h2 class="section-title">为您推荐</h2>
-          <button class="refresh-btn" @click="refreshRecommendations">再来一批！</button>
-        </div>
-        <div class="resources-grid" v-if="recommendedResources.length > 0">
-          <ResourceCard
-            v-for="resource in recommendedResources"
-            :key="`${resource.type}-${resource.id}`"
-            :resource="resource"
-            @click="handleResourceClick(resource)"
-          />
-        </div>
-        <div v-else class="empty-state">
-          <p>暂无推荐资源</p>
-        </div>
+  <div class="recent-view">
+    <div class="recent-content">
+      <div class="page-header">
+        <h2 class="page-title">最近浏览</h2>
+        <p class="page-description">查看您最近访问的资源，最多显示50个条目</p>
       </div>
 
-      <!-- 最近浏览 -->
-      <div class="recent-section">
-        <div class="section-header">
-          <h2 class="section-title">最近浏览</h2>
-          <a href="#" class="view-more-link" @click.prevent="navigateToRecent">查看全部</a>
+      <div class="resources-container">
+        <div v-if="isLoading" class="loading-state">
+          <p>加载中...</p>
         </div>
-        <div class="resources-grid" v-if="recentResources.length > 0">
+        <div v-else-if="recentResources.length > 0" class="resources-grid">
           <ResourceCard
             v-for="resource in recentResources"
             :key="`${resource.type}-${resource.id}`"
@@ -63,13 +47,12 @@ interface UnifiedResource {
 }
 
 export default {
-  name: 'HomeView',
+  name: 'RecentView',
   components: {
     ResourceCard
   },
   data() {
     return {
-      recommendedResources: [] as UnifiedResource[],
       recentResources: [] as UnifiedResource[],
       isLoading: false
     }
@@ -78,8 +61,7 @@ export default {
     navigateTo(viewId: string) {
       this.$emit('navigate', viewId)
     },
-    async refreshRecommendations() {
-      // 刷新推荐内容
+    async loadRecentResources() {
       try {
         this.isLoading = true
         
@@ -103,52 +85,12 @@ export default {
           ...audios.map((a: any) => this.normalizeAudio(a))
         ]
 
-        // 生成新的随机推荐（只显示6个）
-        this.recommendedResources = this.generateRandomRecommendations(allResources, 6)
+        // 获取最近访问的资源（最多50个）
+        this.recentResources = this.getRecentResources(allResources, 50)
         
         this.isLoading = false
       } catch (error) {
-        console.error('刷新推荐失败:', error)
-        this.isLoading = false
-      }
-    },
-    navigateToRecent() {
-      // 导航到最近浏览页面
-      this.navigateTo('recent')
-    },
-    async loadAllResources() {
-      try {
-        this.isLoading = true
-        
-        // 并行加载所有资源类型
-        const [games, images, videos, novels, websites, audios] = await Promise.all([
-          saveManager.loadGames(),
-          saveManager.loadImages(),
-          saveManager.loadVideos(),
-          saveManager.loadNovels(),
-          saveManager.loadWebsites(),
-          saveManager.loadAudios()
-        ])
-
-        // 转换为统一格式
-        const allResources: UnifiedResource[] = [
-          ...games.map((g: any) => this.normalizeGame(g)),
-          ...images.map((img: any) => this.normalizeImage(img)),
-          ...videos.map((v: any) => this.normalizeVideo(v)),
-          ...novels.map((n: any) => this.normalizeNovel(n)),
-          ...websites.map((w: any) => this.normalizeWebsite(w)),
-          ...audios.map((a: any) => this.normalizeAudio(a))
-        ]
-
-        // 生成随机推荐（只显示6个）
-        this.recommendedResources = this.generateRandomRecommendations(allResources, 6)
-        
-        // 获取最近访问的资源（至少6个）
-        this.recentResources = this.getRecentResources(allResources, 6)
-        
-        this.isLoading = false
-      } catch (error) {
-        console.error('加载资源失败:', error)
+        console.error('加载最近浏览失败:', error)
         this.isLoading = false
       }
     },
@@ -172,9 +114,7 @@ export default {
       }
     },
     normalizeImage(album: any): UnifiedResource {
-      // 尝试从 metadata 或其他字段获取大小信息
       const size = album.folderSize || (album.pagesCount ? album.pagesCount * 1024 * 1024 : 0)
-      // 根据大小判断是否为高清
       let badge = undefined
       if (size > 0) {
         const sizeGB = size / (1024 * 1024 * 1024)
@@ -204,7 +144,6 @@ export default {
       }
     },
     normalizeVideo(video: any): UnifiedResource {
-      // 根据视频大小或质量添加徽章
       let badge = undefined
       if (video.fileSize) {
         const sizeGB = video.fileSize / (1024 * 1024 * 1024)
@@ -214,7 +153,6 @@ export default {
           badge = 'HD'
         }
       } else if (video.duration) {
-        // 如果没有大小信息，使用时长作为徽章
         badge = this.formatDuration(video.duration)
       }
       
@@ -238,7 +176,6 @@ export default {
       }
     },
     normalizeNovel(novel: any): UnifiedResource {
-      // 小说可以使用卷数或文件大小作为徽章
       let badge = undefined
       if (novel.volume) {
         badge = novel.volume
@@ -285,7 +222,6 @@ export default {
       }
     },
     normalizeAudio(audio: any): UnifiedResource {
-      // 音频使用文件大小作为徽章
       const fileSize = audio.fileSize || 0
       return {
         id: audio.id,
@@ -306,14 +242,6 @@ export default {
           fileSize: fileSize
         }
       }
-    },
-    generateRandomRecommendations(resources: UnifiedResource[], count: number): UnifiedResource[] {
-      if (resources.length === 0) return []
-      if (resources.length <= count) return [...resources].sort(() => Math.random() - 0.5)
-      
-      // 随机选择资源
-      const shuffled = [...resources].sort(() => Math.random() - 0.5)
-      return shuffled.slice(0, count)
     },
     getRecentResources(resources: UnifiedResource[], count: number): UnifiedResource[] {
       // 过滤出有访问时间的资源并按时间排序
@@ -361,117 +289,82 @@ export default {
     }
   },
   async mounted() {
-    await this.loadAllResources()
+    await this.loadRecentResources()
   }
 }
 </script>
 
 <style scoped>
-.home-view {
+.recent-view {
   height: 100%;
   display: flex;
   flex-direction: column;
   overflow: hidden;
 }
 
-.home-content {
+.recent-content {
   flex: 1;
   padding: 2rem;
   overflow-y: auto;
   background: #f5f5f5;
 }
 
-/* 推荐区域和最近浏览区域 */
-.recommended-section,
-.recent-section {
-  margin-bottom: 3rem;
+.page-header {
+  margin-bottom: 2rem;
   background: white;
   border-radius: 8px;
   padding: 1.5rem;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-.section-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1.5rem;
-}
-
-.section-title {
-  font-size: 1.5rem;
+.page-title {
+  font-size: 1.8rem;
   font-weight: 600;
-  margin: 0;
+  margin: 0 0 0.5rem 0;
   color: #333;
 }
 
-.view-more-link {
+.page-description {
+  font-size: 0.95rem;
   color: #666;
-  text-decoration: none;
-  font-size: 0.9rem;
-  transition: color 0.2s;
+  margin: 0;
 }
 
-.view-more-link:hover {
-  color: #dc2626;
+.resources-container {
+  background: white;
+  border-radius: 8px;
+  padding: 1.5rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-.refresh-btn {
-  background: #dc2626;
-  color: white;
-  border: none;
-  padding: 0.5rem 1rem;
-  border-radius: 4px;
-  font-size: 0.9rem;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-
-.refresh-btn:hover {
-  background: #b91c1c;
-}
-
-.refresh-btn:active {
-  background: #991b1b;
-}
-
-/* 资源网格 */
-.resources-grid {
-  display: grid;
-  grid-template-columns: repeat(6, 1fr);
-  gap: 1rem;
-  overflow-x: auto;
-}
-
-/* 为您推荐区域 - 只显示一行 */
-.recommended-section .resources-grid {
-  grid-template-columns: repeat(6, 1fr);
-  grid-template-rows: 1fr;
-}
-
+.loading-state,
 .empty-state {
   text-align: center;
   padding: 3rem;
   color: #999;
 }
 
+.resources-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1.5rem;
+}
+
 /* 响应式设计 */
 @media (max-width: 1200px) {
   .resources-grid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
   }
 }
 
 @media (max-width: 768px) {
   .resources-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-  .recommended-section .resources-grid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   }
   
-  .home-content {
+  .recent-content {
     padding: 1rem;
   }
 }
 </style>
+

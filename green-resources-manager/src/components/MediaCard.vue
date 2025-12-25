@@ -316,11 +316,15 @@ export default {
       return ['game', 'audio', 'image', 'novel', 'video', 'folder'].includes(this.type) && this.fileExists === false
     },
     isArchive() {
-      if (this.type !== 'game') return false
-      return this.item?.isArchive || (this.item?.executablePath && this.isArchiveFile(this.item.executablePath))
+      if (this.type === 'game') {
+        return this.item?.isArchive || (this.item?.executablePath && this.isArchiveFile(this.item.executablePath))
+      } else if (this.type === 'image') {
+        return this.item?.isArchive || (this.item?.folderPath && this.isArchiveFile(this.item.folderPath))
+      }
+      return false
     },
     showArchiveIcon() {
-      return this.type === 'game' && this.isArchive
+      return (this.type === 'game' || this.type === 'image') && this.isArchive
     }
   },
   methods: {
