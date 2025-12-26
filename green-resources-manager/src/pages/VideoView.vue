@@ -58,9 +58,6 @@
       :get-video-duration="getVideoDuration"
       :generate-thumbnail="generateThumbnail"
       @update:visible="showAddDialog ? (showAddDialog = false) : (showEditDialog = false)"
-      @update:form-data="showAddDialog ? (newVideoForm = $event) : (editVideoForm = $event)"
-      @update:actors-input="showAddDialog ? (videoActorsInput = $event) : (editActorsInput = $event)"
-      @update:tags-input="showAddDialog ? (videoTagsInput = $event) : (editTagsInput = $event)"
       @close="showAddDialog ? closeAddVideoDialog() : closeEditDialog()"
       @submit="showAddDialog ? handleAddVideo($event) : saveEditedVideo($event)"
       @browse-video-file="showAddDialog ? selectVideoFile() : browseEditVideoFile()"
@@ -1216,6 +1213,8 @@ export default {
     editVideo(video) {
       if (!video) return
       this.showDetailDialog = false
+      // 参考 GameView 的方式，只在打开对话框时设置数据，不依赖双向绑定
+      // 数据会在 VideoFormDialog 的 watch 中初始化
       this.editVideoForm = {
         id: video.id,
         name: video.name || '',
@@ -1229,7 +1228,10 @@ export default {
       }
       this.editActorsInput = (this.editVideoForm.actors || []).join(', ')
       this.editTagsInput = ''
-      this.showEditDialog = true
+      // 先设置数据，再显示对话框，确保数据已准备好
+      this.$nextTick(() => {
+        this.showEditDialog = true
+      })
     },
     closeEditDialog() {
       this.showEditDialog = false
@@ -1326,19 +1328,31 @@ export default {
      },
     async saveEditedVideo(videoData) {
       try {
-        // 如果没有传入 videoData，使用 editVideoForm
-        const data = videoData || this.editVideoForm
-        this.parseEditActors()
-        const payload = {
-          name: (data.name || '').trim(),
-          description: (data.description || '').trim(),
-          tags: data.tags || this.editVideoForm.tags,
-          actors: data.actors || this.editVideoForm.actors,
-          series: (data.series || '').trim(),
-          duration: Number(data.duration) || 0,
-          filePath: (data.filePath || '').trim(),
-          thumbnail: (data.thumbnail || '').trim()
+        // videoData 来自 VideoFormDialog 的 submit 事件，包含所有表单数据
+        if (!videoData) {
+          notify.toast('error', '保存失败', '没有接收到视频数据')
+          return
         }
+        
+        // 解析演员数据（如果 videoData 中有 actors 数组，直接使用；否则从 editActorsInput 解析）
+        let actors = []
+        if (Array.isArray(videoData.actors) && videoData.actors.length > 0) {
+          actors = videoData.actors
+        } else if (this.editActorsInput && this.editActorsInput.trim()) {
+          actors = this.editActorsInput.split(',').map(s => s.trim()).filter(Boolean)
+        }
+        
+        const payload = {
+          name: (videoData.name || '').trim(),
+          description: (videoData.description || '').trim(),
+          tags: Array.isArray(videoData.tags) ? videoData.tags : [],
+          actors: actors,
+          series: (videoData.series || '').trim(),
+          duration: Number(videoData.duration) || 0,
+          filePath: (videoData.filePath || '').trim(),
+          thumbnail: (videoData.thumbnail || '').trim()
+        }
+        
         // 使用 composable 的 updateVideo 方法
         await this.updateVideo(this.editVideoForm.id, payload)
         

@@ -163,28 +163,34 @@ export default {
     const localActorsInput = ref(props.actorsInput)
     const localTagsInput = ref(props.tagsInput)
 
+    // 只在 visible 变化时初始化数据，避免双向绑定导致的递归更新
+    watch(() => props.visible, (newVal) => {
+      if (newVal) {
+        // 对话框打开时，初始化本地数据
+        localFormData.value = { ...props.formData }
+        localActorsInput.value = props.actorsInput
+        localTagsInput.value = props.tagsInput
+      }
+    })
+
+    // 监听外部 formData 变化（仅在编辑模式下，当外部数据更新时同步）
     watch(() => props.formData, (newVal) => {
-      localFormData.value = { ...newVal }
+      // 只在对话框可见时同步，避免不必要的更新
+      if (props.visible) {
+        localFormData.value = { ...newVal }
+      }
     }, { deep: true })
 
     watch(() => props.actorsInput, (newVal) => {
-      localActorsInput.value = newVal
+      if (props.visible) {
+        localActorsInput.value = newVal
+      }
     })
 
     watch(() => props.tagsInput, (newVal) => {
-      localTagsInput.value = newVal
-    })
-
-    watch(localFormData, (newVal) => {
-      emit('update:formData', { ...newVal })
-    }, { deep: true })
-
-    watch(localActorsInput, (newVal) => {
-      emit('update:actorsInput', newVal)
-    })
-
-    watch(localTagsInput, (newVal) => {
-      emit('update:tagsInput', newVal)
+      if (props.visible) {
+        localTagsInput.value = newVal
+      }
     })
 
     const canSubmit = computed(() => {
@@ -214,7 +220,17 @@ export default {
 
     const handleSubmit = () => {
       if (canSubmit.value) {
-        emit('submit', { ...props.formData })
+        // 提交时使用本地数据，并确保 actors 已解析
+        const submitData = { ...localFormData.value }
+        
+        // 如果 localActorsInput 有值，解析为数组
+        if (localActorsInput.value && localActorsInput.value.trim()) {
+          submitData.actors = localActorsInput.value.split(',').map(s => s.trim()).filter(Boolean)
+        } else if (!submitData.actors || !Array.isArray(submitData.actors)) {
+          submitData.actors = []
+        }
+        
+        emit('submit', submitData)
       }
     }
 
@@ -223,10 +239,22 @@ export default {
     }
 
     const addTag = () => {
+      // 直接在组件内部处理标签添加，使用本地数据
+      const tag = localTagsInput.value.trim()
+      if (tag && !localFormData.value.tags.includes(tag)) {
+        localFormData.value.tags.push(tag)
+        localTagsInput.value = ''
+      }
+      // 仍然发出事件，以便父组件可以执行额外逻辑（如果需要）
       emit('add-tag')
     }
 
     const removeTag = (index: number) => {
+      // 直接在组件内部处理标签移除，使用本地数据
+      if (index >= 0 && index < localFormData.value.tags.length) {
+        localFormData.value.tags.splice(index, 1)
+      }
+      // 仍然发出事件，以便父组件可以执行额外逻辑（如果需要）
       emit('remove-tag', index)
     }
 

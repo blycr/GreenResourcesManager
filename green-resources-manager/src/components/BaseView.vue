@@ -13,8 +13,8 @@
                 :page-type="toolbarConfig.pageType" 
                 @add-item="handleAddItem"
                 @add-folder="handleAddFolder"
-                @update:searchQuery="$emit('search-query-changed', $event)"
-                @update:sortBy="$emit('sort-by-changed', $event)"
+                @update:searchQuery="handleSearchQueryUpdate"
+                @update:sortBy="handleSortByUpdate"
                 @sort-changed="handleSortChanged" />
 
             <!-- 分页导航 -->
@@ -180,6 +180,22 @@ export default {
         // 处理添加文件夹按钮点击
         handleAddFolder() {
             this.$emit('add-folder')
+        },
+
+        // 处理搜索查询更新（避免直接转发 v-model 事件导致递归）
+        handleSearchQueryUpdate(newValue) {
+            // 使用 nextTick 延迟发出事件，避免在响应式更新周期中触发递归
+            this.$nextTick(() => {
+                this.$emit('search-query-changed', newValue)
+            })
+        },
+
+        // 处理排序方式更新（避免直接转发 v-model 事件导致递归）
+        handleSortByUpdate(newValue) {
+            // 使用 nextTick 延迟发出事件，避免在响应式更新周期中触发递归
+            this.$nextTick(() => {
+                this.$emit('sort-by-changed', newValue)
+            })
         },
 
         // 处理排序变化
