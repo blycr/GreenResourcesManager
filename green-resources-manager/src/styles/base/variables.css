@@ -40,6 +40,13 @@
   --radius-md: 6px;
   --radius-lg: 8px;
   --radius-xl: 12px;
+
+  /* 滚动条系统 */
+  --scrollbar-width-main: 8px;
+  --scrollbar-width-sub: 4px;
+  --scrollbar-track: rgba(0, 0, 0, 0.05);
+  --scrollbar-thumb: rgba(0, 0, 0, 0.2);
+  --scrollbar-thumb-hover: rgba(0, 0, 0, 0.3);
   
   /* 字体系统 */
   --font-size-xs: 11px;
@@ -81,6 +88,9 @@
   --success-color: #5cb85c;
   --warning-color: #f0ad4e;
   --danger-color: #d9534f;
+  --scrollbar-track: rgba(255, 255, 255, 0.05);
+  --scrollbar-thumb: rgba(255, 255, 255, 0.2);
+  --scrollbar-thumb-hover: rgba(255, 255, 255, 0.4);
 }
 
 /* 其他主题... */

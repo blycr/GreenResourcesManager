@@ -1213,12 +1213,12 @@ export default {
 
 
 .sidebar-logo{
-  width: 100px;
-  height: 100px;
+  width: 80px;
+  height: 80px;
   object-fit: contain;
   margin: 0 auto;
   display: block;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
   border-radius: 50%;
   box-shadow: 0 0 15px rgba(0, 0, 0, 0.4);
   transition: all 0.3s ease;
