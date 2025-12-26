@@ -237,44 +237,7 @@ export default {
   max-height: 800px; /* 限制最大高度 */
   overflow-y: auto; /* 添加独立滚动条 */
   overflow-x: hidden;
-  /* 美化滚动条样式 */
-  scrollbar-width: thin; /* Firefox */
-  scrollbar-color: rgba(0, 0, 0, 0.3) transparent; /* Firefox - 使用半透明黑色 */
-}
-
-/* Webkit 浏览器（Chrome, Safari, Edge）滚动条样式 */
-.filter-list::-webkit-scrollbar {
-  width: 6px;
-}
-
-.filter-list::-webkit-scrollbar-track {
-  background: transparent; /* 轨道背景透明 */
-  border-radius: 3px;
-}
-
-.filter-list::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.2); /* 使用半透明黑色，更明显 */
-  border-radius: 3px;
-  transition: background 0.3s ease;
-}
-
-.filter-list::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.4); /* 悬停时更深 */
-}
-
-/* 深色模式下的滚动条样式 */
-@media (prefers-color-scheme: dark) {
-  .filter-list {
-    scrollbar-color: rgba(255, 255, 255, 0.3) transparent; /* Firefox 深色模式 */
-  }
-  
-  .filter-list::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.2); /* 深色模式下使用白色半透明 */
-  }
-  
-  .filter-list::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, 0.4); /* 悬停时更明显 */
-  }
+  /* 美化滚动条样式已移至全局 reset.scss */
 }
 
 .filter-item {
