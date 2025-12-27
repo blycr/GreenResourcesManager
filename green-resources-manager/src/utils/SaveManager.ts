@@ -9,6 +9,8 @@ class SaveManager {
   filePaths: Record<string, string>
   thumbnailDirectories: Record<string, string>
   defaultData: Record<string, any>
+  // 数据缓存
+  dataCache: Record<string, any> = {}
 
   constructor() {
     this.dataDirectory = 'SaveData'
@@ -806,6 +808,7 @@ class SaveManager {
       const success = await this.writeJsonFile(this.filePaths.images, data)
       if (success) {
         console.log('图片数据保存成功:', images.length, '个专辑')
+        this.dataCache.images = JSON.parse(JSON.stringify(images)) // 更新缓存
       }
       return success
     } catch (error) {
@@ -819,10 +822,17 @@ class SaveManager {
    * @returns {Promise<Array>} 图片专辑数据数组
    */
   async loadImages() {
+    // 检查缓存
+    if (this.dataCache.images) {
+      console.log('从缓存加载图片数据:', this.dataCache.images.length, '个专辑')
+      return JSON.parse(JSON.stringify(this.dataCache.images))
+    }
+
     try {
       const data = await this.readJsonFile(this.filePaths.images)
       if (data && Array.isArray(data.images)) {
         console.log('加载图片数据:', data.images.length, '个专辑')
+        this.dataCache.images = data.images // 更新缓存
         return data.images
       }
       return []
@@ -850,6 +860,7 @@ class SaveManager {
       const success = await this.writeJsonFile(this.filePaths.games, data)
       if (success) {
         console.log('游戏数据保存成功:', games.length, '个游戏')
+        this.dataCache.games = JSON.parse(JSON.stringify(games)) // 更新缓存
       }
       return success
     } catch (error) {
@@ -876,6 +887,7 @@ class SaveManager {
       const success = await this.writeJsonFile(this.filePaths.videos, data)
       if (success) {
         console.log('视频数据保存成功:', videos.length, '个视频')
+        this.dataCache.videos = JSON.parse(JSON.stringify(videos)) // 更新缓存
       }
       return success
     } catch (error) {
@@ -889,10 +901,17 @@ class SaveManager {
    * @returns {Promise<Array>} 视频数据数组
    */
   async loadVideos() {
+    // 检查缓存
+    if (this.dataCache.videos) {
+      console.log('从缓存加载视频数据:', this.dataCache.videos.length, '个视频')
+      return JSON.parse(JSON.stringify(this.dataCache.videos))
+    }
+
     try {
       const data = await this.readJsonFile(this.filePaths.videos)
       if (data && Array.isArray(data.videos)) {
         console.log('加载视频数据:', data.videos.length, '个视频')
+        this.dataCache.videos = data.videos // 更新缓存
         return data.videos
       }
       return []
@@ -962,6 +981,7 @@ class SaveManager {
       const success = await this.writeJsonFile(this.filePaths.audios, data)
       if (success) {
         console.log('音频数据保存成功:', audios.length, '个音频')
+        this.dataCache.audios = JSON.parse(JSON.stringify(audios)) // 更新缓存
       }
       return success
     } catch (error) {
@@ -971,10 +991,17 @@ class SaveManager {
   }
 
   async loadAudios() {
+    // 检查缓存
+    if (this.dataCache.audios) {
+      console.log('从缓存加载音频数据:', this.dataCache.audios.length, '个音频')
+      return JSON.parse(JSON.stringify(this.dataCache.audios))
+    }
+
     try {
       const data = await this.readJsonFile(this.filePaths.audios)
       if (data && Array.isArray(data.audios)) {
         console.log('加载音频数据:', data.audios.length, '个音频')
+        this.dataCache.audios = data.audios // 更新缓存
         return data.audios
       }
       return []
@@ -995,6 +1022,7 @@ class SaveManager {
       const success = await this.writeJsonFile(this.filePaths.websites, data)
       if (success) {
         console.log('网站数据保存成功:', websites.length, '个网站')
+        this.dataCache.websites = JSON.parse(JSON.stringify(websites)) // 更新缓存
       }
       return success
     } catch (error) {
@@ -1004,10 +1032,17 @@ class SaveManager {
   }
 
   async loadWebsites() {
+    // 检查缓存
+    if (this.dataCache.websites) {
+      console.log('从缓存加载网站数据:', this.dataCache.websites.length, '个网站')
+      return JSON.parse(JSON.stringify(this.dataCache.websites))
+    }
+
     try {
       const data = await this.readJsonFile(this.filePaths.websites)
       if (data && Array.isArray(data.websites)) {
         console.log('加载网站数据:', data.websites.length, '个网站')
+        this.dataCache.websites = data.websites // 更新缓存
         return data.websites
       }
       return []
@@ -1028,6 +1063,7 @@ class SaveManager {
       const success = await this.writeJsonFile(this.filePaths.novels, data)
       if (success) {
         console.log('小说数据保存成功:', novels.length, '本小说')
+        this.dataCache.novels = JSON.parse(JSON.stringify(novels)) // 更新缓存
       }
       return success
     } catch (error) {
@@ -1037,10 +1073,17 @@ class SaveManager {
   }
 
   async loadNovels() {
+    // 检查缓存
+    if (this.dataCache.novels) {
+      console.log('从缓存加载小说数据:', this.dataCache.novels.length, '本小说')
+      return JSON.parse(JSON.stringify(this.dataCache.novels))
+    }
+
     try {
       const data = await this.readJsonFile(this.filePaths.novels)
       if (data && Array.isArray(data.novels)) {
         console.log('加载小说数据:', data.novels.length, '本小说')
+        this.dataCache.novels = data.novels // 更新缓存
         return data.novels
       }
       return []
@@ -1196,6 +1239,12 @@ class SaveManager {
    * @returns {Promise<Array>} 游戏数据数组
    */
   async loadGames() {
+    // 检查缓存
+    if (this.dataCache.games) {
+      console.log('从缓存加载游戏数据:', this.dataCache.games.length, '个游戏')
+      return JSON.parse(JSON.stringify(this.dataCache.games)) // 返回副本以防止引用修改
+    }
+
     try {
       let data = await this.readJsonFile(this.filePaths.games)
       
@@ -1210,6 +1259,7 @@ class SaveManager {
           data = await this.readJsonFile(this.filePaths.games)
           if (data && data.games && Array.isArray(data.games)) {
             console.log('✅ 已从备份恢复游戏数据:', data.games.length, '个游戏')
+            this.dataCache.games = data.games // 更新缓存
             return data.games
           }
         }
@@ -1222,9 +1272,11 @@ class SaveManager {
       if (data.games.length === 0 && data.timestamp) {
         // 如果数据为空但有时间戳，可能是正常情况（用户删除了所有游戏）
         console.log('游戏数据为空（可能是正常情况）')
+        this.dataCache.games = [] // 更新缓存
         return []
       }
       
+      this.dataCache.games = data.games // 更新缓存
       return data.games
     } catch (error) {
       console.error('加载游戏数据失败:', error)
@@ -1237,6 +1289,7 @@ class SaveManager {
           const data = await this.readJsonFile(this.filePaths.games)
           if (data && data.games && Array.isArray(data.games)) {
             console.log('✅ 已从备份恢复游戏数据:', data.games.length, '个游戏')
+            this.dataCache.games = data.games // 更新缓存
             return data.games
           }
         } catch (recoveryError) {
@@ -1501,6 +1554,13 @@ class SaveManager {
    */
   async clearData(dataType = 'all') {
     try {
+      // 清空缓存
+      if (dataType === 'all') {
+        this.dataCache = {}
+      } else if (this.dataCache[dataType]) {
+        delete this.dataCache[dataType]
+      }
+
       if (window.electronAPI && window.electronAPI.deleteFile) {
         switch (dataType) {
           case 'games':
@@ -2114,10 +2174,18 @@ class SaveManager {
     }
 
     // 自定义页面
+    // 检查缓存
+    if (this.dataCache[`custom_${pageId}`]) {
+      console.log(`从缓存加载自定义页面 ${pageId} 数据`)
+      return JSON.parse(JSON.stringify(this.dataCache[`custom_${pageId}`]))
+    }
+
     const customPath = `${this.dataDirectory}/CustomPages/${pageId}/data.json`
     const data = await this.readJsonFile(customPath)
     // 自定义页面直接存储数组
-    return Array.isArray(data) ? data : []
+    const result = Array.isArray(data) ? data : []
+    this.dataCache[`custom_${pageId}`] = result // 更新缓存
+    return result
   }
 
   /**
@@ -2144,7 +2212,11 @@ class SaveManager {
     // 确保目录存在
     await this.ensureDirectoryByPath(customDir)
     
-    return this.writeJsonFile(customPath, data)
+    const success = await this.writeJsonFile(customPath, data)
+    if (success) {
+      this.dataCache[`custom_${pageId}`] = JSON.parse(JSON.stringify(data)) // 更新缓存
+    }
+    return success
   }
 
   /**
