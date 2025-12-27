@@ -212,6 +212,7 @@
       :actions="novelActions"
       @close="closeNovelDetail"
       @action="handleDetailAction"
+      @toggle-favorite="handleToggleFavorite"
     />
     
 
@@ -852,6 +853,23 @@ export default {
       } catch (error: any) {
         console.error('保存编辑失败:', error)
         alert('保存编辑失败: ' + error.message)
+      }
+    },
+    async handleToggleFavorite(novel) {
+      // 检查 novel 是否存在，避免在面板关闭时触发更新
+      if (!novel || !novel.id) {
+        return
+      }
+      try {
+        const newFavoriteStatus = !novel.isFavorite
+        await this.updateNovelInManager(novel.id, { isFavorite: newFavoriteStatus })
+        // 更新当前小说对象，以便详情面板立即显示新状态
+        if (this.currentNovel && this.currentNovel.id === novel.id) {
+          this.currentNovel.isFavorite = newFavoriteStatus
+        }
+      } catch (error: any) {
+        console.error('切换收藏状态失败:', error)
+        alert('切换收藏状态失败: ' + error.message)
       }
     },
     async removeNovel(novel) {

@@ -47,6 +47,7 @@
         @action="handleDetailAction"
         @update-rating="handleUpdateRating"
         @update-comment="handleUpdateComment"
+        @toggle-favorite="handleToggleFavorite"
       />
 
 
@@ -545,6 +546,10 @@ export default {
       }
     },
     async handleUpdateRating(rating, game) {
+      // 检查 game 是否存在，避免在面板关闭时触发更新
+      if (!game || !game.id) {
+        return
+      }
       try {
         await this.updateGame(game.id, { rating })
         // 更新当前游戏对象，以便详情面板立即显示新星级
@@ -557,6 +562,10 @@ export default {
       }
     },
     async handleUpdateComment(comment, game) {
+      // 检查 game 是否存在，避免在面板关闭时触发更新
+      if (!game || !game.id) {
+        return
+      }
       try {
         await this.updateGame(game.id, { comment })
         // 更新当前游戏对象，以便详情面板立即显示新评论
@@ -566,6 +575,23 @@ export default {
       } catch (error: any) {
         console.error('更新评论失败:', error)
         alert('更新评论失败: ' + error.message)
+      }
+    },
+    async handleToggleFavorite(game) {
+      // 检查 game 是否存在，避免在面板关闭时触发更新
+      if (!game || !game.id) {
+        return
+      }
+      try {
+        const newFavoriteStatus = !game.isFavorite
+        await this.updateGame(game.id, { isFavorite: newFavoriteStatus })
+        // 更新当前游戏对象，以便详情面板立即显示新状态
+        if (this.currentGame && this.currentGame.id === game.id) {
+          this.currentGame.isFavorite = newFavoriteStatus
+        }
+      } catch (error: any) {
+        console.error('切换收藏状态失败:', error)
+        alert('切换收藏状态失败: ' + error.message)
       }
     },
     editGame(game) {

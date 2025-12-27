@@ -8,6 +8,7 @@
     @action="handleAction"
     @update-rating="handleUpdateRating"
     @update-comment="handleUpdateComment"
+    @toggle-favorite="handleToggleFavorite"
   />
 </template>
 
@@ -33,7 +34,7 @@ export default {
       default: false
     }
   },
-  emits: ['close', 'action', 'update-rating', 'update-comment'],
+  emits: ['close', 'action', 'update-rating', 'update-comment', 'toggle-favorite'],
   methods: {
     handleClose() {
       this.$emit('close')
@@ -46,6 +47,9 @@ export default {
     },
     handleUpdateComment(comment, game) {
       this.$emit('update-comment', comment, game)
+    },
+    handleToggleFavorite(game) {
+      this.$emit('toggle-favorite', game)
     }
   }
 }

@@ -2,6 +2,14 @@
   <div v-if="visible" class="detail-overlay" @mousedown="handleOverlayMouseDown">
     <div class="detail-content" @mousedown.stop>
       <div class="detail-header">
+        <button 
+          class="detail-favorite" 
+          :class="{ 'favorited': item?.isFavorite }"
+          @click="handleFavoriteClick"
+          :title="item?.isFavorite ? '取消收藏' : '收藏'"
+        >
+          {{ item?.isFavorite ? '⭐' : '☆' }}
+        </button>
         <button class="detail-close" @click="close">✕</button>
       </div>
       <div class="detail-body" v-if="item">
@@ -159,7 +167,7 @@ export default {
       default: () => []
     }
   },
-  emits: ['close', 'action', 'update-rating', 'update-comment'],
+  emits: ['close', 'action', 'update-rating', 'update-comment', 'toggle-favorite'],
   data() {
     return {
       hoverRating: 0 // hover 时的星级
@@ -294,6 +302,13 @@ export default {
     close() {
       this.$emit('close')
     },
+    handleFavoriteClick() {
+      // 检查 item 是否存在，避免在面板关闭时触发更新
+      if (!this.item || !this.item.id) {
+        return
+      }
+      this.$emit('toggle-favorite', this.item)
+    },
     /**
      * 处理 overlay 区域的 mousedown 事件
      * 使用 mousedown 而不是 click，避免在复制文字时（鼠标在外部区域释放）误关闭
@@ -327,6 +342,10 @@ export default {
       this.hoverRating = 0
     },
     handleStarClick(star) {
+      // 检查 item 是否存在，避免在面板关闭时触发更新
+      if (!this.item || !this.item.id) {
+        return
+      }
       // 点击时更新星级
       this.$emit('update-rating', star, this.item)
       // 点击后清除 hover 状态
@@ -349,6 +368,10 @@ export default {
     },
     handleCommentBlur(event) {
       // 失焦时保存评论
+      // 检查 item 是否存在，避免在面板关闭时触发更新
+      if (!this.item || !this.item.id) {
+        return
+      }
       const comment = event.target.value.trim()
       this.$emit('update-comment', comment, this.item)
     },
@@ -496,9 +519,30 @@ export default {
 
 .detail-header {
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
+  align-items: center;
   padding: 15px 20px;
   border-bottom: 1px solid var(--border-color);
+}
+
+.detail-favorite {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: var(--text-secondary);
+  transition: all 0.3s ease;
+  padding: 5px;
+  line-height: 1;
+}
+
+.detail-favorite:hover {
+  color: #fbbf24;
+  transform: scale(1.1);
+}
+
+.detail-favorite.favorited {
+  color: #fbbf24;
 }
 
 .detail-close {

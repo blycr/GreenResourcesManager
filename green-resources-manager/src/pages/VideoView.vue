@@ -101,6 +101,7 @@
       :actions="videoActions"
       @close="closeVideoDetail"
       @action="handleDetailAction"
+      @toggle-favorite="handleToggleFavorite"
     >
       <!-- 文件夹视频列表 -->
       <template #extra v-if="selectedVideo && selectedVideo.type === 'folder' && selectedVideo.folderVideos">
@@ -1364,6 +1365,23 @@ export default {
       } catch (e) {
         console.error('保存编辑失败:', e)
         notify.toast('error', '保存失败', `保存编辑失败: ${e.message}`)
+      }
+    },
+    async handleToggleFavorite(video) {
+      // 检查 video 是否存在，避免在面板关闭时触发更新
+      if (!video || !video.id) {
+        return
+      }
+      try {
+        const newFavoriteStatus = !video.isFavorite
+        await this.updateVideo(video.id, { isFavorite: newFavoriteStatus })
+        // 更新当前视频对象，以便详情面板立即显示新状态
+        if (this.selectedVideo && this.selectedVideo.id === video.id) {
+          this.selectedVideo.isFavorite = newFavoriteStatus
+        }
+      } catch (error: any) {
+        console.error('切换收藏状态失败:', error)
+        alert('切换收藏状态失败: ' + error.message)
       }
     },
 

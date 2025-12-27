@@ -78,6 +78,7 @@
       :actions="albumActions"
       @close="closeAlbumDetail"
       @action="handleDetailAction"
+      @toggle-favorite="handleToggleFavorite"
     >
       <template #extra>
         <AlbumPagesGrid
@@ -955,6 +956,23 @@ export default {
       this.saveEditedAlbum(formData)
     },
     
+    async handleToggleFavorite(album) {
+      // 检查 album 是否存在，避免在面板关闭时触发更新
+      if (!album || !album.id) {
+        return
+      }
+      try {
+        const newFavoriteStatus = !album.isFavorite
+        await this.updateAlbum(album.id, { isFavorite: newFavoriteStatus })
+        // 更新当前专辑对象，以便详情面板立即显示新状态
+        if (this.currentAlbum && this.currentAlbum.id === album.id) {
+          this.currentAlbum.isFavorite = newFavoriteStatus
+        }
+      } catch (error: any) {
+        console.error('切换收藏状态失败:', error)
+        alert('切换收藏状态失败: ' + error.message)
+      }
+    },
     async saveEditedAlbum(formData) {
       try {
         await this.updateAlbum(this.editAlbumForm.id, {

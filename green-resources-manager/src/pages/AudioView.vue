@@ -110,6 +110,7 @@
       :actions="audioActions"
       @close="closeAudioDetail"
       @action="handleDetailAction"
+      @toggle-favorite="handleToggleFavorite"
     />
 
     <!-- 编辑音频对话框 -->
@@ -797,6 +798,23 @@ export default {
       } catch (error) {
         console.error('更新音频失败:', error)
         alert('更新音频失败: ' + error.message)
+      }
+    },
+    async handleToggleFavorite(audio) {
+      // 检查 audio 是否存在，避免在面板关闭时触发更新
+      if (!audio || !audio.id) {
+        return
+      }
+      try {
+        const newFavoriteStatus = !audio.isFavorite
+        await this.updateAudioInManager(audio.id, { isFavorite: newFavoriteStatus })
+        // 更新当前音频对象，以便详情面板立即显示新状态
+        if (this.selectedAudio && this.selectedAudio.id === audio.id) {
+          this.selectedAudio.isFavorite = newFavoriteStatus
+        }
+      } catch (error: any) {
+        console.error('切换收藏状态失败:', error)
+        alert('切换收藏状态失败: ' + error.message)
       }
     },
     

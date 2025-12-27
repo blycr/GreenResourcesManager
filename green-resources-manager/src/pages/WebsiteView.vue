@@ -89,6 +89,7 @@
       :actions="websiteActions"
       @close="closeWebsiteDetail"
       @action="handleDetailAction"
+      @toggle-favorite="handleToggleFavorite"
     />
 
     <!-- 编辑网站对话框 -->
@@ -923,6 +924,23 @@ export default {
       } catch (error) {
         console.error('编辑网站失败:', error)
         notify.toast('error', '编辑失败', `无法更新网站: ${error.message}`)
+      }
+    },
+    async handleToggleFavorite(website) {
+      // 检查 website 是否存在，避免在面板关闭时触发更新
+      if (!website || !website.id) {
+        return
+      }
+      try {
+        const newFavoriteStatus = !website.isFavorite
+        await websiteManager.updateWebsite(website.id, { isFavorite: newFavoriteStatus })
+        // 更新当前网站对象，以便详情面板立即显示新状态
+        if (this.selectedWebsite && this.selectedWebsite.id === website.id) {
+          this.selectedWebsite.isFavorite = newFavoriteStatus
+        }
+      } catch (error: any) {
+        console.error('切换收藏状态失败:', error)
+        alert('切换收藏状态失败: ' + error.message)
       }
     },
     
