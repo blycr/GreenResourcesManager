@@ -3,7 +3,7 @@
 import saveManager from './SaveManager'
 
 class VideoManager {
-  videos: Video[]
+  videos: any[]
   dataFile: string
 
   constructor() {

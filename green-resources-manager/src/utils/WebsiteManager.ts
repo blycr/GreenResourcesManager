@@ -1,6 +1,8 @@
 import saveManager from './SaveManager.ts'
 
 class WebsiteManager {
+  websites: any[]
+  dataFile: string
   constructor() {
     this.websites = []
     this.dataFile = 'SaveData/websites.json'
@@ -182,7 +184,7 @@ class WebsiteManager {
 
   // 按添加时间排序
   sortByAddedDate() {
-    return [...this.websites].sort((a, b) => new Date(b.addedDate) - new Date(a.addedDate))
+    return [...this.websites].sort((a, b) => new Date(b.addedDate).getTime() - new Date(a.addedDate).getTime())
   }
 
   // 按名称排序
@@ -201,7 +203,7 @@ class WebsiteManager {
       if (!a.lastVisited && !b.lastVisited) return 0
       if (!a.lastVisited) return 1
       if (!b.lastVisited) return -1
-      return new Date(b.lastVisited) - new Date(a.lastVisited)
+      return new Date(b.lastVisited).getTime() - new Date(a.lastVisited).getTime()
     })
   }
 
@@ -341,14 +343,20 @@ class WebsiteManager {
   // 检查网站状态
   async checkWebsiteStatus(url) {
     try {
+      // 使用 AbortController 实现超时
+      const controller = new AbortController()
+      const signal = controller.signal
+      const timeoutId = setTimeout(() => controller.abort(), 5000)
+
       const startTime = Date.now()
       const response = await fetch(url, { 
         method: 'HEAD',
         mode: 'no-cors',
-        timeout: 5000
+        signal
       })
       const responseTime = Date.now() - startTime
-      
+      clearTimeout(timeoutId)
+
       return {
         status: 'active',
         responseTime,

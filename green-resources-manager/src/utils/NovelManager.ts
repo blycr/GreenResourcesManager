@@ -1,6 +1,12 @@
  import saveManager from './SaveManager.ts'
 
 class NovelManager {
+  novels: any[]
+  dataFile: string
+  settingsFile: string
+  defaultSettings: any
+  settings: any
+
   constructor() {
     this.novels = []
     this.dataFile = 'SaveData/novels.json'
@@ -263,7 +269,7 @@ class NovelManager {
 
   // 按添加时间排序
   sortByAddedDate() {
-    return [...this.novels].sort((a, b) => new Date(b.addedDate) - new Date(a.addedDate))
+    return [...this.novels].sort((a, b) => new Date(b.addedDate).getTime() - new Date(a.addedDate).getTime())
   }
 
   // 按名称排序
@@ -282,7 +288,7 @@ class NovelManager {
       if (!a.lastRead && !b.lastRead) return 0
       if (!a.lastRead) return 1
       if (!b.lastRead) return -1
-      return new Date(b.lastRead) - new Date(a.lastRead)
+      return new Date(b.lastRead).getTime() - new Date(a.lastRead).getTime()
     })
   }
 

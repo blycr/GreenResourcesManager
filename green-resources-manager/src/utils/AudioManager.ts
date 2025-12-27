@@ -1,6 +1,8 @@
 import saveManager from './SaveManager.ts'
 
 class AudioManager {
+  audios: any[]
+  dataFile: string
   constructor() {
     this.audios = []
     this.dataFile = 'SaveData/audios.json'
@@ -178,7 +180,7 @@ class AudioManager {
 
   // 按添加时间排序
   sortByAddedDate() {
-    return [...this.audios].sort((a, b) => new Date(b.addedDate) - new Date(a.addedDate))
+    return [...this.audios].sort((a, b) => new Date(b.addedDate).getTime() - new Date(a.addedDate).getTime())
   }
 
   // 按名称排序
