@@ -1,21 +1,22 @@
 import saveManager from './SaveManager.ts'
 
-class WebsiteManager {
+export class WebsiteManager {
   websites: any[]
-  dataFile: string
-  constructor() {
+  pageId: string
+
+  constructor(pageId = 'websites') {
     this.websites = []
-    this.dataFile = 'SaveData/websites.json'
+    this.pageId = pageId
   }
 
   // 加载网站数据
   async loadWebsites() {
     try {
-      this.websites = await saveManager.loadWebsites()
-      console.log('加载网站数据:', this.websites.length, '个网站')
+      this.websites = await saveManager.loadPageData(this.pageId) || []
+      console.log(`加载网站数据(${this.pageId}):`, this.websites.length, '个网站')
       return this.websites
     } catch (error) {
-      console.error('加载网站数据失败:', error)
+      console.error(`加载网站数据(${this.pageId})失败:`, error)
       this.websites = []
       return []
     }
@@ -24,13 +25,13 @@ class WebsiteManager {
   // 保存网站数据
   async saveWebsites() {
     try {
-      const success = await saveManager.saveWebsites(this.websites)
+      const success = await saveManager.savePageData(this.pageId, this.websites)
       if (success) {
-        console.log('网站数据保存成功:', this.websites.length, '个网站')
+        console.log(`网站数据(${this.pageId})保存成功:`, this.websites.length, '个网站')
       }
       return success
     } catch (error) {
-      console.error('保存网站数据失败:', error)
+      console.error(`保存网站数据(${this.pageId})失败:`, error)
       return false
     }
   }
