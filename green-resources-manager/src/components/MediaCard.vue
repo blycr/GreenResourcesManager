@@ -40,7 +40,15 @@
       </div>
     </div>
     <div class="media-info">
-      <h3 class="media-title">{{ displayName }}</h3>
+      <h3 class="media-title">
+        <img 
+          v-if="type === 'game' && exeIcon" 
+          :src="exeIcon" 
+          class="exe-icon"
+          alt=""
+        >
+        {{ displayName }}
+      </h3>
       
       <!-- 游戏特有信息 -->
       <template v-if="type === 'game'">
@@ -228,7 +236,10 @@ export default {
       disguiseImageCache: {}, // 伪装图片缓存
       disguiseTextCache: {}, // 伪装文字缓存
       disguiseTagCache: {}, // 伪装标签缓存
-      disguiseModeState: false // 伪装模式状态，用于触发响应式更新
+      disguiseModeState: false, // 伪装模式状态，用于触发响应式更新
+      exeIconCache: {}, // exe 图标缓存
+      exeIconLoaded: false, // 图标加载状态，用于触发响应式更新
+      exeIconLoading: false // 图标加载中标志，避免重复加载
     }
   },
   computed: {
@@ -329,6 +340,28 @@ export default {
     },
     showArchiveIcon() {
       return (this.type === 'game' || this.type === 'image') && this.isArchive
+    },
+    // 获取 exe 图标
+    exeIcon() {
+      if (this.type !== 'game' || !this.item?.executablePath) {
+        return null
+      }
+      
+      // 检查是否为 exe 文件
+      const ext = this.item.executablePath.toLowerCase().split('.').pop()
+      if (ext !== 'exe') {
+        return null
+      }
+      
+      // 检查缓存
+      const cacheKey = this.item.executablePath
+      if (this.exeIconCache[cacheKey]) {
+        return this.exeIconCache[cacheKey]
+      }
+      
+      // 不在 computed 中触发加载，避免重复调用
+      // 加载逻辑移到 mounted 和 watch 中
+      return null
     }
   },
   methods: {
@@ -465,6 +498,97 @@ export default {
       // 保留1位小数，但如果是整数则不显示小数
       const formattedSize = size % 1 === 0 ? size.toString() : size.toFixed(1)
       return `${formattedSize} ${units[unitIndex]}`
+    },
+    // 加载 exe 图标（使用全局缓存避免重复加载）
+    async loadExeIcon() {
+      if (this.type !== 'game' || !this.item?.executablePath) {
+        return
+      }
+      
+      // 检查是否为 exe 文件
+      const ext = this.item.executablePath.toLowerCase().split('.').pop()
+      if (ext !== 'exe') {
+        return
+      }
+      
+      const cacheKey = this.item.executablePath
+      
+      // 检查全局缓存（如果存在）
+      if (window.__exeIconCache && window.__exeIconCache[cacheKey]) {
+        this.exeIconCache[cacheKey] = window.__exeIconCache[cacheKey]
+        this.exeIconLoaded = !this.exeIconLoaded
+        return
+      }
+      
+      // 如果已经在本地缓存中，直接返回
+      if (this.exeIconCache[cacheKey]) {
+        return
+      }
+      
+      // 如果正在加载中，避免重复加载
+      if (this.exeIconLoading) {
+        return
+      }
+      
+      // 如果不在 Electron 环境中，无法获取图标
+      if (!this.isElectronEnvironment || !window.electronAPI || !window.electronAPI.getFileIcon) {
+        return
+      }
+      
+      // 检查全局加载队列，避免同时加载太多图标
+      if (!window.__exeIconLoadingQueue) {
+        window.__exeIconLoadingQueue = new Set()
+      }
+      
+      // 如果该图标正在全局加载队列中，等待
+      if (window.__exeIconLoadingQueue.has(cacheKey)) {
+        // 等待最多 5 秒
+        let waitCount = 0
+        while (window.__exeIconLoadingQueue.has(cacheKey) && waitCount < 50) {
+          await new Promise(resolve => setTimeout(resolve, 100))
+          waitCount++
+          // 检查是否已经加载完成
+          if (window.__exeIconCache && window.__exeIconCache[cacheKey]) {
+            this.exeIconCache[cacheKey] = window.__exeIconCache[cacheKey]
+            this.exeIconLoaded = !this.exeIconLoaded
+            return
+          }
+        }
+        return
+      }
+      
+      // 添加到全局加载队列
+      window.__exeIconLoadingQueue.add(cacheKey)
+      this.exeIconLoading = true
+      
+      try {
+        const result = await window.electronAPI.getFileIcon(this.item.executablePath, 32)
+        if (result.success && result.icon) {
+          // 初始化全局缓存
+          if (!window.__exeIconCache) {
+            window.__exeIconCache = {}
+          }
+          
+          // 保存到全局缓存
+          window.__exeIconCache[cacheKey] = result.icon
+          
+          // 保存到本地缓存
+          if (this.$set) {
+            this.$set(this.exeIconCache, cacheKey, result.icon)
+          } else {
+            this.exeIconCache[cacheKey] = result.icon
+          }
+          
+          // 更新加载状态以触发 computed 重新计算
+          this.exeIconLoaded = !this.exeIconLoaded
+        }
+      } catch (error) {
+        console.warn('加载 exe 图标失败:', error)
+      } finally {
+        // 从全局加载队列中移除
+        window.__exeIconLoadingQueue.delete(cacheKey)
+        this.exeIconLoading = false
+      }
     },
     resolveImage(imagePath) {
       // 空值返回默认
@@ -686,6 +810,19 @@ export default {
     
     // 由于 storage 事件不会在同一标签页触发，我们需要使用自定义事件
     window.addEventListener('disguise-mode-changed', this.updateDisguiseModeState)
+    
+    // 延迟加载 exe 图标，避免同时加载太多图标导致卡顿
+    // 使用 setTimeout 分批加载，减少并发压力
+    if (this.type === 'game' && this.item?.executablePath) {
+      const ext = this.item.executablePath.toLowerCase().split('.').pop()
+      if (ext === 'exe') {
+        // 随机延迟 0-500ms，分散加载时间
+        const delay = Math.random() * 500
+        setTimeout(() => {
+          this.loadExeIcon()
+        }, delay)
+      }
+    }
   },
   beforeUnmount() {
     // 清理事件监听器
@@ -822,6 +959,16 @@ $running-color-dark: #10b981;
   overflow: hidden;
   text-overflow: ellipsis;
   transition: color 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.exe-icon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  object-fit: contain;
 }
 
 .media-subtitle {

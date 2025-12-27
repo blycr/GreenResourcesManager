@@ -68,6 +68,7 @@ declare global {
       openFileFolder: (filePath: string) => Promise<{ success: boolean; folderPath?: string; error?: string }>
       openFolder: (filePath: string) => Promise<{ success: boolean; error?: string }>
       openExternal: (urlOrPath: string) => Promise<{ success: boolean; error?: string }>
+      getFileIcon: (filePath: string, size?: number) => Promise<{ success: boolean; icon?: string; error?: string }>
       
       // JSON 文件操作
       writeJsonFile: (filePath: string, data: any) => Promise<{ success: boolean; error?: string }>

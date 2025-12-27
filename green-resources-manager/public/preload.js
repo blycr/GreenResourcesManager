@@ -72,6 +72,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getDiskInfo: () => ipcRenderer.invoke('get-disk-info'),
   getDiskTypeByPath: (filePath) => ipcRenderer.invoke('get-disk-type-by-path', filePath),
   
+  // 获取文件图标
+  getFileIcon: (filePath, size) => ipcRenderer.invoke('get-file-icon', filePath, size),
+  
   // 检测 WinRAR 是否已安装
   checkWinRARInstalled: () => ipcRenderer.invoke('check-winrar-installed'),
   

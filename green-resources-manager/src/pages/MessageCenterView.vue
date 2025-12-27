@@ -22,38 +22,6 @@
       </div>
     </div>
 
-    <!-- 统计信息 -->
-    <div class="stats-container">
-      <div class="stat-card">
-        <div class="stat-icon">📊</div>
-        <div class="stat-content">
-          <div class="stat-number">{{ messages.length }}</div>
-          <div class="stat-label">总消息数</div>
-        </div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon">✅</div>
-        <div class="stat-content">
-          <div class="stat-number">{{ successCount }}</div>
-          <div class="stat-label">成功消息</div>
-        </div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon">❌</div>
-        <div class="stat-content">
-          <div class="stat-number">{{ errorCount }}</div>
-          <div class="stat-label">错误消息</div>
-        </div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon">⚠️</div>
-        <div class="stat-content">
-          <div class="stat-number">{{ warningCount }}</div>
-          <div class="stat-label">警告消息</div>
-        </div>
-      </div>
-    </div>
-
     <!-- 筛选和搜索 -->
     <div class="filter-container">
       <div class="filter-tabs">
@@ -195,17 +163,6 @@ export default {
     // 从 ToastNotification 组件获取消息
     messages() {
       return this.$parent.$refs.toastNotification?.messages || []
-    },
-    
-    // 统计信息
-    successCount() {
-      return this.messages.filter(m => m.type === 'success').length
-    },
-    errorCount() {
-      return this.messages.filter(m => m.type === 'error').length
-    },
-    warningCount() {
-      return this.messages.filter(m => m.type === 'warning').length
     },
     
     // 根据类型筛选消息
@@ -417,50 +374,6 @@ export default {
 
 .btn-icon {
   font-size: 16px;
-}
-
-/* 统计信息 */
-.stats-container {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 16px;
-}
-
-.stat-card {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 20px;
-  background: var(--bg-secondary);
-  border-radius: 12px;
-  border: 1px solid var(--border-color);
-}
-
-.stat-icon {
-  font-size: 32px;
-  width: 48px;
-  height: 48px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--bg-tertiary);
-  border-radius: 12px;
-}
-
-.stat-content {
-  flex: 1;
-}
-
-.stat-number {
-  font-size: 24px;
-  font-weight: 600;
-  color: var(--text-primary);
-  margin-bottom: 4px;
-}
-
-.stat-label {
-  font-size: 14px;
-  color: var(--text-secondary);
 }
 
 /* 筛选和搜索 */
@@ -778,10 +691,6 @@ export default {
   
   .search-input {
     width: 100%;
-  }
-  
-  .stats-container {
-    grid-template-columns: 1fr;
   }
   
   .message-header {

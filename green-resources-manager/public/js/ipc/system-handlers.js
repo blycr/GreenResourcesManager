@@ -1065,6 +1065,121 @@ function registerIpcHandlers(ipcMain, app, windowsUtils, shell, getMainWindow) {
       }
     }
   })
+
+  // 获取文件图标（主要用于 exe 文件）
+  ipcMain.handle('get-file-icon', async (event, filePath, size = 32) => {
+    try {
+      if (process.platform !== 'win32') {
+        return { success: false, error: '此功能仅在 Windows 系统上可用' }
+      }
+
+      const { nativeImage } = require('electron')
+      const fs = require('fs')
+
+      // 检查文件是否存在
+      if (!fs.existsSync(filePath)) {
+        return { success: false, error: '文件不存在' }
+      }
+
+      // 检查是否为 exe 文件
+      const ext = path.extname(filePath).toLowerCase()
+      if (ext !== '.exe' && ext !== '.lnk') {
+        return { success: false, error: '仅支持 .exe 和 .lnk 文件' }
+      }
+
+      // 使用 Electron 的 app.getFileIcon 方法（如果可用）
+      if (app.getFileIcon) {
+        try {
+          const icon = await app.getFileIcon(filePath, { size: size === 16 ? 'small' : 'normal' })
+          if (icon && !icon.isEmpty()) {
+            // 转换为 base64 data URL
+            const pngBuffer = icon.toPNG()
+            const base64 = pngBuffer.toString('base64')
+            const dataUrl = `data:image/png;base64,${base64}`
+            return { success: true, icon: dataUrl }
+          }
+        } catch (iconError) {
+          console.warn('使用 app.getFileIcon 失败，尝试备用方法:', iconError.message)
+        }
+      }
+
+      // 备用方法：使用 PowerShell 提取图标
+      return new Promise((resolve) => {
+        // 转义 PowerShell 字符串中的特殊字符
+        const escapedPath = filePath.replace(/'/g, "''").replace(/\$/g, '`$')
+        
+        const powershell = spawn('powershell', [
+          '-Command',
+          `
+          try {
+            Add-Type -AssemblyName System.Drawing
+            $icon = [System.Drawing.Icon]::ExtractAssociatedIcon('${escapedPath}')
+            if ($icon) {
+              $bitmap = $icon.ToBitmap()
+              $ms = New-Object System.IO.MemoryStream
+              $bitmap.Save($ms, [System.Drawing.Imaging.ImageFormat]::Png)
+              $bytes = $ms.ToArray()
+              $base64 = [Convert]::ToBase64String($bytes)
+              Write-Output $base64
+              $icon.Dispose()
+              $bitmap.Dispose()
+              $ms.Dispose()
+            } else {
+              Write-Output "ERROR: 无法提取图标"
+            }
+          } catch {
+            Write-Output "ERROR: $($_.Exception.Message)"
+          }
+          `
+        ])
+        
+        // 设置超时（5秒）
+        const timeout = setTimeout(() => {
+          if (powershell && !powershell.killed) {
+            powershell.kill()
+          }
+          resolve({ success: false, error: '提取图标超时' })
+        }, 5000)
+
+        let output = ''
+        let errorOutput = ''
+
+        powershell.stdout.on('data', (data) => {
+          output += data.toString()
+        })
+
+        powershell.stderr.on('data', (data) => {
+          errorOutput += data.toString()
+        })
+
+        powershell.on('close', (code) => {
+          clearTimeout(timeout)
+          if (code !== 0 || errorOutput) {
+            console.error('提取图标失败:', errorOutput)
+            resolve({ success: false, error: errorOutput || '提取图标失败' })
+            return
+          }
+
+          const base64 = output.trim()
+          if (base64 && !base64.startsWith('ERROR:')) {
+            const dataUrl = `data:image/png;base64,${base64}`
+            resolve({ success: true, icon: dataUrl })
+          } else {
+            resolve({ success: false, error: '无法提取图标' })
+          }
+        })
+        
+        powershell.on('error', (error) => {
+          clearTimeout(timeout)
+          console.error('PowerShell 进程错误:', error)
+          resolve({ success: false, error: error.message || 'PowerShell 进程启动失败' })
+        })
+      })
+    } catch (error) {
+      console.error('获取文件图标异常:', error)
+      return { success: false, error: error.message }
+    }
+  })
 }
 
 module.exports = {
