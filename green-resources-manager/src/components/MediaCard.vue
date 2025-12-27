@@ -29,6 +29,10 @@
       <div v-if="type === 'folder'" class="folder-indicator" title="文件夹">
         📁
       </div>
+      <!-- 收藏标识 -->
+      <div v-if="item.isFavorite" class="favorite-indicator" title="已收藏">
+        ⭐
+      </div>
       <div class="media-overlay" v-if="showActionButton">
         <div class="action-button" @click.stop="$emit('action', item)">
           <span class="action-icon">{{ actionIcon }}</span>
@@ -993,6 +997,25 @@ $running-color-dark: #10b981;
   justify-content: center;
   font-size: 14px;
   font-weight: bold;
+  z-index: 10;
+  backdrop-filter: blur($backdrop-blur-small);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, $shadow-opacity);
+}
+
+.favorite-indicator {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: rgba(251, 191, 36, $indicator-bg-opacity);
+  color: white;
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
   z-index: 10;
   backdrop-filter: blur($backdrop-blur-small);
   border: 1px solid rgba(255, 255, 255, 0.2);
