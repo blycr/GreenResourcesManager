@@ -14,7 +14,7 @@ const IMAGE_COLLECTION_ACHIEVEMENTS = [
   { threshold: 1000, id: 'image_collector_1000' }
 ]
 
-export function useImageAlbum() {
+export function useImageAlbum(pageId: string = 'images') {
   const albums = ref<Album[]>([])
   const currentAlbum = ref<Album | null>(null)
   const isLoading = ref(false)
@@ -25,7 +25,7 @@ export function useImageAlbum() {
   const loadAlbums = async () => {
     try {
       isLoading.value = true
-      albums.value = await saveManager.loadImages()
+      albums.value = await saveManager.loadPageData(pageId)
     } catch (error) {
       console.error('加载专辑失败:', error)
       notify.toast('error', '加载失败', '无法加载漫画列表')
@@ -40,7 +40,7 @@ export function useImageAlbum() {
    */
   const saveAlbums = async (): Promise<void> => {
     try {
-      await saveManager.saveImages(albums.value)
+      await saveManager.savePageData(pageId, albums.value)
     } catch (error) {
       console.error('保存专辑失败:', error)
       throw error
