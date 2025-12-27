@@ -141,17 +141,39 @@ class CustomPageManager {
    * 更新页面配置
    * @param id 页面ID
    * @param updates 要更新的字段
+   * @throws 如果尝试修改受保护的字段（id、type、isDefault）则抛出错误
    */
   async updatePage(id: string, updates: Partial<PageConfig>) {
     const index = this.pages.findIndex(p => p.id === id);
     if (index !== -1) {
       const page = this.pages[index];
 
+      // 验证受保护字段
+      const protectedFields: (keyof PageConfig)[] = ['id', 'type', 'isDefault'];
+      const attemptedProtectedChanges = protectedFields.filter(
+        field => field in updates && updates[field] !== page[field]
+      );
+
+      if (attemptedProtectedChanges.length > 0) {
+        throw new Error(
+          `无法修改受保护的字段: ${attemptedProtectedChanges.join(', ')}。` +
+          `这些字段在页面创建后不能被更改。`
+        );
+      }
+
+      // 过滤出可以修改的字段
+      const allowedUpdates = Object.entries(updates)
+        .filter(([key]) => !protectedFields.includes(key as keyof PageConfig))
+        .reduce((acc, [key, value]) => {
+          (acc as any)[key] = value;
+          return acc;
+        }, {} as Partial<PageConfig>);
+
       this.pages[index] = {
         ...page,
-        ...updates,
+        ...allowedUpdates,
         updatedAt: Date.now(),
-        // 确保id、type和isDefault不会被意外更改
+        // 确保受保护字段保持不变
         id: page.id,
         type: page.type,
         isDefault: page.isDefault
