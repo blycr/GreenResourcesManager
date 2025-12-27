@@ -2249,7 +2249,7 @@ class SaveManager {
   async deletePageData(pageId) {
     // 检查是否为默认页面类型
     if (this.filePaths[pageId]) {
-      console.warn('Cannot delete default page data:', pageId)
+      console.warn('无法删除默认页面数据:', pageId)
       return false
     }
 

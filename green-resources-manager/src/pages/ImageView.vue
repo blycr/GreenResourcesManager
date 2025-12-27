@@ -1382,7 +1382,8 @@ export default {
   async mounted() {
     console.log('🚀 ImageView mounted 方法开始执行')
     
-    // 移除等待逻辑，因为 ResourceView 仅在 App.vue 初始化完成后才渲染
+    // 移除 ImageView 等资源视图中的等待逻辑：这些视图现在统一通过 ResourceView 加载，
+    // 而 ResourceView 仅在 App.vue 初始化完成后才会渲染，因此此处可以直接加载数据
     console.log('✅ 存档系统已初始化，开始加载图片数据')
     
     await this.loadAlbums()
