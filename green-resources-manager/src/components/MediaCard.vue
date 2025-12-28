@@ -64,11 +64,19 @@
           <span v-if="displayTags.length > 9" class="media-tag-more">+{{ displayTags.length - 9 }}</span>
         </div>
         <div class="media-stats">
-          <span class="stat-item">{{ formatPlayTime(item.playTime) }}</span>
+          <span class="stat-item">
+            <span class="play-time-label">总时长:</span>
+            {{ formatPlayTime(item.playTime) }}
+          </span>
           <span class="stat-item" :class="{ 'running-status': isRunning }">
-            <span v-if="isRunning" class="running-indicator">
-              <span class="running-icon">▶️</span>
-              <span class="running-text">运行中</span>
+            <span v-if="isRunning" class="running-info">
+              <span class="running-indicator">
+                <span class="running-icon">▶️</span>
+                <span class="running-text">运行中</span>
+              </span>
+              <span class="session-time" v-if="sessionDuration > 0">
+                本次: {{ formatPlayTime(sessionDuration) }}
+              </span>
             </span>
             <span v-else>{{ formatLastPlayed(item.lastPlayed) }}</span>
           </span>
@@ -200,7 +208,7 @@
 
 <script>
 import { formatPlayTime, formatLastPlayed, formatDuration, formatVideoDuration } from '../utils/formatters'
-
+import { useGameRunningStore } from '../stores/game-running'
 import disguiseManager from '../utils/DisguiseManager'
 import { isDisguiseModeEnabled } from '../utils/disguiseMode'
 
@@ -239,7 +247,10 @@ export default {
       disguiseModeState: false, // 伪装模式状态，用于触发响应式更新
       exeIconCache: {}, // exe 图标缓存
       exeIconLoaded: false, // 图标加载状态，用于触发响应式更新
-      exeIconLoading: false // 图标加载中标志，避免重复加载
+      exeIconLoading: false, // 图标加载中标志，避免重复加载
+      gameRunningStore: null, // 游戏运行状态 store
+      sessionUpdateTimer: null, // 会话时长更新定时器
+      updateTrigger: 0 // 用于触发响应式更新的时间戳
     }
   },
   computed: {
@@ -362,6 +373,17 @@ export default {
       // 不在 computed 中触发加载，避免重复调用
       // 加载逻辑移到 mounted 和 watch 中
       return null
+    },
+    // 获取本次游玩时间（仅在游戏运行时）
+    sessionDuration() {
+      // 依赖 updateTrigger 确保响应式更新
+      void this.updateTrigger
+      
+      if (this.type !== 'game' || !this.isRunning || !this.item?.id || !this.gameRunningStore) {
+        return 0
+      }
+      
+      return this.gameRunningStore.getSessionDuration(this.item.id)
     }
   },
   methods: {
@@ -801,6 +823,9 @@ export default {
     
   },
   mounted() {
+    // 初始化游戏运行状态 store
+    this.gameRunningStore = useGameRunningStore()
+    
     // 初始化伪装模式状态
     this.disguiseModeState = isDisguiseModeEnabled()
     //console.log('MediaCard mounted: 初始伪装模式状态:', this.disguiseModeState)
@@ -823,11 +848,41 @@ export default {
         }, delay)
       }
     }
+    
+    // 如果游戏正在运行，启动定时器实时更新会话时长显示
+    if (this.type === 'game' && this.isRunning) {
+      this.sessionUpdateTimer = setInterval(() => {
+        this.updateTrigger = Date.now()
+      }, 1000) // 每秒更新一次
+    }
   },
   beforeUnmount() {
     // 清理事件监听器
     window.removeEventListener('storage', this.handleStorageChange)
     window.removeEventListener('disguise-mode-changed', this.updateDisguiseModeState)
+    
+    // 清理会话时长更新定时器
+    if (this.sessionUpdateTimer) {
+      clearInterval(this.sessionUpdateTimer)
+      this.sessionUpdateTimer = null
+    }
+  },
+  watch: {
+    // 监听 isRunning 变化，动态启动/停止定时器
+    isRunning(newVal) {
+      if (this.type === 'game') {
+        if (newVal && !this.sessionUpdateTimer) {
+          // 游戏开始运行，启动定时器
+          this.sessionUpdateTimer = setInterval(() => {
+            this.updateTrigger = Date.now()
+          }, 1000)
+        } else if (!newVal && this.sessionUpdateTimer) {
+          // 游戏停止运行，清理定时器
+          clearInterval(this.sessionUpdateTimer)
+          this.sessionUpdateTimer = null
+        }
+      }
+    }
   }
 }
 </script>
@@ -1050,6 +1105,23 @@ $running-color-dark: #10b981;
   color: var(--text-tertiary);
   font-size: 0.8rem;
   transition: color 0.3s ease;
+}
+
+.play-time-label {
+  font-weight: 500;
+  margin-right: 4px;
+}
+
+.running-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.session-time {
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+  margin-top: 2px;
 }
 
 /* 小说进度条样式 */

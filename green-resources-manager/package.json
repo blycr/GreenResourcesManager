@@ -38,6 +38,7 @@
     "electron-updater": "^6.6.2",
     "epubjs": "^0.3.93",
     "pdfjs-dist": "^5.4.449",
+    "pinia": "^3.0.4",
     "vue": "^3.3.8",
     "vue-router": "^4.6.4"
   },

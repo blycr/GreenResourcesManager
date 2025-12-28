@@ -114,6 +114,7 @@ import { useGameRunning } from '../composables/game/useGameRunning'
 import { useGamePlayTime } from '../composables/game/useGamePlayTime'
 import { usePagination } from '../composables/usePagination'
 import { useGameDragAndDrop, isArchiveFile } from '../composables/game/useGameDragAndDrop'
+import { useGameRunningStore } from '../stores/game-running'
 
 export default {
   name: 'GameView',
@@ -153,12 +154,15 @@ export default {
       props.pageConfig.id
     )
 
+    // 使用游戏运行状态 store（暴露给组件使用）
+    const gameRunningStore = useGameRunningStore()
+
     // 获取父组件方法的辅助函数（在 Options API 中通过 this.$parent 访问）
     // 注意：这些函数会在组件实例化后通过 methods 中的包装方法设置
-    let getRunningGamesFn: () => Map<string, any> = () => new Map()
-    let addRunningGameFn: (gameInfo: any) => void = () => {}
-    let removeRunningGameFn: (gameId: string) => void = () => {}
-    let isGameRunningFn: (gameId: string) => boolean = () => false
+    let getRunningGamesFn: () => Map<string, any> = () => gameRunningStore.getRunningGamesMap()
+    let addRunningGameFn: (gameInfo: any) => void = (gameInfo) => gameRunningStore.addRunningGame(gameInfo)
+    let removeRunningGameFn: (gameId: string) => void = (gameId) => gameRunningStore.removeRunningGame(gameId)
+    let isGameRunningFn: (gameId: string) => boolean = (gameId) => gameRunningStore.isGameRunning(gameId)
 
     // 使用截图 composable
     const screenshotComposable = useGameScreenshot(
@@ -216,6 +220,8 @@ export default {
       ...runningComposable,
       // 游戏时长相关
       ...playTimeComposable,
+      // 暴露 gameRunningStore 供组件使用
+      gameRunningStore,
       // 分页相关
       ...toRefs(paginationComposable),
       ...paginationComposable,
@@ -243,10 +249,12 @@ export default {
         removeRunningGame: (gameId: string) => void
         isGameRunning: (gameId: string) => boolean
       }) => {
-        getRunningGamesFn = functions.getRunningGames
-        addRunningGameFn = functions.addRunningGame
-        removeRunningGameFn = functions.removeRunningGame
-        isGameRunningFn = functions.isGameRunning
+      
+        const store = gameRunningStore
+        getRunningGamesFn = () => store.getRunningGamesMap()
+        addRunningGameFn = (gameInfo: any) => store.addRunningGame(gameInfo)
+        removeRunningGameFn = (gameId: string) => store.removeRunningGame(gameId)
+        isGameRunningFn = (gameId: string) => store.isGameRunning(gameId)
       }
     }
   },
@@ -260,6 +268,13 @@ export default {
       // isScreenshotInProgress 和 lastScreenshotTime 已移至 useGameScreenshot composable
       // 编辑相关状态
       showEditDialog: false,
+      // 事件处理器（用于清理）
+      handleGamePlaytimeUpdate: null as ((event: CustomEvent) => void) | null,
+      handleGamePlaytimeSave: null as ((event: CustomEvent) => void) | null,
+      handleRequestUpdatePlaytime: null as ((event: CustomEvent) => void) | null,
+      handleRequestFinalPlaytime: null as ((event: CustomEvent) => void) | null,
+      // 存储游戏启动时的初始 playTime（Map<gameId, initialPlayTime>）
+      gameInitialPlayTimes: null as Map<string, number> | null,
       // 密码输入对话框
       showPasswordDialog: false,
       passwordDialogTitle: '输入密码',
@@ -441,6 +456,12 @@ export default {
               windowTitles: result.windowTitles || [],
               gameName: game.name
             })
+            
+            // 保存游戏启动时的初始 playTime
+            if (!this.gameInitialPlayTimes) {
+              this.gameInitialPlayTimes = new Map()
+            }
+            this.gameInitialPlayTimes.set(game.id, game.playTime || 0)
 
             // 显示成功提示
             notify.toast('success', '游戏启动成功', `${game.name} 已启动`)
@@ -1710,6 +1731,81 @@ export default {
 
     // 游戏运行状态现在由 App.vue 全局管理，无需在此处处理
 
+    // 监听游戏时长更新事件（接收总时长，直接设置）
+    this.handleGamePlaytimeUpdate = (event: CustomEvent) => {
+      const { gameId, totalPlayTime, shouldSave } = event.detail
+      const game = this.games.find(g => g.id === gameId)
+      if (game) {
+        // 直接设置总时长，不累加
+        game.playTime = totalPlayTime
+        console.log(`[GameView] 游戏 ${game.name} 时长已更新: ${game.playTime} 秒`)
+        
+        if (shouldSave) {
+          // 游戏结束时保存
+          this.saveGames()
+          console.log(`[GameView] 游戏 ${game.name} 时长已保存`)
+        }
+      }
+    }
+    
+    // 初始化游戏初始时长存储
+    if (!this.gameInitialPlayTimes) {
+      this.gameInitialPlayTimes = new Map()
+    }
+    
+    // 监听请求更新游戏时长事件（App.vue 定时触发）
+    this.handleRequestUpdatePlaytime = (event: CustomEvent) => {
+      const { gameId } = event.detail
+      const game = this.games.find(g => g.id === gameId)
+      if (game && this.gameRunningStore && this.gameInitialPlayTimes) {
+        // 如果还没有保存初始值，先保存（第一次更新时）
+        if (!this.gameInitialPlayTimes.has(gameId)) {
+          this.gameInitialPlayTimes.set(gameId, game.playTime || 0)
+        }
+        
+        // 获取初始 playTime（启动时的值）
+        const initialPlayTime = this.gameInitialPlayTimes.get(gameId) || 0
+        // 计算当前总时长 = 初始时长 + 会话时长
+        const totalPlayTime = this.gameRunningStore.getCurrentPlayTime(gameId, initialPlayTime)
+        // 更新游戏时长（用于显示）
+        game.playTime = totalPlayTime
+        console.log(`[GameView] 游戏 ${game.name} 时长已更新: ${totalPlayTime} 秒 (初始: ${initialPlayTime}, 会话: ${totalPlayTime - initialPlayTime})`)
+      }
+    }
+    
+    // 监听请求最终游戏时长事件（游戏结束时）
+    this.handleRequestFinalPlaytime = (event: CustomEvent) => {
+      const { gameId } = event.detail
+      const game = this.games.find(g => g.id === gameId)
+      if (game && this.gameRunningStore && this.gameInitialPlayTimes) {
+        // 获取初始 playTime（从保存的初始值获取，如果不存在则使用当前值）
+        const initialPlayTime = this.gameInitialPlayTimes.get(gameId) || game.playTime || 0
+        // 计算最终总时长
+        const totalPlayTime = this.gameRunningStore.getCurrentPlayTime(gameId, initialPlayTime)
+        // 更新并保存
+        game.playTime = totalPlayTime
+        // 清除保存的初始值
+        this.gameInitialPlayTimes.delete(gameId)
+        this.saveGames()
+        console.log(`[GameView] 游戏 ${game.name} 最终时长已保存: ${totalPlayTime} 秒`)
+      }
+    }
+    
+    // 监听游戏时长保存事件
+    this.handleGamePlaytimeSave = (event: CustomEvent) => {
+      const { gameId } = event.detail
+      const game = this.games.find(g => g.id === gameId)
+      if (game) {
+        this.saveGames()
+        console.log(`[GameView] 游戏 ${game.name} 时长已保存`)
+      }
+    }
+    
+    window.addEventListener('game-playtime-update', this.handleGamePlaytimeUpdate as EventListener)
+    window.addEventListener('game-playtime-save', this.handleGamePlaytimeSave as EventListener)
+    window.addEventListener('game-request-update-playtime', this.handleRequestUpdatePlaytime as EventListener)
+    window.addEventListener('game-request-final-playtime', this.handleRequestFinalPlaytime as EventListener)
+
     // 加载游戏分页设置（使用 composable 的方法）
     if (this.loadPaginationSettings) {
       await this.loadPaginationSettings('game')
@@ -1777,6 +1873,17 @@ export default {
     this.initializeGlobalShortcut()
   },
   beforeUnmount() {
+    // 清理游戏时长更新事件监听
+    if (this.handleGamePlaytimeUpdate) {
+      window.removeEventListener('game-playtime-update', this.handleGamePlaytimeUpdate as EventListener)
+    }
+    if (this.handleGamePlaytimeSave) {
+      window.removeEventListener('game-playtime-save', this.handleGamePlaytimeSave as EventListener)
+    }
+    if (this.handleRequestInitialPlaytime) {
+      window.removeEventListener('game-request-initial-playtime', this.handleRequestInitialPlaytime as EventListener)
+    }
+    
     // 应用内快捷键功能已禁用，无需清理
     // document.removeEventListener('keydown', this.handleKeyDown)
 

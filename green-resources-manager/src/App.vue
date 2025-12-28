@@ -93,6 +93,7 @@ import { useSafetyKey } from './composables/useSafetyKey'
 import { useTheme } from './composables/useTheme'
 import { useBackgroundImage } from './composables/useBackgroundImage'
 import { usePersonalization } from './composables/usePersonalization'
+import { useGameRunningStore } from './stores/game-running'
 
 
 import notificationService from './utils/NotificationService.ts'
@@ -123,6 +124,9 @@ export default {
     // 使用个性化设置 composable
     const personalization = usePersonalization()
     
+    // 使用游戏运行状态 store（渐进式迁移）
+    const gameRunningStore = useGameRunningStore()
+    
     // 清理函数存储
     let cleanupPersonalization: (() => void) | null = null
     let cleanupBackgroundImage: (() => void) | null = null
@@ -132,6 +136,7 @@ export default {
       theme,
       backgroundImage,
       personalization,
+      gameRunningStore,
       setCleanupSafetyKeyListener: (cleanup: () => void) => {
         cleanupSafetyKeyListener = cleanup
       },
@@ -158,14 +163,10 @@ export default {
       currentFilterData: {
         filters: []
       },
-      // 全局游戏运行状态管理
-      runningGames: new Map(), // 存储正在运行的游戏信息 {gameId: {id, pid, windowTitles: string[], gameName, startTime}}
-      statusCheckInterval: null, // 定期检查运行状态的定时器
-      playtimeUpdateInterval: null, // 定期更新游戏时长的定时器（每1秒）
-      playtimeSaveInterval: null, // 定期保存游戏时长的定时器（每1分钟）
-      // 保存队列管理
-      saveQueue: [], // 保存任务队列
-      isProcessingSaveQueue: false, // 是否正在处理保存队列
+      // 定时器管理（定时器由 App.vue 管理，因为需要调用 App.vue 的方法）
+      statusCheckIntervalId: null as number | null,
+      playtimeUpdateIntervalId: null as number | null,
+      playtimeSaveIntervalId: null as number | null,
       // 应用使用时长跟踪
       appSessionStartTime: null, // 应用会话开始时间
       appUsageTimer: null, // 应用使用时长定时器
@@ -433,153 +434,69 @@ export default {
       this.notifyCurrentView('filter-clear', filterKey)
     },
     notifyCurrentView(event, data) {
-      // 通知当前页面筛选器状态变化
-      const currentViewRef = this.getCurrentViewRef()
-      if (currentViewRef && currentViewRef.handleFilterEvent) {
+      // 通知当前页面筛选器状态变化（通过 router-view 获取当前组件）
+      const routerView = this.$refs.routerView as any
+      if (routerView && routerView.$vnode && routerView.$vnode.componentInstance) {
+        const currentViewRef = routerView.$vnode.componentInstance
+        if (currentViewRef.$refs && currentViewRef.$refs.innerView) {
+          const innerView = currentViewRef.$refs.innerView
+          if (innerView && innerView.handleFilterEvent) {
+            innerView.handleFilterEvent(event, data)
+          }
+          if (innerView && innerView.updateFilterData) {
+            innerView.updateFilterData()
+          }
+        } else if (currentViewRef.handleFilterEvent) {
         currentViewRef.handleFilterEvent(event, data)
       }
-
-      // 筛选事件发生后，主动让当前页面重新上报 filterData，
       if (currentViewRef && currentViewRef.updateFilterData) {
         currentViewRef.updateFilterData()
       }
-    },
-    getCurrentViewRef() {
-      // 从 router-view 获取当前组件引用
-      const routerView = this.$refs.routerView as any
-      if (routerView && routerView.$refs) {
-        // 尝试获取内部组件的引用
-        return routerView.$refs.innerView || routerView
       }
-      return routerView
     },
-    // 全局游戏运行状态管理方法
+    // 全局游戏运行状态管理方法（仅使用 store）
     addRunningGame(gameInfo) {
-      // gameInfo: { id: string, pid: number, windowTitles?: string[], gameName?: string }
-      const runtimeGameData = {
+      // 添加游戏到 store（不再需要 initialPlayTime，使用时直接从 game.playTime 获取）
+      this.gameRunningStore.addRunningGame({
         id: gameInfo.id,
         pid: gameInfo.pid,
         windowTitles: gameInfo.windowTitles || [],
-        gameName: gameInfo.gameName || null,
-        startTime: Date.now()
-      }
-      this.runningGames.set(gameInfo.id, runtimeGameData)
-      console.log('全局添加运行游戏:', runtimeGameData, '当前运行游戏:', Array.from(this.runningGames.keys()))
+        gameName: gameInfo.gameName || null
+      })
+      
+      console.log('✅ 添加运行游戏:', gameInfo.id, '当前运行游戏:', this.gameRunningStore.runningGameIds)
     },
     removeRunningGame(gameId) {
       console.log(`[DEBUG] 🗑️ removeRunningGame 被调用，gameId: ${gameId}`)
-      const runtimeGameData = this.runningGames.get(gameId)
-      if (runtimeGameData) {
-        // 计算本次会话的游戏时长
-        const sessionDuration = Math.floor((Date.now() - runtimeGameData.startTime) / 1000) // 转换为秒
-        console.log(`[DEBUG] ⏱️ 游戏 ${gameId} 本次会话时长: ${sessionDuration} 秒`, '游戏信息:', runtimeGameData)
-        
-        // 通知 GameView 更新游戏时长，游戏结束时需要保存
-        console.log(`[DEBUG] 💾 调用 updateGamePlayTime，gameId: ${gameId}, sessionDuration: ${sessionDuration}, shouldSave: true`)
-        this.updateGamePlayTime(gameId, sessionDuration, true)
-      } else {
-        console.log(`[DEBUG] ⚠️ removeRunningGame: 未找到 gameId ${gameId} 的运行数据`)
-      }
       
-      this.runningGames.delete(gameId)
-      console.log(`[DEBUG] ✅ 已从 runningGames 中移除 gameId: ${gameId}，当前运行游戏:`, Array.from(this.runningGames.keys()))
+      // 通过事件通知 GameView 计算并更新最终总时长（GameView 中有 game.playTime）
+      window.dispatchEvent(new CustomEvent('game-request-final-playtime', {
+        detail: { gameId }
+      }))
+      
+      this.gameRunningStore.removeRunningGame(gameId)
+      console.log(`[DEBUG] ✅ 已从 store 中移除 gameId: ${gameId}，当前运行游戏:`, this.gameRunningStore.runningGameIds)
     },
     isGameRunning(gameId) {
-      return this.runningGames.has(gameId)
+      return this.gameRunningStore.isGameRunning(gameId)
     },
-    // 更新游戏时长（只更新内存，不立即保存）
-    updateGamePlayTime(gameId, sessionDuration, shouldSave = false) {
-      const gameView = this.$refs.gameView
-      if (!gameView || !gameView.games) {
-        console.log('游戏视图不可用，无法更新游戏时长')
-        return
-      }
+    // 更新游戏时长（通过事件通知，发送总时长，不累加）
+    updateGamePlayTime(gameId, totalPlayTime, shouldSave = false) {
+      // 发送自定义事件，让 GameView 直接设置总时长（不累加）
+      window.dispatchEvent(new CustomEvent('game-playtime-update', {
+        detail: {
+          gameId,
+          totalPlayTime, // 总时长，不是增量
+          shouldSave
+        }
+      }))
       
-      const game = gameView.games.find(g => g.id === gameId)
-      if (game) {
-        // 累加游戏时长
-        game.playTime = (game.playTime || 0) + sessionDuration
-        
-        // 只有在 shouldSave 为 true 时才保存（游戏结束时）
+      // 如果需要保存，通过事件通知保存
         if (shouldSave) {
-          this.saveGamesSafely(gameView)
-          console.log(`游戏 ${game.name} 总时长更新为: ${game.playTime} 秒 (本次增加: ${sessionDuration} 秒)，已保存`)
-        } else {
-          // console.log(`游戏 ${game.name} 总时长更新为: ${game.playTime} 秒 (本次增加: ${sessionDuration} 秒)，暂存内存`)
-        }
-      } else {
-        console.warn('未找到对应的游戏:', gameId)
-      }
-    },
-    // 安全保存游戏数据（使用队列机制，防止并发写入）
-    async saveGamesSafely(gameView) {
-      // 将保存任务添加到队列
-      return new Promise((resolve, reject) => {
-        const saveTask = {
-          gameView,
-          resolve,
-          reject,
-          timestamp: Date.now()
-        }
-        
-        this.saveQueue.push(saveTask)
-        console.log(`📝 保存任务已加入队列，当前队列长度: ${this.saveQueue.length}`)
-        
-        // 如果队列处理程序没有运行，启动它
-        if (!this.isProcessingSaveQueue) {
-          this.processSaveQueue()
-        }
-      })
-    },
-    // 处理保存队列（按顺序执行保存任务）
-    async processSaveQueue() {
-      if (this.isProcessingSaveQueue) {
-        return // 已经在处理中，避免重复启动
-      }
-      
-      this.isProcessingSaveQueue = true
-      console.log('🔄 开始处理保存队列')
-      
-      while (this.saveQueue.length > 0) {
-        const task = this.saveQueue.shift() // 从队列头部取出任务
-        
-        if (!task || !task.gameView) {
-          console.warn('⚠️ 无效的保存任务，跳过')
-          if (task && task.reject) {
-            task.reject(new Error('无效的保存任务'))
+        window.dispatchEvent(new CustomEvent('game-playtime-save', {
+          detail: { gameId }
+        }))
           }
-          continue
-        }
-        
-        try {
-          console.log(`💾 执行保存任务 (队列剩余: ${this.saveQueue.length})`)
-          
-          if (typeof task.gameView.saveGames === 'function') {
-            await task.gameView.saveGames()
-            console.log('✅ 保存任务完成')
-            
-            if (task.resolve) {
-              task.resolve()
-            }
-          } else {
-            throw new Error('gameView.saveGames 方法不可用')
-          }
-        } catch (error) {
-          console.error('❌ 保存任务失败:', error)
-          
-          if (task.reject) {
-            task.reject(error)
-          }
-        }
-        
-        // 任务之间稍作延迟，避免过于频繁的写入
-        if (this.saveQueue.length > 0) {
-          await new Promise(resolve => setTimeout(resolve, 50))
-        }
-      }
-      
-      this.isProcessingSaveQueue = false
-      console.log('✅ 保存队列处理完成')
     },
     // 更新运行游戏的窗口标题列表
     async updateRunningGamesWindowTitles() {
@@ -588,7 +505,8 @@ export default {
         return
       }
       
-      const runningGamesToUpdate: Array<[string, any]> = Array.from(this.runningGames.entries())
+      const runningGamesMap = this.gameRunningStore.getRunningGamesMap()
+      const runningGamesToUpdate: Array<[string, any]> = Array.from(runningGamesMap.entries())
       
       for (const [gameId, runtimeGameData] of runningGamesToUpdate) {
         try {
@@ -606,7 +524,7 @@ export default {
             // 如果有新增的窗口标题，更新数据
             if (allTitles.length !== oldTitles.length || 
                 allTitles.some(title => !oldTitles.includes(title))) {
-              runtimeGameData.windowTitles = allTitles
+              this.gameRunningStore.updateGameWindowTitles(gameId, allTitles)
               console.log(`✅ 更新游戏 ${runtimeGameData.gameName || gameId} 的窗口标题列表:`, allTitles)
             }
           }
@@ -616,35 +534,23 @@ export default {
         }
       }
     },
-    // 检查所有游戏的运行状态
+    // 检查所有游戏的运行状态（不依赖 GameView，只检查进程）
     async checkAllGamesRunningStatus() {
       if (!window.electronAPI || !window.electronAPI.getAllWindowTitlesByPID) {
         console.log('无法检查游戏运行状态：Electron API 不可用')
         return
       }
       
-      const gameView = this.$refs.gameView
-      if (!gameView || !gameView.games) {
-        console.log('游戏视图不可用，跳过状态检查')
-        return
-      }
-      
-      console.log(`[DEBUG] 🔍 开始检查所有游戏的运行状态，当前运行游戏数量: ${this.runningGames.size}`)
-      const runningGamesToCheck: Array<[string, any]> = Array.from(this.runningGames.entries())
+      const runningGamesMap = this.gameRunningStore.getRunningGamesMap()
+      const runningGamesSize = runningGamesMap.size
+      console.log(`[DEBUG] 🔍 开始检查所有游戏的运行状态，当前运行游戏数量: ${runningGamesSize}`)
+      const runningGamesToCheck: Array<[string, any]> = Array.from(runningGamesMap.entries())
       console.log(`[DEBUG] 📋 待检查的游戏列表:`, runningGamesToCheck.map(([id, data]) => ({ id, pid: data.pid, gameName: data.gameName })))
       
       for (const [gameId, runtimeGameData] of runningGamesToCheck) {
-        const game = gameView.games.find(g => g.id === gameId)
-        if (!game) {
-          // 游戏不存在，从运行列表中移除
-          this.runningGames.delete(gameId)
-          console.log(`游戏 ${gameId} 不存在，从运行列表中移除`)
-          continue
-        }
-        
         try {
           // 通过 PID 检查游戏进程是否还在运行（尝试获取窗口标题，如果失败说明进程已结束）
-          console.log(`[DEBUG] 🔍 检查游戏 ${game.name} (ID: ${gameId}, PID: ${runtimeGameData.pid}) 的运行状态...`)
+          console.log(`[DEBUG] 🔍 检查游戏 ${runtimeGameData.gameName || gameId} (ID: ${gameId}, PID: ${runtimeGameData.pid}) 的运行状态...`)
           const result = await window.electronAPI.getAllWindowTitlesByPID(runtimeGameData.pid)
           console.log(`[DEBUG] 📋 getAllWindowTitlesByPID 结果:`, { success: result.success, windowTitles: result.windowTitles, error: result.error })
           
@@ -654,27 +560,33 @@ export default {
             console.log(`[DEBUG] ⚠️ 无法获取窗口标题，之前记录的窗口标题:`, runtimeGameData.windowTitles)
             if (runtimeGameData.windowTitles && runtimeGameData.windowTitles.length > 0) {
               // 之前有窗口，现在获取不到，可能是进程结束了
-              console.log(`[DEBUG] 🔴 游戏 ${game.name} 进程已结束（之前有窗口但现在获取不到），从运行列表中移除`)
+              console.log(`[DEBUG] 🔴 游戏 ${runtimeGameData.gameName || gameId} 进程已结束（之前有窗口但现在获取不到），从运行列表中移除`)
               this.removeRunningGame(gameId)
             } else {
-              console.log(`[DEBUG] ⚠️ 游戏 ${game.name} 之前没有窗口标题，无法判断进程是否结束，保留运行状态`)
+              console.log(`[DEBUG] ⚠️ 游戏 ${runtimeGameData.gameName || gameId} 之前没有窗口标题，无法判断进程是否结束，保留运行状态`)
             }
           } else {
-            console.log(`[DEBUG] ✅ 游戏 ${game.name} 进程仍在运行，窗口标题:`, result.windowTitles)
+            console.log(`[DEBUG] ✅ 游戏 ${runtimeGameData.gameName || gameId} 进程仍在运行，窗口标题:`, result.windowTitles)
           }
         } catch (error) {
-          console.error(`[DEBUG] ❌ 检查游戏 ${game.name} 运行状态失败:`, error)
+          console.error(`[DEBUG] ❌ 检查游戏 ${runtimeGameData.gameName || gameId} 运行状态失败:`, error)
           // 出错时保守处理，保留运行状态
         }
       }
       
-      console.log('游戏运行状态检查完成，正在运行的游戏:', Array.from(this.runningGames.keys()))
+      console.log('游戏运行状态检查完成，正在运行的游戏:', this.gameRunningStore.runningGameIds)
     },
     // 启动定期检查运行状态
     startPeriodicStatusCheck() {
-      // 每30秒检查一次运行状态
-      this.statusCheckInterval = setInterval(async () => {
-        if (this.runningGames.size > 0) {
+      // 先清理旧的定时器
+      if (this.statusCheckIntervalId !== null) {
+        clearInterval(this.statusCheckIntervalId)
+      }
+      
+      // 定时器由 App.vue 管理，因为需要调用 App.vue 的方法
+      this.statusCheckIntervalId = window.setInterval(async () => {
+        const runningGamesMap = this.gameRunningStore.getRunningGamesMap()
+        if (runningGamesMap.size > 0) {
           console.log('定期检查游戏运行状态...')
           await this.checkAllGamesRunningStatus()
           // 同时更新窗口标题列表（检测新创建的窗口）
@@ -684,81 +596,93 @@ export default {
     },
     // 启动定期更新游戏时长
     startPeriodicPlaytimeUpdate() {
+      console.log(`[startPeriodicPlaytimeUpdate] 🚀 启动定期更新游戏时长`)
+      
+      // 先清理旧的定时器
+      if (this.playtimeUpdateIntervalId !== null) {
+        console.log(`[startPeriodicPlaytimeUpdate] 清理旧的更新定时器:`, this.playtimeUpdateIntervalId)
+        clearInterval(this.playtimeUpdateIntervalId)
+      }
+      if (this.playtimeSaveIntervalId !== null) {
+        console.log(`[startPeriodicPlaytimeUpdate] 清理旧的保存定时器:`, this.playtimeSaveIntervalId)
+        clearInterval(this.playtimeSaveIntervalId)
+      }
+      
       // 每1秒更新一次游戏时长（只更新内存）
-      this.playtimeUpdateInterval = setInterval(() => {
-        if (this.runningGames.size > 0) {
+      this.playtimeUpdateIntervalId = window.setInterval(() => {
+        const runningGamesMap = this.gameRunningStore.getRunningGamesMap()
+        const runningGamesCount = runningGamesMap.size
+        console.log(`[定时器-更新] 检查运行游戏数量:`, runningGamesCount)
+        
+        if (runningGamesCount > 0) {
+          console.log(`[定时器-更新] 有运行游戏，调用 updateRunningGamesPlaytime`)
           this.updateRunningGamesPlaytime()
+        } else {
+          console.log(`[定时器-更新] 没有运行游戏，跳过`)
         }
       }, 1000) // 1秒
       
+      console.log(`[startPeriodicPlaytimeUpdate] ✅ 更新定时器已启动:`, this.playtimeUpdateIntervalId)
+      
       // 每1分钟保存一次游戏时长
-      this.playtimeSaveInterval = setInterval(() => {
-        if (this.runningGames.size > 0) {
+      this.playtimeSaveIntervalId = window.setInterval(() => {
+        const runningGamesMap = this.gameRunningStore.getRunningGamesMap()
+        const runningGamesCount = runningGamesMap.size
+        console.log(`[定时器-保存] 检查运行游戏数量:`, runningGamesCount)
+        
+        if (runningGamesCount > 0) {
+          console.log(`[定时器-保存] 有运行游戏，调用 saveRunningGamesPlaytime`)
           this.saveRunningGamesPlaytime()
+        } else {
+          console.log(`[定时器-保存] 没有运行游戏，跳过`)
         }
       }, 60000) // 60秒 = 1分钟
-    },
-    // 更新正在运行游戏的时长（只更新内存，不保存）
-    updateRunningGamesPlaytime() {
-      const now = Date.now()
       
-      for (const [gameId, runtimeGameData] of this.runningGames) {
-        if (runtimeGameData.startTime) {
-          const sessionDuration = Math.floor((now - runtimeGameData.startTime) / 1000)
-          
-          // 更新会话开始时间（重置计时器）
-          runtimeGameData.startTime = now
-          
-          // 更新游戏时长（不保存，只更新内存）
-          this.updateGamePlayTime(gameId, sessionDuration, false)
-        }
+      console.log(`[startPeriodicPlaytimeUpdate] ✅ 保存定时器已启动:`, this.playtimeSaveIntervalId)
+    },
+    // 更新正在运行游戏的时长（通过事件通知 GameView 计算并更新）
+    updateRunningGamesPlaytime() {
+      const runningGamesMap = this.gameRunningStore.getRunningGamesMap()
+      
+      if (runningGamesMap.size === 0) {
+        return
+      }
+      
+      // 通过事件通知 GameView 更新所有运行中游戏的时长（GameView 中有 game.playTime，可以直接计算）
+      for (const [gameId] of runningGamesMap) {
+        window.dispatchEvent(new CustomEvent('game-request-update-playtime', {
+          detail: { gameId }
+        }))
       }
     },
     // 保存正在运行游戏的时长（每1分钟执行一次）
     async saveRunningGamesPlaytime() {
-      const gameView = this.$refs.gameView
-      if (!gameView || !gameView.games) {
-        console.log('游戏视图不可用，无法保存游戏时长')
-        return
-      }
-      
-      // 检查是否有正在运行的游戏需要保存
-      let hasRunningGames = false
-      for (const [gameId] of this.runningGames) {
-        const game = gameView.games.find(g => g.id === gameId)
-        if (game) {
-          hasRunningGames = true
-          break
-        }
-      }
-      
-      if (hasRunningGames) {
-        try {
-          await this.saveGamesSafely(gameView)
-          console.log('✅ 定期保存游戏时长完成（每1分钟）')
-        } catch (error) {
-          console.error('定期保存游戏时长失败:', error)
-        }
+      // 通过事件通知 GameView 保存数据
+      const runningGamesMap = this.gameRunningStore.getRunningGamesMap()
+      for (const [gameId] of runningGamesMap) {
+        window.dispatchEvent(new CustomEvent('game-playtime-save', {
+          detail: { gameId }
+        }))
       }
     },
     // 停止定期检查
     stopPeriodicStatusCheck() {
-      if (this.statusCheckInterval) {
-        clearInterval(this.statusCheckInterval)
-        this.statusCheckInterval = null
+      if (this.statusCheckIntervalId !== null) {
+        clearInterval(this.statusCheckIntervalId)
+        this.statusCheckIntervalId = null
         console.log('已停止定期检查游戏运行状态')
       }
     },
     // 停止定期更新游戏时长
     stopPeriodicPlaytimeUpdate() {
-      if (this.playtimeUpdateInterval) {
-        clearInterval(this.playtimeUpdateInterval)
-        this.playtimeUpdateInterval = null
+      if (this.playtimeUpdateIntervalId !== null) {
+        clearInterval(this.playtimeUpdateIntervalId)
+        this.playtimeUpdateIntervalId = null
         console.log('已停止定期更新游戏时长')
       }
-      if (this.playtimeSaveInterval) {
-        clearInterval(this.playtimeSaveInterval)
-        this.playtimeSaveInterval = null
+      if (this.playtimeSaveIntervalId !== null) {
+        clearInterval(this.playtimeSaveIntervalId)
+        this.playtimeSaveIntervalId = null
         console.log('已停止定期保存游戏时长')
       }
     },
@@ -997,7 +921,7 @@ export default {
           // 如果路由不存在，跳转到主页
           this.$router.push({ name: 'home' })
         })
-        console.log('🎯 已设置当前页面为:', lastView)
+      console.log('🎯 已设置当前页面为:', lastView)
       } else {
         this.$router.push({ name: 'home' })
       }
@@ -1022,9 +946,17 @@ export default {
           // 如果是有筛选器的页面，需要手动触发筛选器数据更新
           if (requiresFilter) {
             this.$nextTick(() => {
-              const currentViewRef = this.getCurrentViewRef()
-              if (currentViewRef && currentViewRef.updateFilterData) {
-                currentViewRef.updateFilterData()
+              const routerView = this.$refs.routerView as any
+              if (routerView && routerView.$vnode && routerView.$vnode.componentInstance) {
+                const currentViewRef = routerView.$vnode.componentInstance
+                if (currentViewRef.$refs && currentViewRef.$refs.innerView) {
+                  const innerView = currentViewRef.$refs.innerView
+                  if (innerView && innerView.updateFilterData) {
+                    innerView.updateFilterData()
+                  }
+                } else if (currentViewRef && currentViewRef.updateFilterData) {
+                  currentViewRef.updateFilterData()
+                }
               }
             })
           }
@@ -1038,9 +970,17 @@ export default {
     this.isFilterSidebarLoading = this.showFilterSidebar
     if (this.showFilterSidebar) {
       this.$nextTick(() => {
-        const currentViewRef = this.getCurrentViewRef()
-        if (currentViewRef && currentViewRef.updateFilterData) {
+        const routerView = this.$refs.routerView as any
+        if (routerView && routerView.$vnode && routerView.$vnode.componentInstance) {
+          const currentViewRef = routerView.$vnode.componentInstance
+          if (currentViewRef.$refs && currentViewRef.$refs.innerView) {
+            const innerView = currentViewRef.$refs.innerView
+            if (innerView && innerView.updateFilterData) {
+              innerView.updateFilterData()
+            }
+          } else if (currentViewRef && currentViewRef.updateFilterData) {
           currentViewRef.updateFilterData()
+          }
         }
       })
     }
@@ -1054,11 +994,11 @@ export default {
 
     // 加载主题设置
     await this.theme.loadTheme()
-    
-    // 加载个性化设置
+      
+      // 加载个性化设置
     await this.personalization.loadPersonalization()
-    
-    // 加载背景图片设置
+      
+      // 加载背景图片设置
     await this.backgroundImage.loadBackgroundImage()
     
     // 初始化个性化设置事件监听
@@ -1084,6 +1024,13 @@ export default {
     
     // 启动游戏时长更新
     this.startPeriodicPlaytimeUpdate()
+    
+    // 监听 GameView 返回的初始 playTime
+    window.addEventListener('game-initial-playtime-response', ((event: CustomEvent) => {
+      const { gameId, initialPlayTime } = event.detail
+      this.gameRunningStore.updateInitialPlayTime(gameId, initialPlayTime)
+      console.log(`[App.vue] 收到游戏 ${gameId} 初始时长: ${initialPlayTime} 秒`)
+    }) as EventListener)
     
     // 开始应用使用时长跟踪
     await this.startAppUsageTracking()
@@ -1151,8 +1098,8 @@ export default {
     
     // 禁用安全键（清理全局快捷键）
     this.safetyKey.disableSafetyKey().catch((error) => {
-      console.error('禁用安全键失败:', error)
-    })
+        console.error('禁用安全键失败:', error)
+      })
   }
 }
 </script>
