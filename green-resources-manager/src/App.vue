@@ -68,23 +68,13 @@
           <!-- 主页 -->
           <HomeView v-if="currentView === 'home'" @navigate="switchView" />
 
-          <!-- 游戏页面 -->
-          <GameView v-if="currentView === 'games'" ref="gameView" @filter-data-updated="updateFilterData" />
-
-          <!-- 图片页面 -->
-          <ImageView v-if="currentView === 'images'" ref="imageView" @filter-data-updated="updateFilterData" />
-
-          <!-- 视频页面 -->
-          <VideoView v-if="currentView === 'videos'" ref="videoView" @filter-data-updated="updateFilterData" />
-
-          <!-- 小说页面 -->
-          <NovelView v-if="currentView === 'novels'" ref="novelView" @filter-data-updated="updateFilterData" />
-
-          <!-- 网站页面 -->
-          <WebsiteView v-if="currentView === 'websites'" ref="websiteView" @filter-data-updated="updateFilterData" />
-
-          <!-- 声音页面 -->
-          <AudioView v-if="currentView === 'audio'" ref="audioView" @filter-data-updated="updateFilterData" />
+          <!-- 动态资源页面 -->
+          <ResourceView 
+            ref="resourceView"
+            v-if="currentPageConfig"
+            :page-config="currentPageConfig"
+            @filter-data-updated="updateFilterData"
+          />
 
           <!-- 用户页面 -->
           <UserView v-if="currentView === 'users'" />
@@ -117,12 +107,6 @@
 
 <script lang="ts">
 import HomeView from './pages/HomeView.vue'
-import GameView from './pages/GameView.vue'
-import ImageView from './pages/ImageView.vue'
-import VideoView from './pages/VideoView.vue'
-import NovelView from './pages/NovelView.vue'
-import WebsiteView from './pages/WebsiteView.vue'
-import AudioView from './pages/AudioView.vue'
 import UserView from './pages/UserView.vue'
 import SettingsView from './pages/SettingsView.vue'
 import MessageCenterView from './pages/MessageCenterView.vue'
@@ -132,11 +116,13 @@ import RecentView from './pages/RecentView.vue'
 import GlobalAudioPlayer from './components/GlobalAudioPlayer.vue'
 import ToastNotification from './components/ToastNotification.vue'
 import FilterSidebar from './components/FilterSidebar.vue'
+import ResourceView from './components/ResourceView.vue'
 
 
 import notificationService from './utils/NotificationService.ts'
 
 import saveManager from './utils/SaveManager.ts'
+import customPageManager from './utils/CustomPageManager.ts'
 import { unlockAchievement } from './pages/user/AchievementView.vue'
 
 
@@ -144,12 +130,6 @@ export default {
   name: 'App',
   components: {
     HomeView,
-    GameView,
-    ImageView,
-    VideoView,
-    NovelView,
-    WebsiteView,
-    AudioView,
     UserView,
     SettingsView,
     MessageCenterView,
@@ -158,7 +138,8 @@ export default {
     RecentView,
     GlobalAudioPlayer,
     ToastNotification,
-    FilterSidebar
+    FilterSidebar,
+    ResourceView
   },
   data() {
     return {
@@ -205,44 +186,14 @@ export default {
       backgroundImagePath: '', // 背景图片路径
       backgroundImageUrl: '', // 背景图片URL（用于显示）
       // 统一的页面配置
+      pages: [], // 动态页面配置
       viewConfig: {
-        // 主导航页面
+        // 固定页面
         home: {
           name: '主页',
           icon: '🏠',
           description: '欢迎页面，快速访问各个功能模块'
         },
-        games: {
-          name: '游戏',
-          icon: '🎮',
-          description: '可以管理游戏、应用等exe文件'
-        },
-        images: {
-          name: '图片',
-          icon: '🖼️',
-          description: '可以管理图片文件夹，暂不支持单一图片的管理'
-        },
-        videos: {
-          name: '视频',
-          icon: '🎬',
-          description: '可以管理单一视频和视频文件夹'
-        },
-        novels: {
-          name: '小说',
-          icon: '📚',
-          description: '可以管理txt文件，暂不支持其余格式'
-        },
-        websites: {
-          name: '网站',
-          icon: '🌐',
-          description: '需要手动传入网址'
-        },
-        audio: {
-          name: '声音',
-          icon: '🎵',
-          description: '可以管理mp3、wav等常见音频文件'
-        },
-        // 底部导航页面
         users: {
           name: '用户',
           icon: '👤',
@@ -274,9 +225,14 @@ export default {
     }
   },
   computed: {
+    currentPageConfig() {
+      // 隐藏页面不应被渲染/进入
+      return this.pages.find(p => p.id === this.currentView && !p.isHidden)
+    },
     // 主导航页面ID列表
     mainNavViewIds() {
-      return ['home', 'games', 'images', 'videos', 'novels', 'websites', 'audio']
+      // 隐藏页面不出现在导航中
+      return ['home', ...this.pages.filter(p => !p.isHidden).map(p => p.id)]
     },
     // 底部导航页面ID列表
     footerViews() {
@@ -375,6 +331,68 @@ export default {
         console.error('获取磁盘信息时出错:', error)
       }
     },
+
+    // 预热资源页面
+    prefetchResourceViews() {
+      const run = () => {
+        const loaders: Array<() => Promise<any>> = [
+          () => import('./pages/GameView.vue'),
+          () => import('./pages/ImageView.vue'),
+          () => import('./pages/VideoView.vue'),
+          () => import('./pages/NovelView.vue'),
+          () => import('./pages/WebsiteView.vue'),
+          () => import('./pages/AudioView.vue')
+        ]
+
+        for (const loader of loaders) {
+          try {
+            loader().catch(() => {})
+          } catch (_) {
+            // ignore
+          }
+        }
+      }
+
+      const w = window as any
+      if (typeof w.requestIdleCallback === 'function') {
+        w.requestIdleCallback(run, { timeout: 2000 })
+      } else {
+        setTimeout(run, 0)
+      }
+    },
+
+    // 重新加载自定义页面配置并刷新导航（用于“页面管理”修改后即时生效）
+    async reloadCustomPages() {
+      try {
+        await customPageManager.init()
+        this.pages = customPageManager.getPages()
+
+        // 更新 viewConfig
+        this.pages.forEach(page => {
+          this.viewConfig[page.id] = {
+            name: page.name,
+            icon: page.icon,
+            description: page.description || `${page.name}管理页面`
+          }
+        })
+
+        // 刷新导航项
+        this.navItems = this.mainNavViewIds.map(viewId => ({
+          id: viewId,
+          name: this.viewConfig[viewId]?.name || viewId,
+          icon: this.viewConfig[viewId]?.icon || '📄',
+          description: this.viewConfig[viewId]?.description || ''
+        }))
+
+        // 当前页面如果变为隐藏/已删除（仅资源视图会有 pageConfig）则回退
+        if (this.mainNavViewIds.includes(this.currentView) && this.currentView !== 'home' && !this.currentPageConfig) {
+          const firstVisible = this.pages.find(p => !p.isHidden)?.id
+          this.currentView = firstVisible || 'home'
+        }
+      } catch (e) {
+        console.error('重新加载自定义页面失败:', e)
+      }
+    },
     
     switchView(viewId) {
       this.currentView = viewId
@@ -429,15 +447,25 @@ export default {
       if (currentViewRef && currentViewRef.handleFilterEvent) {
         currentViewRef.handleFilterEvent(event, data)
       }
+
+      // 筛选事件发生后，主动让当前页面重新上报 filterData，
+      if (currentViewRef && currentViewRef.updateFilterData) {
+        currentViewRef.updateFilterData()
+      }
     },
     getCurrentViewRef() {
+      // 如果是动态资源页面，返回 ResourceView 的引用
+      if (this.currentPageConfig) {
+        return this.$refs.resourceView
+      }
+
       const refMap = {
-        'games': this.$refs.gameView,
-        'images': this.$refs.imageView,
-        'videos': this.$refs.videoView,
-        'novels': this.$refs.novelView,
-        'websites': this.$refs.websiteView,
-        'audio': this.$refs.audioView
+        // 'games': this.$refs.gameView, // 已由 ResourceView 接管
+        // 'images': this.$refs.imageView, // 已由 ResourceView 接管
+        // 'videos': this.$refs.videoView, // 已由 ResourceView 接管
+        // 'novels': this.$refs.novelView, // 已由 ResourceView 接管
+        // 'websites': this.$refs.websiteView, // 已由 ResourceView 接管
+        // 'audio': this.$refs.audioView // 已由 ResourceView 接管
       }
       return refMap[this.currentView]
     },
@@ -1036,6 +1064,15 @@ export default {
       this.isInitialized = true // 即使出错也标记为完成，避免阻塞
     }
 
+    // 初始化自定义页面管理器
+    try {
+      await customPageManager.init()
+      await this.reloadCustomPages()
+      console.log('自定义页面初始化成功:', this.pages.length, '个页面')
+    } catch (error) {
+      console.error('自定义页面初始化失败:', error)
+    }
+
     // 加载最后访问的页面
     try {
       const lastView = await this.loadLastView()
@@ -1046,17 +1083,27 @@ export default {
       this.currentView = 'home'
     }
 
-    // 初始化筛选器状态
-    this.showFilterSidebar = this.mainNavViewIds.includes(this.currentView)
-    
-    // 初始化主导航菜单项
-    this.navItems = this.mainNavViewIds.map(viewId => ({
-      id: viewId,
-      name: this.viewConfig[viewId].name,
-      icon: this.viewConfig[viewId].icon,
-      description: this.viewConfig[viewId].description
-    }))
+    // lastView 可能是隐藏页面/已删除页面，避免“隐藏后仍然能进入”
+    if (this.currentView !== 'home' && !this.currentPageConfig) {
+      const firstVisible = this.pages.find(p => !p.isHidden)?.id
+      this.currentView = firstVisible || 'home'
+    }
 
+    // 初始化筛选器状态
+    this.showFilterSidebar = this.mainNavViewIds.includes(this.currentView) && this.currentView !== 'home'
+
+    // 初次进入带筛选器的页面时，显示加载状态并主动触发一次筛选器数据刷新
+    this.resetFilterData()
+    this.isFilterSidebarLoading = this.showFilterSidebar
+    if (this.showFilterSidebar) {
+      this.$nextTick(() => {
+        const currentViewRef = this.getCurrentViewRef()
+        if (currentViewRef && currentViewRef.updateFilterData) {
+          currentViewRef.updateFilterData()
+        }
+      })
+    }
+    
     // 初始化通知服务
     try {
       notificationService.init(this.$refs.toastNotification)
@@ -1098,6 +1145,9 @@ export default {
 
     // 启动游戏运行状态检查
     this.startPeriodicStatusCheck()
+
+    // 在应用空闲时预热各资源页面
+    this.prefetchResourceViews()
     
     // 启动游戏时长更新
     this.startPeriodicPlaytimeUpdate()
@@ -1153,6 +1203,11 @@ export default {
       this.autoBackupInterval = interval || 0
       console.log('自动备份时间间隔已更新:', this.autoBackupInterval, '分钟')
       this.startAutoBackupTimer()
+    })
+
+    // 监听页面管理变更（设置页新增/隐藏/排序后刷新导航）
+    window.addEventListener('custom-pages-updated', () => {
+      this.reloadCustomPages()
     })
     
     // 监听安全键触发事件（来自主进程）

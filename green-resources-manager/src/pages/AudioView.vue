@@ -471,15 +471,22 @@ export default {
       try {
         // 调用 composable 的 loadAudios 方法
         await this.loadAudiosFromComposable()
-        
-        // 检测文件存在性（仅在应用启动时检测一次）
-        if (this.$parent.shouldCheckFileLoss && this.$parent.shouldCheckFileLoss()) {
-          await this.checkFileExistence()
-          this.$parent.markFileLossChecked()
-        }
-        
+
         // 更新筛选器数据
         this.updateFilterData()
+        
+        // 检测文件存在性（仅在应用启动时检测一次）
+        if (this.$root.shouldCheckFileLoss && this.$root.shouldCheckFileLoss()) {
+          this.$root.markFileLossChecked()
+          Promise.resolve()
+            .then(() => this.checkFileExistence())
+            .catch((e) => {
+              console.warn('[AudioView] 后台检测文件存在性失败:', e)
+            })
+            .finally(() => {
+              this.updateFilterData()
+            })
+        }
         
         // 计算音频列表总页数
         this.updateAudioPagination()
@@ -1051,16 +1058,6 @@ export default {
     }
   },
   async mounted() {
-    // 等待父组件（App.vue）的存档系统初始化完成
-    const maxWaitTime = 5000
-    const startTime = Date.now()
-    while (!this.$parent.isInitialized && (Date.now() - startTime) < maxWaitTime) {
-      await new Promise(resolve => setTimeout(resolve, 50))
-    }
-    if (this.$parent.isInitialized) {
-      console.log('✅ 存档系统已初始化，开始加载音频数据')
-    }
-    
     await this.loadAudios()
     
     // 加载音频分页设置

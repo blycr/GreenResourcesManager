@@ -76,6 +76,7 @@ declare global {
       // 备份整个存档目录
       backupSaveDataDirectory: (saveDataDir: string, maxBackups?: number) => Promise<{ success: boolean; backupPath?: string; backupNumber?: number; copiedFiles?: number; copiedFolders?: number; error?: string }>
       deleteFile: (filePath: string) => Promise<{ success: boolean; error?: string }>
+      deleteDirectory: (dirPath: string) => Promise<{ success: boolean; error?: string }>
       
       // 文件读写
       writeFile: (filePath: string, buffer: Buffer) => Promise<{ success: boolean; error?: string }>

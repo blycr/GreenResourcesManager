@@ -2,13 +2,15 @@
 
 class NovelManager {
   novels: any[]
+  pageId: string
   dataFile: string
   settingsFile: string
   defaultSettings: any
   settings: any
 
-  constructor() {
+  constructor(pageId: string = 'novels') {
     this.novels = []
+    this.pageId = pageId
     this.dataFile = 'SaveData/novels.json'
     this.settingsFile = 'SaveData/novel-settings.json'
     this.defaultSettings = {
@@ -29,7 +31,7 @@ class NovelManager {
   // 加载小说数据
   async loadNovels() {
     try {
-      this.novels = await saveManager.loadNovels()
+      this.novels = await saveManager.loadPageData(this.pageId)
       console.log('加载小说数据:', this.novels.length, '本小说')
       return this.novels
     } catch (error) {
@@ -42,7 +44,7 @@ class NovelManager {
   // 保存小说数据
   async saveNovels() {
     try {
-      const success = await saveManager.saveNovels(this.novels)
+      const success = await saveManager.savePageData(this.pageId, this.novels)
       if (success) {
         console.log('小说数据保存成功:', this.novels.length, '本小说')
       }
@@ -431,5 +433,6 @@ class NovelManager {
 
 }
 
+export { NovelManager }
 export default new NovelManager()
 

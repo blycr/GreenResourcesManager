@@ -44,6 +44,12 @@
             @update:settings="handleSettingUpdate"
           />
 
+          <!-- 页面管理（自定义页面系统） -->
+          <PageManagementSettings
+            v-if="currentCategory === 'pageManagement'"
+            @pages-updated="handlePagesUpdated"
+          />
+
           <!-- 游戏设置 -->
           <GameSettings 
             v-if="currentCategory === 'games'"
@@ -129,6 +135,7 @@ import UpdateSettings from '../components/settings/UpdateSettings.vue'
 import ArchiveSettings from '../components/settings/ArchiveSettings.vue'
 import PetSettings from '../components/settings/PetSettings.vue'
 import PersonalizationSettings from '../components/settings/PersonalizationSettings.vue'
+import PageManagementSettings from '../components/settings/PageManagementSettings.vue'
 
 export default {
   name: 'SettingsView',
@@ -143,7 +150,8 @@ export default {
     UpdateSettings,
     ArchiveSettings,
     PetSettings,
-    PersonalizationSettings
+    PersonalizationSettings,
+    PageManagementSettings
   },
   data() {
     return {
@@ -151,6 +159,7 @@ export default {
       settingsCategories: [
         { id: 'general', name: '通用', icon: '⚙️', description: '应用的基本设置和外观配置' },
         { id: 'personalization', name: '个性化', icon: '🎨', description: '个性化外观和主题设置' },
+        { id: 'pageManagement', name: '页面管理', icon: '🧩', description: '添加/编辑/排序/隐藏自定义页面' },
         { id: 'games', name: '游戏', icon: '🎮', description: '游戏相关的设置选项' },
         { id: 'images', name: '图片', icon: '🖼️', description: '图片管理和显示设置' },
         { id: 'videos', name: '视频', icon: '🎬', description: '视频播放和管理设置' },
@@ -297,6 +306,13 @@ export default {
     // 处理主题变化事件
     onThemeChanged(actualTheme: string) {
       this.$emit('theme-changed', actualTheme)
+    },
+
+    // 页面管理更新（例如新增/隐藏/排序）
+    handlePagesUpdated() {
+      // 通知 App.vue 重新加载 pages/navItems（避免 window.location.reload 导致离开设置页面）
+      window.dispatchEvent(new CustomEvent('custom-pages-updated'))
+      notify.toast('success', '页面已更新', '页面配置已保存，导航将自动刷新')
     },
     
     // 处理通用设置的特殊操作

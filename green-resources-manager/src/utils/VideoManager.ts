@@ -4,18 +4,18 @@ import saveManager from './SaveManager'
 
 class VideoManager {
   videos: any[]
-  dataFile: string
+  pageId: string
 
-  constructor() {
+  constructor(pageId: string = 'videos') {
     this.videos = []
-    this.dataFile = 'videos.json'
+    this.pageId = pageId
     this.loadVideos()
   }
 
   // 加载视频数据
   async loadVideos() {
     try {
-      const loaded = await saveManager.loadVideos()
+      const loaded = await saveManager.loadPageData(this.pageId)
       this.videos = Array.isArray(loaded) ? loaded : []
     } catch (error) {
       console.error('加载视频数据失败:', error)
@@ -51,7 +51,7 @@ class VideoManager {
         notes: video.notes || ''
       }))
 
-      const success = await saveManager.saveVideos(serializableVideos)
+      const success = await saveManager.savePageData(this.pageId, serializableVideos)
       console.log('保存结果:', success)
       return success
     } catch (error) {

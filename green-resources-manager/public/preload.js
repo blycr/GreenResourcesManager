@@ -30,6 +30,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   writeJsonFile: (filePath, data) => ipcRenderer.invoke('write-json-file', filePath, data),
   readJsonFile: (filePath) => ipcRenderer.invoke('read-json-file', filePath),
   deleteFile: (filePath) => ipcRenderer.invoke('delete-file', filePath),
+  deleteDirectory: (dirPath) => ipcRenderer.invoke('delete-directory', dirPath),
   ensureDirectory: (dirPath) => ipcRenderer.invoke('ensure-directory', dirPath),
   
   // 文件操作

@@ -288,7 +288,8 @@ import ContentView from '../components/epub-reader-v2/ContentView.vue'
 import saveManager from '../utils/SaveManager.ts'
 import { useNovelManagement } from '../composables/novel/useNovelManagement'
 import { useNovelFilter } from '../composables/novel/useNovelFilter'
-import { ref } from 'vue'
+import { ref, PropType } from 'vue'
+import { PageConfig } from '../types/page'
 import { EpubParser } from '../utils/EpubParser'
 
 import notify from '../utils/NotificationService.ts'
@@ -308,9 +309,15 @@ export default {
     ContentView
   },
   emits: ['filter-data-updated'],
-  setup() {
+  props: {
+    pageConfig: {
+      type: Object as PropType<PageConfig>,
+      default: () => ({ id: 'novels', type: 'Novel' })
+    }
+  },
+  setup(props) {
     // 初始化小说管理 composable
-    const novelManagement = useNovelManagement()
+    const novelManagement = useNovelManagement(props.pageConfig.id)
     
     // 初始化小说筛选 composable
     const novelFilter = useNovelFilter({
@@ -1090,26 +1097,39 @@ export default {
       try {
         // 调用 composable 的 loadNovels 方法
         await this.loadNovelsFromComposable()
-        
-        // 为没有字数信息的小说重新计算字数
-        await this.updateNovelsWordCount()
-        
+
         // 更新筛选器数据（allTags 和 allAuthors 会自动计算）
         this.updateFilterData()
         
+        // 为没有字数信息的小说重新计算字数（后台执行，不阻塞筛选器显示）
+        Promise.resolve()
+          .then(() => this.updateNovelsWordCount())
+          .catch((e) => {
+            console.warn('后台更新字数失败:', e)
+          })
+        
         // 检测文件存在性（仅在应用启动时检测一次）
-        if (this.$parent.shouldCheckFileLoss && this.$parent.shouldCheckFileLoss()) {
-          await this.checkFileExistence()
-          this.$parent.markFileLossChecked()
+        if (this.$root.shouldCheckFileLoss && this.$root.shouldCheckFileLoss()) {
+          this.$root.markFileLossChecked()
+          Promise.resolve()
+            .then(() => this.checkFileExistence())
+            .catch((e) => {
+              console.warn('后台检测文件存在性失败:', e)
+            })
+            .finally(() => {
+              this.updateFilterData()
+            })
         }
         
         // 计算小说列表总页数
         this.updateNovelPagination()
+        
       } catch (error: any) {
         console.error('加载小说数据失败:', error)
         notify.toast('error', '加载失败', '加载小说数据失败: ' + error.message)
       }
     },
+    
     
     // checkFileExistence, extractAllTagsAndAuthors, filterByTag, excludeByTag, clearTagFilter,
     // filterByAuthor, excludeByAuthor, clearAuthorFilter, handleFilterEvent, updateFilterData,
@@ -1637,16 +1657,7 @@ export default {
       this.$emit('filter-data-updated', data)
     })
     
-    // 等待父组件（App.vue）的存档系统初始化完成
-    const maxWaitTime = 5000
-    const startTime = Date.now()
-    while (!this.$parent.isInitialized && (Date.now() - startTime) < maxWaitTime) {
-      await new Promise(resolve => setTimeout(resolve, 50))
-    }
-    if (this.$parent.isInitialized) {
-      console.log('✅ 存档系统已初始化，开始加载小说数据')
-    }
-    
+    // 加载小说数据
     await this.loadNovels()
     
     // 加载小说分页设置

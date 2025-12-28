@@ -58,6 +58,10 @@ function registerIpcHandlers(ipcMain, fileUtils, pathUtils) {
     return await fileUtils.deleteFile(filePath)
   })
 
+  ipcMain.handle('delete-directory', async (event, dirPath) => {
+    return await fileUtils.deleteDirectory(dirPath)
+  })
+
   ipcMain.handle('ensure-directory', async (event, dirPath) => {
     return await fileUtils.ensureDirectory(dirPath)
   })

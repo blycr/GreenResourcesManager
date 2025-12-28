@@ -27,13 +27,14 @@ const GAME_TIME_ACHIEVEMENTS = [
 export function useGameManagement(
   games: Ref<Game[]>,
   extractAllTags: () => void,
-  isElectronEnvironment: Ref<boolean>
+  isElectronEnvironment: Ref<boolean>,
+  pageId: string = 'games'
 ) {
   /**
    * 加载游戏列表
    */
   async function loadGames() {
-    games.value = await saveManager.loadGames()
+    games.value = await saveManager.loadPageData(pageId)
     extractAllTags()
   }
 
@@ -41,7 +42,7 @@ export function useGameManagement(
    * 保存游戏列表
    */
   async function saveGames() {
-    return await saveManager.saveGames(games.value)
+    return await saveManager.savePageData(pageId, games.value)
   }
 
   /**

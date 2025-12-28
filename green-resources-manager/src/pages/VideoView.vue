@@ -147,7 +147,8 @@ import FolderVideosGrid from '../components/video/FolderVideosGrid.vue'
 import saveManager from '../utils/SaveManager.ts'
 import notify from '../utils/NotificationService.ts'
 import { unlockAchievement } from './user/AchievementView.vue'
-import { ref, watch } from 'vue'
+import { ref, watch, PropType } from 'vue'
+import { PageConfig } from '../types/page'
 import { usePagination } from '../composables/usePagination'
 import { useVideoFilter } from '../composables/video/useVideoFilter'
 import { useVideoManagement } from '../composables/video/useVideoManagement'
@@ -172,9 +173,15 @@ export default {
     FolderVideosGrid,
   },
   emits: ['filter-data-updated'],
-  setup() {
+  props: {
+    pageConfig: {
+      type: Object as PropType<PageConfig>,
+      default: () => ({ id: 'videos', type: 'Video' })
+    }
+  },
+  setup(props) {
     // 使用视频管理 composable
-    const videoManagementComposable = useVideoManagement()
+    const videoManagementComposable = useVideoManagement(props.pageConfig.id)
     
     // 使用文件夹管理 composable
     const videoFolderComposable = useVideoFolder()
@@ -467,16 +474,6 @@ export default {
     }
   },
   async mounted() {
-    // 等待父组件（App.vue）的存档系统初始化完成
-    const maxWaitTime = 5000
-    const startTime = Date.now()
-    while (!this.$parent.isInitialized && (Date.now() - startTime) < maxWaitTime) {
-      await new Promise(resolve => setTimeout(resolve, 50))
-    }
-    if (this.$parent.isInitialized) {
-      console.log('✅ 存档系统已初始化，开始加载视频数据')
-    }
-    
     // 初始化管理器（在 composables 中已处理）
     if (this.initVideoManager) {
       await this.initVideoManager()
@@ -544,18 +541,31 @@ export default {
       if (loadFn && typeof loadFn === 'function') {
         await loadFn.call(this)
       }
+
+      this.updateFilterData()
       
       // 检测文件存在性（仅在应用启动时检测一次）
-      if (this.$parent.shouldCheckFileLoss && this.$parent.shouldCheckFileLoss()) {
+      if (this.$root.shouldCheckFileLoss && this.$root.shouldCheckFileLoss()) {
+        ;(this.$root as any).markFileLossChecked()
         const checkFn = (this as any).checkFileExistence
         if (checkFn && typeof checkFn === 'function') {
-          await checkFn.call(this)
+          Promise.resolve()
+            .then(() => checkFn.call(this))
+            .catch((e) => {
+              console.warn('[VideoView] 后台检测文件存在性失败:', e)
+            })
+            .finally(() => {
+              this.updateFilterData()
+            })
         }
-        this.$parent.markFileLossChecked()
       }
       
-      // 自动更新未知时长的视频（保留在组件中，因为需要访问其他方法）
-      await this.autoUpdateUnknownDurations()
+      // 自动更新未知时长的视频（后台执行，不阻塞筛选器显示）
+      Promise.resolve()
+        .then(() => this.autoUpdateUnknownDurations())
+        .catch((e) => {
+          console.warn('[VideoView] 后台更新视频时长失败:', e)
+        })
       
       // 计算视频列表总页数（使用 composable 的 updatePagination）
       if (this.updatePagination) {
@@ -564,7 +574,11 @@ export default {
       
       const checkAchievementsFn = (this as any).checkVideoCollectionAchievements
       if (checkAchievementsFn && typeof checkAchievementsFn === 'function') {
-        await checkAchievementsFn.call(this)
+        Promise.resolve()
+          .then(() => checkAchievementsFn.call(this))
+          .catch((e) => {
+            console.warn('[VideoView] 后台成就检测失败:', e)
+          })
       }
     },
 

@@ -105,7 +105,8 @@ import { formatPlayTime, formatLastPlayed, formatDateTime, formatDate, formatFir
 
 import saveManager from '../utils/SaveManager.ts'
 import notify from '../utils/NotificationService.ts'
-import { ref, toRefs } from 'vue'
+import { ref, toRefs, PropType } from 'vue'
+import { PageConfig } from '../types/page'
 import { useGameFilter } from '../composables/game/useGameFilter'
 import { useGameManagement } from '../composables/game/useGameManagement'
 import { useGameScreenshot } from '../composables/game/useGameScreenshot'
@@ -127,8 +128,14 @@ export default {
     GameDetailPanel,
     GameGrid
   },
+  props: {
+    pageConfig: {
+      type: Object as PropType<PageConfig>,
+      default: () => ({ id: 'games', type: 'Game' })
+    }
+  },
   emits: ['filter-data-updated'],
-  setup() {
+  setup(props) {
     // 响应式数据
     const games = ref([])
     const isElectronEnvironment = ref(false)
@@ -142,7 +149,8 @@ export default {
     const managementComposable = useGameManagement(
       games,
       filterComposable.extractAllTags,
-      isElectronEnvironment
+      isElectronEnvironment,
+      props.pageConfig.id
     )
 
     // 获取父组件方法的辅助函数（在 Options API 中通过 this.$parent 访问）
@@ -648,25 +656,48 @@ export default {
     // loadGames 已移至 useGameManagement composable
     async loadGamesWithChecks() {
       // 调用 composable 的 loadGames（从 setup 返回，方法名是 loadGames）
-      // 注意：由于 setup() 返回的方法会直接暴露到 this 上，可以直接调用
       if (typeof (this as any).loadGames === 'function') {
         await (this as any).loadGames()
       }
 
+      this.updateFilterData()
+
       // 检测文件存在性（仅在应用启动时检测一次）
-      if (this.$parent.shouldCheckFileLoss && this.$parent.shouldCheckFileLoss()) {
-        await this.checkFileExistence()
-        this.$parent.markFileLossChecked()
+      if ((this.$root as any).shouldCheckFileLoss && (this.$root as any).shouldCheckFileLoss()) {
+        // 标记为已开始检测，避免其它页面重复发起检测
+        ;(this.$root as any).markFileLossChecked()
+        Promise.resolve()
+          .then(() => this.checkFileExistence())
+          .catch((e) => {
+            console.warn('[GameView] 后台检测文件存在性失败:', e)
+          })
+          .finally(() => {
+            // 检测完成后，刷新筛选器
+            this.updateFilterData()
+          })
       }
 
       // 为现有游戏计算文件夹大小（如果还没有的话）
-      await this.updateExistingGamesFolderSize()
+      Promise.resolve()
+        .then(() => this.updateExistingGamesFolderSize())
+        .catch((e) => {
+          console.warn('[GameView] 后台计算文件夹大小失败:', e)
+        })
 
       // 分页信息会自动更新（usePagination composable 会监听 filteredGames 的变化）
       // 如果需要手动触发，可以使用 this.updatePagination()
 
-      await this.checkGameCollectionAchievements()
-      await this.checkGameTimeAchievements()
+      Promise.resolve()
+        .then(() => this.checkGameCollectionAchievements())
+        .catch((e) => {
+          console.warn('[GameView] 后台成就检测失败(checkGameCollectionAchievements):', e)
+        })
+
+      Promise.resolve()
+        .then(() => this.checkGameTimeAchievements())
+        .catch((e) => {
+          console.warn('[GameView] 后台成就检测失败(checkGameTimeAchievements):', e)
+        })
     },
     // updateExistingGamesFolderSize 和 checkFileExistence 已移至 useGameManagement composable
 
@@ -1660,30 +1691,20 @@ export default {
     }
   },
   async mounted() {
-    // 设置父组件函数引用（在 Options API 中通过 this.$parent 访问）
-    if ((this as any)._setParentFunctions && this.$parent) {
+    // 设置父组件函数引用（在 Options API 中通过 this.$root 访问）
+    if ((this as any)._setParentFunctions && this.$root) {
       (this as any)._setParentFunctions({
-        getRunningGames: () => (this.$parent as any).runningGames || new Map(),
-        addRunningGame: (gameInfo: any) => (this.$parent as any).addRunningGame(gameInfo),
-        removeRunningGame: (gameId: string) => (this.$parent as any).removeRunningGame(gameId),
-        isGameRunning: (gameId: string) => (this.$parent as any).isGameRunning(gameId)
+        getRunningGames: () => (this.$root as any).runningGames || new Map(),
+        addRunningGame: (gameInfo: any) => (this.$root as any).addRunningGame(gameInfo),
+        removeRunningGame: (gameId: string) => (this.$root as any).removeRunningGame(gameId),
+        isGameRunning: (gameId: string) => (this.$root as any).isGameRunning(gameId)
       })
     }
 
     this.checkElectronEnvironment()
     
-    // 等待父组件（App.vue）的存档系统初始化完成
-    const maxWaitTime = 5000 // 最多等待5秒
-    const startTime = Date.now()
-    while (!this.$parent.isInitialized && (Date.now() - startTime) < maxWaitTime) {
-      await new Promise(resolve => setTimeout(resolve, 50)) // 每50ms检查一次
-    }
-    
-    if (!this.$parent.isInitialized) {
-      console.warn('⚠️ 等待存档系统初始化超时，继续加载游戏数据')
-    } else {
-      console.log('✅ 存档系统已初始化，开始加载游戏数据')
-    }
+    // 移除等待逻辑，因为 ResourceView 仅在 App.vue 初始化完成后才渲染
+    console.log('✅ 存档系统已初始化，开始加载游戏数据')
     
     await this.loadGamesWithChecks()
 

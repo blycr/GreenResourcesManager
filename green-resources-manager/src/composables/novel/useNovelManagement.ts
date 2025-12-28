@@ -3,13 +3,14 @@
  * 负责小说的 CRUD 操作和数据持久化
  */
 import { ref, type Ref } from 'vue'
-import novelManager from '../../utils/NovelManager.js'
+import { NovelManager } from '../../utils/NovelManager'
 import notify from '../../utils/NotificationService'
 import type { Novel } from '../../types/novel'
 
-export function useNovelManagement() {
+export function useNovelManagement(pageId: string = 'novels') {
   const novels = ref<Novel[]>([])
   const isLoading = ref(false)
+  const novelManager = new NovelManager(pageId)
 
   /**
    * 加载所有小说

@@ -14,7 +14,7 @@ const VIDEO_COLLECTION_ACHIEVEMENTS = [
   { threshold: 1000, id: 'video_collector_1000' }
 ]
 
-export function useVideoManagement() {
+export function useVideoManagement(pageId: string = 'videos') {
   const videos = ref<Video[]>([])
   const videoManager = ref<VideoManager | null>(null)
   const isLoading = ref(false)
@@ -25,7 +25,7 @@ export function useVideoManagement() {
    */
   const initVideoManager = () => {
     if (!videoManager.value) {
-      videoManager.value = new VideoManager()
+      videoManager.value = new VideoManager(pageId)
     }
     return videoManager.value
   }

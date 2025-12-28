@@ -168,7 +168,8 @@ import AlbumPagesGrid from '../components/image/AlbumPagesGrid.vue'
 
 import notify from '../utils/NotificationService.ts'
 import { unlockAchievement } from './user/AchievementView.vue'
-import { ref, computed, toRefs, watch } from 'vue'
+import { ref, computed, toRefs, watch, PropType } from 'vue'
+import { PageConfig } from '../types/page'
 import { usePagination } from '../composables/usePagination'
 import { useImageDragDrop, isArchiveFile } from '../composables/image/useImageDragDrop'
 import { useImageFilter } from '../composables/image/useImageFilter'
@@ -198,9 +199,15 @@ export default {
     AlbumPagesGrid
   },
   emits: ['filter-data-updated'],
-  setup() {
+  props: {
+    pageConfig: {
+      type: Object as PropType<PageConfig>,
+      default: () => ({ id: 'images', type: 'Image' })
+    }
+  },
+  setup(props) {
     // 使用专辑管理 composable
-    const imageAlbumComposable = useImageAlbum()
+    const imageAlbumComposable = useImageAlbum(props.pageConfig.id)
     
     // 使用筛选 composable（基于 albums）
     const imageFilterComposable = useImageFilter(imageAlbumComposable.albums)
@@ -557,14 +564,24 @@ export default {
       }
       
       this.extractAllTags()
+
+      this.updateFilterData()
       
       // 检测文件存在性（仅在应用启动时检测一次）
-      if (this.$parent.shouldCheckFileLoss && this.$parent.shouldCheckFileLoss()) {
+      if (this.$root.shouldCheckFileLoss && this.$root.shouldCheckFileLoss()) {
         const checkFn = (this as any).checkFileExistence
+        // 标记为“已开始检测”，避免其它页面重复发起检测
+        this.$root.markFileLossChecked()
         if (checkFn && typeof checkFn === 'function') {
-          await checkFn.call(this)
+          Promise.resolve()
+            .then(() => checkFn.call(this))
+            .catch((e) => {
+              console.warn('[ImageView] 后台检测文件存在性失败:', e)
+            })
+            .finally(() => {
+              this.updateFilterData()
+            })
         }
-        this.$parent.markFileLossChecked()
       }
       
       // 计算漫画列表总页数（使用 composable 的 updatePagination）
@@ -572,7 +589,11 @@ export default {
       
       const checkAchievementsFn = (this as any).checkImageCollectionAchievements
       if (checkAchievementsFn && typeof checkAchievementsFn === 'function') {
-        await checkAchievementsFn.call(this)
+        Promise.resolve()
+          .then(() => checkAchievementsFn.call(this))
+          .catch((e) => {
+            console.warn('[ImageView] 后台成就检测失败:', e)
+          })
       }
     },
 
@@ -1379,15 +1400,9 @@ export default {
   async mounted() {
     console.log('🚀 ImageView mounted 方法开始执行')
     
-    // 等待父组件（App.vue）的存档系统初始化完成
-    const maxWaitTime = 5000
-    const startTime = Date.now()
-    while (!this.$parent.isInitialized && (Date.now() - startTime) < maxWaitTime) {
-      await new Promise(resolve => setTimeout(resolve, 50))
-    }
-    if (this.$parent.isInitialized) {
-      console.log('✅ 存档系统已初始化，开始加载图片数据')
-    }
+    // 移除 ImageView 等资源视图中的等待逻辑：这些视图现在统一通过 ResourceView 加载，
+    // 而 ResourceView 仅在 App.vue 初始化完成后才会渲染，因此此处可以直接加载数据
+    console.log('✅ 存档系统已初始化，开始加载图片数据')
     
     await this.loadAlbums()
     

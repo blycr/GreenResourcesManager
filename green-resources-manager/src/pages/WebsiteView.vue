@@ -180,7 +180,6 @@
 </template>
 
 <script lang="ts">
-import websiteManager from '../utils/WebsiteManager.js'
 import BaseView from '../components/BaseView.vue'
 import FormField from '../components/FormField.vue'
 import MediaCard from '../components/MediaCard.vue'
@@ -188,6 +187,10 @@ import DetailPanel from '../components/DetailPanel.vue'
 
 import saveManager from '../utils/SaveManager.ts'
 import notify from '../utils/NotificationService.ts'
+import { useWebsiteManagement } from '../composables/website/useWebsiteManagement'
+import { PropType } from 'vue'
+import { PageConfig } from '../types/page'
+
 export default {
   name: 'WebsiteView',
   components: {
@@ -196,10 +199,34 @@ export default {
     MediaCard,
     DetailPanel
   },
+  props: {
+    pageConfig: {
+      type: Object as PropType<PageConfig>,
+      default: () => ({ id: 'websites', type: 'Website' })
+    }
+  },
+  setup(props) {
+    const websiteManagement = useWebsiteManagement(props.pageConfig.id)
+    
+    return {
+      websites: websiteManagement.websites,
+      isLoading: websiteManagement.isLoading,
+      loadWebsitesFromComposable: websiteManagement.loadWebsites,
+      saveWebsites: websiteManagement.saveWebsites,
+      addWebsiteToManager: websiteManagement.addWebsite,
+      updateWebsiteInManager: websiteManagement.updateWebsite,
+      deleteWebsiteFromManager: websiteManagement.deleteWebsite,
+      incrementVisitCount: websiteManagement.incrementVisitCount,
+      searchWebsites: websiteManagement.searchWebsites,
+      getBestFaviconUrl: websiteManagement.getBestFaviconUrl,
+      checkWebsiteStatus: websiteManagement.checkWebsiteStatus,
+      websiteManager: websiteManagement.websiteManager
+    }
+  },
   emits: ['filter-data-updated'],
   data() {
     return {
-      websites: [],
+      // websites: [], // 移除，当前从 setup 获取
       searchQuery: '',
       sortBy: 'name',
       filterCategory: '',
@@ -231,7 +258,7 @@ export default {
       editTagInput: '',
       urlError: '',
       editUrlError: '',
-      isLoading: false,
+      // isLoading: false, // 移除，当前从 setup 获取
       isElectronEnvironment: false,
       // 标签筛选相关
       allTags: [],
@@ -354,16 +381,16 @@ export default {
       }
     },
     categories() {
-      return websiteManager.getCategories()
+      return this.websiteManager.getCategories()
     },
     isFormValid() {
       return this.newWebsite.url.trim() && 
-             websiteManager.validateUrl(this.newWebsite.url) &&
+             this.websiteManager.validateUrl(this.newWebsite.url) &&
              !this.urlError
     },
     isEditFormValid() {
       return this.editWebsiteData.url.trim() && 
-             websiteManager.validateUrl(this.editWebsiteData.url) &&
+             this.websiteManager.validateUrl(this.editWebsiteData.url) &&
              !this.editUrlError
     },
     categoryOptions() {
@@ -417,14 +444,14 @@ export default {
       this.currentWebsitePage = 1
     },
     'newWebsite.url'(newUrl) {
-      if (newUrl && !websiteManager.validateUrl(newUrl)) {
+      if (newUrl && !this.websiteManager.validateUrl(newUrl)) {
         this.urlError = '请输入有效的URL格式'
       } else {
         this.urlError = ''
       }
     },
     'editWebsiteData.url'(newUrl) {
-      if (newUrl && !websiteManager.validateUrl(newUrl)) {
+      if (newUrl && !this.websiteManager.validateUrl(newUrl)) {
         this.editUrlError = '请输入有效的URL格式'
       } else {
         this.editUrlError = ''
@@ -436,7 +463,8 @@ export default {
       try {
         this.isLoading = true
         console.log('🔄 开始加载网站数据...')
-        this.websites = await websiteManager.loadWebsites()
+        // this.websites = await websiteManager.loadWebsites() // Old
+        await this.loadWebsitesFromComposable() // New
         console.log('✅ 网站数据加载完成:', this.websites.length, '个网站')
         this.extractAllTagsAndCategories()
       } catch (error) {
@@ -612,13 +640,13 @@ export default {
         const websiteData = {
           ...this.newWebsite,
           // 如果没有填写名称，从URL中提取域名作为名称
-          name: this.newWebsite.name.trim() || websiteManager.getDomain(this.newWebsite.url),
+          name: this.newWebsite.name.trim() || this.websiteManager.getDomain(this.newWebsite.url),
           category: '未分类',
           tags: [],
-          favicon: await websiteManager.getBestFaviconUrl(this.newWebsite.url)
+          favicon: await this.websiteManager.getBestFaviconUrl(this.newWebsite.url)
         }
         
-        const website = await websiteManager.addWebsite(websiteData)
+        const website = await this.addWebsiteToManager(websiteData)
         // 重新加载网站列表以确保数据同步
         await this.loadWebsites()
         this.closeAddDialog()
@@ -643,12 +671,12 @@ export default {
         }
         
         // 增加访问次数
-        await websiteManager.incrementVisitCount(originalWebsite.id)
+        await this.incrementVisitCount(originalWebsite.id)
         
         // 更新本地数据
         const index = this.websites.findIndex(w => w.id === originalWebsite.id)
         if (index !== -1) {
-          this.websites[index] = await websiteManager.websites.find(w => w.id === originalWebsite.id)
+          this.websites[index] = await this.websiteManager.websites.find(w => w.id === originalWebsite.id)
         }
         
         // 打开网站
@@ -674,7 +702,7 @@ export default {
       if (!confirm(`确定要删除网站 "${website.name}" 吗？`)) return
       
       try {
-        await websiteManager.deleteWebsite(website.id)
+        await this.deleteWebsiteFromManager(website.id)
         // 重新加载网站列表以确保数据同步
         await this.loadWebsites()
         
@@ -899,7 +927,7 @@ export default {
         }
         
         const updateData = {
-          name: this.editWebsiteData.name.trim() || websiteManager.getDomain(this.editWebsiteData.url),
+          name: this.editWebsiteData.name.trim() || this.websiteManager.getDomain(this.editWebsiteData.url),
           url: this.editWebsiteData.url.trim(),
           description: this.editWebsiteData.description.trim(),
           category: finalCategory,
@@ -909,7 +937,7 @@ export default {
           notes: this.editWebsiteData.notes.trim()
         }
         
-        await websiteManager.updateWebsite(this.editWebsiteData.id, updateData)
+        await this.updateWebsiteInManager(this.editWebsiteData.id, updateData)
         
         // 重新加载网站列表以确保数据同步
         await this.loadWebsites()
@@ -946,7 +974,7 @@ export default {
     
     
     getDomain(url) {
-      return websiteManager.getDomain(url)
+      return this.websiteManager.getDomain(url)
     },
     
     formatDate(dateString) {
@@ -968,12 +996,12 @@ export default {
       if (website) {
         try {
           // 尝试使用 Google 服务作为备用
-          const domain = websiteManager.getDomain(website.url)
+          const domain = this.websiteManager.getDomain(website.url)
           if (domain) {
             const backupFavicon = `https://www.google.com/s2/favicons?domain=${domain}&sz=32`
             
             // 验证备用 favicon 是否可用
-            const isValid = await websiteManager.validateFaviconUrl(backupFavicon)
+            const isValid = await this.websiteManager.validateFaviconUrl(backupFavicon)
             if (isValid) {
               // 更新网站数据中的 favicon
               website.favicon = backupFavicon
@@ -1044,11 +1072,11 @@ export default {
         console.log('正在刷新 favicon:', website.name)
         
         // 获取新的 favicon URL
-        const newFavicon = await websiteManager.getBestFaviconUrl(website.url)
+        const newFavicon = await this.websiteManager.getBestFaviconUrl(website.url)
         
         if (newFavicon && newFavicon !== website.favicon) {
           // 更新网站数据
-          await websiteManager.updateWebsite(website.id, { favicon: newFavicon })
+          await this.updateWebsiteInManager(website.id, { favicon: newFavicon })
           
           // 更新本地数据
           const index = this.websites.findIndex(w => w.id === website.id)
@@ -1076,26 +1104,17 @@ export default {
     // 检测 Electron 环境
     this.isElectronEnvironment = !!(window.electronAPI && window.electronAPI.openExternal)
     
-    // 等待父组件（App.vue）的存档系统初始化完成
-    const maxWaitTime = 5000
-    const startTime = Date.now()
-    while (!this.$parent.isInitialized && (Date.now() - startTime) < maxWaitTime) {
-      await new Promise(resolve => setTimeout(resolve, 50))
-    }
-    if (this.$parent.isInitialized) {
-      console.log('✅ 存档系统已初始化，开始加载网站数据')
-    }
-    
     await this.loadWebsites()
-    
-    // 加载排序设置
-    await this.loadSortSetting()
     
     // 初始化分页信息
     this.updateWebsitePagination()
     
-    // 初始化筛选器数据
-    this.updateFilterData()
+    // 加载排序设置（后台执行）
+    Promise.resolve()
+      .then(() => this.loadSortSetting())
+      .catch((e) => {
+        console.warn('[WebsiteView] 后台加载排序设置失败:', e)
+      })
   }
 }
 </script>
