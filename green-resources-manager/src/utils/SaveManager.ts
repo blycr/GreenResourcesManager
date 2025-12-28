@@ -12,7 +12,7 @@ class SaveManager {
   // 数据缓存
   dataCache: Record<string, any> = {}
   // 设置缓存
-  settingsCache: Record<string, any> = null
+  settingsCache: Record<string, any> | null = null
   settingsCacheDirty: boolean = false  // 标记缓存是否已被修改，需要写入磁盘
 
   constructor() {
