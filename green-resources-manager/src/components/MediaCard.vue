@@ -1,6 +1,7 @@
 <template>
   <div 
     class="media-card"
+    :class="ratingBorderClass"
     @click="$emit('click', item)"
     @contextmenu="$emit('contextmenu', $event, item)"
   >
@@ -384,6 +385,14 @@ export default {
       }
       
       return this.gameRunningStore.getSessionDuration(this.item.id)
+    },
+    // 根据评分获取边框类名
+    ratingBorderClass() {
+      const rating = this.item?.rating
+      if (!rating || rating < 1 || rating > 5) {
+        return '' // 没有评分或评分无效时返回空，保持原样
+      }
+      return `rating-border-${rating}`
     }
   },
   methods: {
@@ -929,6 +938,105 @@ $running-color-dark: #10b981;
   transform: translateY(-4px);
   box-shadow: 0 8px 25px var(--shadow-medium);
   border-color: var(--accent-color);
+}
+
+/* 评分边框样式 */
+.media-card.rating-border-5 {
+  border: 2px solid #FFD700; /* 金色 - 5星 */
+  background-color: rgba(255, 215, 0, 0.08); /* 淡金色背景 */
+}
+
+.media-card.rating-border-4 {
+  border: 2px solid #9D4EDD; /* 紫色 - 4星 */
+  background-color: rgba(157, 78, 221, 0.08); /* 淡紫色背景 */
+}
+
+.media-card.rating-border-3 {
+  border: 2px solid #EF4444; /* 红色 - 3星 */
+  background-color: rgba(239, 68, 68, 0.08); /* 淡红色背景 */
+}
+
+.media-card.rating-border-2 {
+  border: 2px solid #10B981; /* 绿色 - 2星 */
+  background-color: rgba(16, 185, 129, 0.08); /* 淡绿色背景 */
+}
+
+.media-card.rating-border-1 {
+  border: 2px solid #3B82F6; /* 蓝色 - 1星 */
+  background-color: rgba(59, 130, 246, 0.08); /* 淡蓝色背景 */
+}
+
+/* 深色主题下的评分背景色调整 */
+[data-theme="dark"] .media-card.rating-border-5 {
+  background-color: rgba(255, 215, 0, 0.12); /* 深色主题下稍微明显一点 */
+}
+
+[data-theme="dark"] .media-card.rating-border-4 {
+  background-color: rgba(157, 78, 221, 0.12);
+}
+
+[data-theme="dark"] .media-card.rating-border-3 {
+  background-color: rgba(239, 68, 68, 0.12);
+}
+
+[data-theme="dark"] .media-card.rating-border-2 {
+  background-color: rgba(16, 185, 129, 0.12);
+}
+
+[data-theme="dark"] .media-card.rating-border-1 {
+  background-color: rgba(59, 130, 246, 0.12);
+}
+
+/* hover 时保持评分边框颜色，但可以使用更亮的颜色 */
+.media-card.rating-border-5:hover {
+  border-color: #FFED4E;
+  background-color: rgba(255, 215, 0, 0.15); /* hover 时背景色稍微增强 */
+  box-shadow: 0 8px 25px rgba(255, 215, 0, 0.3);
+}
+
+.media-card.rating-border-4:hover {
+  border-color: #C77DFF;
+  background-color: rgba(157, 78, 221, 0.15);
+  box-shadow: 0 8px 25px rgba(157, 78, 221, 0.3);
+}
+
+.media-card.rating-border-3:hover {
+  border-color: #F87171;
+  background-color: rgba(239, 68, 68, 0.15);
+  box-shadow: 0 8px 25px rgba(239, 68, 68, 0.3);
+}
+
+.media-card.rating-border-2:hover {
+  border-color: #34D399;
+  background-color: rgba(16, 185, 129, 0.15);
+  box-shadow: 0 8px 25px rgba(16, 185, 129, 0.3);
+}
+
+.media-card.rating-border-1:hover {
+  border-color: #60A5FA;
+  background-color: rgba(59, 130, 246, 0.15);
+  box-shadow: 0 8px 25px rgba(59, 130, 246, 0.3);
+}
+
+/* 深色主题下的 hover 背景色 */
+[data-theme="dark"] .media-card.rating-border-5:hover {
+  background-color: rgba(255, 215, 0, 0.18);
+}
+
+[data-theme="dark"] .media-card.rating-border-4:hover {
+  background-color: rgba(157, 78, 221, 0.18);
+}
+
+[data-theme="dark"] .media-card.rating-border-3:hover {
+  background-color: rgba(239, 68, 68, 0.18);
+}
+
+[data-theme="dark"] .media-card.rating-border-2:hover {
+  background-color: rgba(16, 185, 129, 0.18);
+}
+
+[data-theme="dark"] .media-card.rating-border-1:hover {
+  background-color: rgba(59, 130, 246, 0.18);
 }
 
 .media-image {

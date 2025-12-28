@@ -151,6 +151,9 @@ export function useImageAlbum(pageId: string = 'images') {
     if (updates.tags !== undefined) target.tags = [...updates.tags]
     if (updates.folderPath !== undefined) target.folderPath = updates.folderPath.trim() || target.folderPath
     if (updates.cover !== undefined) target.cover = updates.cover.trim()
+    if (updates.rating !== undefined) target.rating = updates.rating
+    if (updates.comment !== undefined) target.comment = updates.comment
+    if (updates.isFavorite !== undefined) target.isFavorite = updates.isFavorite
     
     // 保持浏览次数不变
     if (!target.viewCount) {

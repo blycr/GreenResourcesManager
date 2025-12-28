@@ -16,6 +16,9 @@ export interface Album {
   addedDate: string
   fileExists?: boolean
   isArchive?: boolean // 是否为压缩包文件
+  rating?: number // 评分（1-5星）
+  comment?: string // 评论/笔记
+  isFavorite?: boolean // 是否收藏
 }
 
 export interface AlbumForm {

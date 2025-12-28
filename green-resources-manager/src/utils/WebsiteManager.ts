@@ -53,7 +53,9 @@ export class WebsiteManager {
         firstVisited: websiteData.firstVisited || null,
         addedDate: websiteData.addedDate || new Date().toISOString(),
         rating: Number(websiteData.rating) || 0,
+        comment: websiteData.comment || '', // 新增评论字段
         notes: websiteData.notes || '',
+        isFavorite: Boolean(websiteData.isFavorite) || false, // 新增收藏字段
         isBookmark: Boolean(websiteData.isBookmark) || false,
         isPrivate: Boolean(websiteData.isPrivate) || false,
         username: websiteData.username || '',

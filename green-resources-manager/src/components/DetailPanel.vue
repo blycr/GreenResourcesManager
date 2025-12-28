@@ -158,7 +158,7 @@ export default {
     type: {
       type: String,
       required: true,
-      validator: value => ['game', 'image', 'album', 'video', 'audio', 'novel'].includes(value)
+      validator: value => ['game', 'image', 'album', 'video', 'audio', 'novel', 'website'].includes(value)
     },
     isRunning: {
       type: Boolean,
@@ -171,6 +171,11 @@ export default {
     actions: {
       type: Array,
       default: () => []
+    },
+    // 统一的更新函数（如果提供，组件内部会自动处理评分、评论和收藏）
+    onUpdateResource: {
+      type: Function,
+      default: null
     }
   },
   emits: ['close', 'action', 'update-rating', 'update-comment', 'toggle-favorite'],
@@ -308,12 +313,26 @@ export default {
     close() {
       this.$emit('close')
     },
-    handleFavoriteClick() {
+    async handleFavoriteClick() {
       // 检查 item 是否存在，避免在面板关闭时触发更新
       if (!this.item || !this.item.id) {
         return
       }
-      this.$emit('toggle-favorite', this.item)
+      
+      // 如果提供了统一的更新函数，直接调用
+      if (this.onUpdateResource && typeof this.onUpdateResource === 'function') {
+        try {
+          const newFavoriteStatus = !this.item.isFavorite
+          await this.onUpdateResource(this.item.id, { isFavorite: newFavoriteStatus })
+          // 立即更新UI
+          this.item.isFavorite = newFavoriteStatus
+        } catch (error) {
+          console.error('切换收藏状态失败:', error)
+        }
+      } else {
+        // 否则 emit 事件（向后兼容）
+        this.$emit('toggle-favorite', this.item)
+      }
     },
     /**
      * 处理 overlay 区域的 mousedown 事件
@@ -347,13 +366,26 @@ export default {
       // 离开时清除 hoverRating
       this.hoverRating = 0
     },
-    handleStarClick(star) {
+    async handleStarClick(star) {
       // 检查 item 是否存在，避免在面板关闭时触发更新
       if (!this.item || !this.item.id) {
         return
       }
-      // 点击时更新星级
-      this.$emit('update-rating', star, this.item)
+      
+      // 如果提供了统一的更新函数，直接调用
+      if (this.onUpdateResource && typeof this.onUpdateResource === 'function') {
+        try {
+          await this.onUpdateResource(this.item.id, { rating: star })
+          // 立即更新UI
+          this.item.rating = star
+        } catch (error) {
+          console.error('更新评分失败:', error)
+        }
+      } else {
+        // 否则 emit 事件（向后兼容）
+        this.$emit('update-rating', star, this.item)
+      }
+      
       // 点击后清除 hover 状态
       this.hoverRating = 0
     },
@@ -372,14 +404,27 @@ export default {
       // 实时更新评论内容（不立即保存，等待失焦时保存）
       // 这里可以添加防抖逻辑，但为了简单起见，我们在失焦时保存
     },
-    handleCommentBlur(event) {
+    async handleCommentBlur(event) {
       // 失焦时保存评论
       // 检查 item 是否存在，避免在面板关闭时触发更新
       if (!this.item || !this.item.id) {
         return
       }
       const comment = event.target.value.trim()
-      this.$emit('update-comment', comment, this.item)
+      
+      // 如果提供了统一的更新函数，直接调用
+      if (this.onUpdateResource && typeof this.onUpdateResource === 'function') {
+        try {
+          await this.onUpdateResource(this.item.id, { comment })
+          // 立即更新UI
+          this.item.comment = comment
+        } catch (error) {
+          console.error('更新评论失败:', error)
+        }
+      } else {
+        // 否则 emit 事件（向后兼容）
+        this.$emit('update-comment', comment, this.item)
+      }
     },
     isArchiveFile(filePath) {
       if (!filePath) return false

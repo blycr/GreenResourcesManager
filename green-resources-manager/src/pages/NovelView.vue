@@ -210,9 +210,9 @@
       type="novel"
       :stats="novelStats"
       :actions="novelActions"
+      :on-update-resource="updateNovelResource"
       @close="closeNovelDetail"
       @action="handleDetailAction"
-      @toggle-favorite="handleToggleFavorite"
     />
     
 
@@ -326,6 +326,11 @@ export default {
         // 这个回调将在 mounted 中重新设置
       }
     })
+
+    // 创建统一的资源更新函数（用于 DetailPanel）
+    const updateNovelResource = async (id: string, updates: { rating?: number; comment?: string; isFavorite?: boolean }) => {
+      await novelManagement.updateNovel(id, updates)
+    }
     
     // 路径更新对话框状态（需要在 setup 中定义，以便传递给 composable）
     const showPathUpdateDialog = ref(false)
@@ -343,6 +348,7 @@ export default {
       saveNovels: novelManagement.saveNovels,
       addNovelToManager: novelManagement.addNovel,
       updateNovelInManager: novelManagement.updateNovel,
+      updateNovelResource,
       deleteNovelFromManager: novelManagement.deleteNovel,
       checkFileExistence: novelManagement.checkFileExistence,
       updateNovelsWordCount: novelManagement.updateNovelsWordCount,

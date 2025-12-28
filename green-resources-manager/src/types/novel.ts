@@ -25,6 +25,7 @@ export interface Novel {
   firstRead?: string
   addedDate?: string
   rating?: number
+  comment?: string // 新增评论字段（与 notes 并存，comment 用于用户评价，notes 用于其他备注）
   notes?: string
   tags?: string[]
   status?: 'unread' | 'reading' | 'completed' | 'paused'

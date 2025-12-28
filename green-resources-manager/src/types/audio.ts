@@ -20,6 +20,9 @@ export interface Audio {
   playCount?: number
   addedDate?: string
   fileExists?: boolean
+  rating?: number // 新增评分字段
+  comment?: string // 新增评论字段
+  isFavorite?: boolean // 新增收藏字段
   [key: string]: any
 }
 

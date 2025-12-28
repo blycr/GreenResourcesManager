@@ -108,9 +108,9 @@
       type="audio"
       :stats="audioStats"
       :actions="audioActions"
+      :on-update-resource="updateAudioResource"
       @close="closeAudioDetail"
       @action="handleDetailAction"
-      @toggle-favorite="handleToggleFavorite"
     />
 
     <!-- 编辑音频对话框 -->
@@ -270,7 +270,12 @@ export default {
       audios: audioManagement.audios,
       onIncrementPlayCount: audioManagement.incrementPlayCount
     })
-    
+
+    // 创建统一的资源更新函数（用于 DetailPanel）
+    const updateAudioResource = async (id: string, updates: { rating?: number; comment?: string; isFavorite?: boolean }) => {
+      await audioManagement.updateAudio(id, updates)
+    }
+
     return {
       getAudioDuration,
       showPathUpdateDialog,
@@ -309,7 +314,9 @@ export default {
       // 音频播放相关
       playAudio: audioPlayback.playAudio,
       addToPlaylist: audioPlayback.addToPlaylist,
-      openAudioFolder: audioPlayback.openAudioFolder
+      openAudioFolder: audioPlayback.openAudioFolder,
+      // 统一的资源更新函数
+      updateAudioResource
     }
   },
   data() {

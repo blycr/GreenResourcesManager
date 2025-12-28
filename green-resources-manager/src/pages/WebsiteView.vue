@@ -87,9 +87,9 @@
       type="website"
       :stats="websiteStats"
       :actions="websiteActions"
+      :on-update-resource="updateWebsiteResource"
       @close="closeWebsiteDetail"
       @action="handleDetailAction"
-      @toggle-favorite="handleToggleFavorite"
     />
 
     <!-- 编辑网站对话框 -->
@@ -207,6 +207,11 @@ export default {
   },
   setup(props) {
     const websiteManagement = useWebsiteManagement(props.pageConfig.id)
+
+    // 创建统一的资源更新函数（用于 DetailPanel）
+    const updateWebsiteResource = async (id: string, updates: { rating?: number; comment?: string; isFavorite?: boolean }) => {
+      await websiteManagement.updateWebsite(id, updates)
+    }
     
     return {
       websites: websiteManagement.websites,
@@ -220,7 +225,9 @@ export default {
       searchWebsites: websiteManagement.searchWebsites,
       getBestFaviconUrl: websiteManagement.getBestFaviconUrl,
       checkWebsiteStatus: websiteManagement.checkWebsiteStatus,
-      websiteManager: websiteManagement.websiteManager
+      websiteManager: websiteManagement.websiteManager,
+      // 统一的资源更新函数
+      updateWebsiteResource
     }
   },
   emits: ['filter-data-updated'],

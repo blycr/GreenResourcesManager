@@ -21,6 +21,9 @@ export interface Video {
   addedDate?: string
   watchProgress?: number
   fileExists?: boolean
+  rating?: number // 评分（1-5星）
+  comment?: string // 评论/笔记
+  isFavorite?: boolean // 是否收藏
   [key: string]: any
 }
 
@@ -38,6 +41,9 @@ export interface VideoFolder {
   thumbnail?: string
   addedDate?: string
   folderVideos?: FolderVideo[]
+  rating?: number // 评分（1-5星）
+  comment?: string // 评论/笔记
+  isFavorite?: boolean // 是否收藏
   [key: string]: any
 }
 

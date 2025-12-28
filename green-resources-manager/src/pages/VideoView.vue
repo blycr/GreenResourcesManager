@@ -96,9 +96,9 @@
       type="video"
       :stats="videoStats"
       :actions="videoActions"
+      :on-update-resource="updateVideoResource"
       @close="closeVideoDetail"
       @action="handleDetailAction"
-      @toggle-favorite="handleToggleFavorite"
     >
       <!-- 文件夹视频列表 -->
       <template #extra v-if="selectedVideo && selectedVideo.type === 'folder' && selectedVideo.folderVideos">
@@ -251,6 +251,27 @@ export default {
       }
     })
 
+    // 当前选中的资源引用（用于统一评分和收藏功能）
+    const selectedVideoRef = ref(null)
+
+    // 创建统一的资源更新函数（用于 DetailPanel）
+    // 根据资源类型自动选择更新方法
+    const updateVideoResource = async (id: string, updates: { rating?: number; comment?: string; isFavorite?: boolean }) => {
+      // 检查是视频还是文件夹
+      const video = videoManagementComposable.videos.value.find(v => v.id === id)
+      const folder = videoFolderComposable.folders.value.find(f => f.id === id)
+      
+      if (folder) {
+        // 是文件夹
+        await videoFolderComposable.updateFolder(id, updates)
+      } else if (video) {
+        // 是视频
+        await videoManagementComposable.updateVideo(id, updates)
+      } else {
+        throw new Error('未找到要更新的资源')
+      }
+    }
+
     return {
       filteredVideosRef,
       showPathUpdateDialog,
@@ -270,7 +291,10 @@ export default {
       // 时长相关
       ...videoDurationComposable,
       // 播放相关
-      ...videoPlaybackComposable
+      ...videoPlaybackComposable,
+      // 统一的资源更新函数
+      updateVideoResource,
+      selectedVideoRef
     }
   },
   data() {
@@ -1000,17 +1024,31 @@ export default {
     },
 
     showVideoDetail(video) {
-      this.selectedVideo = video
+      // 确保设置 type 字段
+      this.selectedVideo = { ...video, type: 'video' }
+      // 同步到 ref（用于统一评分和收藏功能）
+      if (this.selectedVideoRef) {
+        this.selectedVideoRef = this.selectedVideo
+      }
       this.showDetailDialog = true
     },
 
     closeVideoDetail() {
       this.showDetailDialog = false
       this.selectedVideo = null
+      // 同步到 ref
+      if (this.selectedVideoRef) {
+        this.selectedVideoRef = null
+      }
     },
 
     async showFolderDetail(folder) {
-      this.selectedVideo = folder
+      // 确保设置 type 字段
+      this.selectedVideo = { ...folder, type: 'folder' }
+      // 同步到 ref（用于统一评分和收藏功能）
+      if (this.selectedVideoRef) {
+        this.selectedVideoRef = this.selectedVideo
+      }
       this.showDetailDialog = true
       
       // 如果还没有加载过视频列表，则加载（使用 composable 的方法）
@@ -1378,6 +1416,58 @@ export default {
         notify.toast('error', '保存失败', `保存编辑失败: ${e.message}`)
       }
     },
+    // handleUpdateRating, handleUpdateComment, handleToggleFavorite 已移至 DetailPanel 内部统一处理
+    // 保留这些方法作为向后兼容（如果 DetailPanel 没有提供 onUpdateResource prop）
+    async handleUpdateRating(rating, video) {
+      // 检查 video 是否存在，避免在面板关闭时触发更新
+      if (!video || !video.id) {
+        return
+      }
+      try {
+        // 根据类型选择更新方法
+        if (video.type === 'folder') {
+          await this.updateFolder(video.id, { rating })
+          // 更新当前文件夹对象，以便详情面板立即显示新星级
+          if (this.selectedVideo && this.selectedVideo.id === video.id) {
+            this.selectedVideo.rating = rating
+          }
+        } else {
+          await this.updateVideo(video.id, { rating })
+          // 更新当前视频对象，以便详情面板立即显示新星级
+          if (this.selectedVideo && this.selectedVideo.id === video.id) {
+            this.selectedVideo.rating = rating
+          }
+        }
+      } catch (error: any) {
+        console.error('更新星级失败:', error)
+        alert('更新星级失败: ' + error.message)
+      }
+    },
+    async handleUpdateComment(comment, video) {
+      // 检查 video 是否存在，避免在面板关闭时触发更新
+      if (!video || !video.id) {
+        return
+      }
+      try {
+        // 根据类型选择更新方法
+        if (video.type === 'folder') {
+          await this.updateFolder(video.id, { comment })
+          // 更新当前文件夹对象，以便详情面板立即显示新评论
+          if (this.selectedVideo && this.selectedVideo.id === video.id) {
+            this.selectedVideo.comment = comment
+          }
+        } else {
+          await this.updateVideo(video.id, { comment })
+          // 更新当前视频对象，以便详情面板立即显示新评论
+          if (this.selectedVideo && this.selectedVideo.id === video.id) {
+            this.selectedVideo.comment = comment
+          }
+        }
+      } catch (error: any) {
+        console.error('更新评论失败:', error)
+        alert('更新评论失败: ' + error.message)
+      }
+    },
     async handleToggleFavorite(video) {
       // 检查 video 是否存在，避免在面板关闭时触发更新
       if (!video || !video.id) {
@@ -1385,7 +1475,14 @@ export default {
       }
       try {
         const newFavoriteStatus = !video.isFavorite
-        await this.updateVideo(video.id, { isFavorite: newFavoriteStatus })
+        // 根据类型选择更新方法（优先使用 type 字段，如果没有则通过其他属性判断）
+        const isFolder = video.type === 'folder' || (video.folderPath && !video.filePath && video.folderVideos !== undefined)
+        
+        if (isFolder) {
+          await this.updateFolder(video.id, { isFavorite: newFavoriteStatus })
+        } else {
+          await this.updateVideo(video.id, { isFavorite: newFavoriteStatus })
+        }
         // 更新当前视频对象，以便详情面板立即显示新状态
         if (this.selectedVideo && this.selectedVideo.id === video.id) {
           this.selectedVideo.isFavorite = newFavoriteStatus

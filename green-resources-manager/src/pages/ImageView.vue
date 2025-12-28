@@ -76,9 +76,9 @@
       type="album"
       :stats="albumStats"
       :actions="albumActions"
+      :on-update-resource="updateAlbumResource"
       @close="closeAlbumDetail"
       @action="handleDetailAction"
-      @toggle-favorite="handleToggleFavorite"
     >
       <template #extra>
         <AlbumPagesGrid
@@ -177,6 +177,7 @@ import { useImageAlbum } from '../composables/image/useImageAlbum'
 import { useImageCache } from '../composables/image/useImageCache'
 import { useImagePages } from '../composables/image/useImagePages'
 import { useImageCover } from '../composables/image/useImageCover'
+import { useResourceRating } from '../composables/useResourceRating'
 
 const IMAGE_COLLECTION_ACHIEVEMENTS = [
   { threshold: 50, id: 'image_collector_50' },
@@ -306,6 +307,11 @@ export default {
     // 解构拖拽 composable，重命名 handleDrop 避免与 methods 冲突
     const { handleDrop: dragDropHandleDrop, ...restDragDropComposable } = imageDragDropComposable
 
+    // 创建统一的资源更新函数（用于 DetailPanel）
+    const updateAlbumResource = async (id: string, updates: { rating?: number; comment?: string; isFavorite?: boolean }) => {
+      await imageAlbumComposable.updateAlbum(id, updates)
+    }
+
     return {
       filteredAlbumsRef,
       showPathUpdateDialog,
@@ -337,7 +343,9 @@ export default {
       browseForImageEdit: imageCoverEditComposable.browseForImage,
       useFirstImageAsCoverEdit: imageCoverEditComposable.useFirstImageAsCover,
       selectImageFromFolderEdit: imageCoverEditComposable.selectImageFromFolder,
-      clearCoverEdit: imageCoverEditComposable.clearCover
+      clearCoverEdit: imageCoverEditComposable.clearCover,
+      // 统一的资源更新函数
+      updateAlbumResource
     }
   },
   data() {
@@ -977,6 +985,40 @@ export default {
       this.saveEditedAlbum(formData)
     },
     
+    // handleUpdateRating, handleUpdateComment, handleToggleFavorite 已移至 DetailPanel 内部统一处理
+    // 保留这些方法作为向后兼容（如果 DetailPanel 没有提供 onUpdateResource prop）
+    async handleUpdateRating(rating, album) {
+      // 检查 album 是否存在，避免在面板关闭时触发更新
+      if (!album || !album.id) {
+        return
+      }
+      try {
+        await this.updateAlbum(album.id, { rating })
+        // 更新当前专辑对象，以便详情面板立即显示新星级
+        if (this.currentAlbum && this.currentAlbum.id === album.id) {
+          this.currentAlbum.rating = rating
+        }
+      } catch (error: any) {
+        console.error('更新星级失败:', error)
+        alert('更新星级失败: ' + error.message)
+      }
+    },
+    async handleUpdateComment(comment, album) {
+      // 检查 album 是否存在，避免在面板关闭时触发更新
+      if (!album || !album.id) {
+        return
+      }
+      try {
+        await this.updateAlbum(album.id, { comment })
+        // 更新当前专辑对象，以便详情面板立即显示新评论
+        if (this.currentAlbum && this.currentAlbum.id === album.id) {
+          this.currentAlbum.comment = comment
+        }
+      } catch (error: any) {
+        console.error('更新评论失败:', error)
+        alert('更新评论失败: ' + error.message)
+      }
+    },
     async handleToggleFavorite(album) {
       // 检查 album 是否存在，避免在面板关闭时触发更新
       if (!album || !album.id) {

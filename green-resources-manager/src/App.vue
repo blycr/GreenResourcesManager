@@ -612,13 +612,13 @@ export default {
       this.playtimeUpdateIntervalId = window.setInterval(() => {
         const runningGamesMap = this.gameRunningStore.getRunningGamesMap()
         const runningGamesCount = runningGamesMap.size
-        console.log(`[定时器-更新] 检查运行游戏数量:`, runningGamesCount)
+        // console.log(`[定时器-更新] 检查运行游戏数量:`, runningGamesCount)
         
         if (runningGamesCount > 0) {
-          console.log(`[定时器-更新] 有运行游戏，调用 updateRunningGamesPlaytime`)
+          // console.log(`[定时器-更新] 有运行游戏，调用 updateRunningGamesPlaytime`)
           this.updateRunningGamesPlaytime()
         } else {
-          console.log(`[定时器-更新] 没有运行游戏，跳过`)
+          // console.log(`[定时器-更新] 没有运行游戏，跳过`)
         }
       }, 1000) // 1秒
       
