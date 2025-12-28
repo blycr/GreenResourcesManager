@@ -18,8 +18,8 @@
           class="sidebar-logo"
           @click="onLogoClick"
         >
-        <h1>{{ customAppTitle || '绿色资源管理器' }}</h1>
-        <p>{{ customAppSubtitle || '绿色、全能的资源管理器' }}</p>
+        <h1>{{ personalization.customAppTitle || '绿色资源管理器' }}</h1>
+        <p>{{ personalization.customAppSubtitle || '绿色、全能的资源管理器' }}</p>
         <p class="version">v{{ version }}</p>
       </div>
 
@@ -65,12 +65,12 @@
         </div>
 
         <!-- 页面内容区域 -->
-        <div class="page-content" :class="{ 'has-background': backgroundImageUrl }" :style="pageContentStyle">
+        <div class="page-content" :class="{ 'has-background': backgroundImage.backgroundImageUrl.value }" :style="backgroundImage.pageContentStyle.value">
           <router-view 
             ref="routerView"
             @filter-data-updated="updateFilterData"
             @navigate="navigateTo"
-            @theme-changed="onThemeChanged"
+            @theme-changed="theme.applyTheme"
           />
         </div>
       </div>
@@ -89,6 +89,10 @@ import GlobalAudioPlayer from './components/GlobalAudioPlayer.vue'
 import ToastNotification from './components/ToastNotification.vue'
 import FilterSidebar from './components/FilterSidebar.vue'
 import { updateDynamicRoutes } from './router/index'
+import { useSafetyKey } from './composables/useSafetyKey'
+import { useTheme } from './composables/useTheme'
+import { useBackgroundImage } from './composables/useBackgroundImage'
+import { usePersonalization } from './composables/usePersonalization'
 
 
 import notificationService from './utils/NotificationService.ts'
@@ -105,9 +109,45 @@ export default {
     ToastNotification,
     FilterSidebar
   },
+  setup() {
+    // 使用安全键管理 composable
+    const safetyKey = useSafetyKey()
+    let cleanupSafetyKeyListener: (() => void) | null = null
+    
+    // 使用主题管理 composable
+    const theme = useTheme()
+    
+    // 使用背景图片管理 composable
+    const backgroundImage = useBackgroundImage()
+    
+    // 使用个性化设置 composable
+    const personalization = usePersonalization()
+    
+    // 清理函数存储
+    let cleanupPersonalization: (() => void) | null = null
+    let cleanupBackgroundImage: (() => void) | null = null
+    
+    return {
+      safetyKey,
+      theme,
+      backgroundImage,
+      personalization,
+      setCleanupSafetyKeyListener: (cleanup: () => void) => {
+        cleanupSafetyKeyListener = cleanup
+      },
+      getCleanupSafetyKeyListener: () => cleanupSafetyKeyListener,
+      setCleanupPersonalization: (cleanup: () => void) => {
+        cleanupPersonalization = cleanup
+      },
+      getCleanupPersonalization: () => cleanupPersonalization,
+      setCleanupBackgroundImage: (cleanup: () => void) => {
+        cleanupBackgroundImage = cleanup
+      },
+      getCleanupBackgroundImage: () => cleanupBackgroundImage
+    }
+  },
   data() {
     return {
-      theme: 'light',
       version: '0.0.0',
       isLoading: true, // 应用加载状态
       isInitialized: false, // 存档系统是否已初始化
@@ -135,19 +175,10 @@ export default {
       winRARInstalled: false,
       winRARPath: null as string | null,
       winRARExecutable: null as string | null,
-      // 安全键相关
-      safetyKeyEnabled: false,
-      safetyKeyUrl: '',
       // 自动备份相关
       autoBackupInterval: 0, // 自动备份时间间隔（分钟），0表示禁用
       autoBackupTimer: null, // 自动备份定时器
       lastBackupTime: null, // 上次备份时间
-      // 个性化设置
-      customAppTitle: '', // 自定义软件标题
-      customAppSubtitle: '', // 自定义软件副标题
-      // 背景图片相关
-      backgroundImagePath: '', // 背景图片路径
-      backgroundImageUrl: '', // 背景图片URL（用于显示）
       // 统一的页面配置
       pages: [], // 动态页面配置
       viewConfig: {
@@ -210,14 +241,6 @@ export default {
     logoIcon() {
       return this.isLogoClicked ? './hide-icon.png' : './butter-icon.png'
     },
-    // 页面内容区域的样式（包含背景图片）
-    pageContentStyle() {
-      const style: any = {}
-      if (this.backgroundImageUrl) {
-        style['--bg-image-url'] = `url(${this.backgroundImageUrl})`
-      }
-      return style
-    }
   },
   methods: {
     // 点击 logo 的处理方法
@@ -775,56 +798,6 @@ export default {
       const config = this.viewConfig[route.name as string]
       return config?.description || '无描述'
     },
-    async applyBackgroundImage(imagePath: string) {
-      try {
-        this.backgroundImagePath = imagePath
-        // 使用 readFileAsDataUrl 或 getFileUrl 获取图片URL
-        if (window.electronAPI && window.electronAPI.readFileAsDataUrl) {
-          const dataUrl = await window.electronAPI.readFileAsDataUrl(imagePath)
-          if (dataUrl) {
-            this.backgroundImageUrl = dataUrl
-            console.log('背景图片已应用:', imagePath)
-            return
-          }
-        }
-        // 降级到 getFileUrl
-        if (window.electronAPI && window.electronAPI.getFileUrl) {
-          const result = await window.electronAPI.getFileUrl(imagePath)
-          if (result && result.success && result.url) {
-            this.backgroundImageUrl = result.url
-            console.log('背景图片已应用（通过getFileUrl）:', imagePath)
-            return
-          }
-        }
-        // 如果都失败了，尝试直接使用路径（可能不工作，但至少不会报错）
-        console.warn('无法获取背景图片URL，尝试使用原始路径:', imagePath)
-        this.backgroundImageUrl = imagePath
-      } catch (error) {
-        console.error('应用背景图片失败:', error)
-        this.backgroundImageUrl = ''
-      }
-    },
-    
-    applyTheme(theme) {
-      this.theme = theme
-
-      // 处理跟随系统主题
-      let actualTheme = theme
-      if (theme === 'auto') {
-        // 检测系统主题偏好
-        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-        actualTheme = prefersDark ? 'dark' : 'light'
-      }
-
-      // 应用实际主题
-      document.documentElement.setAttribute('data-theme', actualTheme)
-      localStorage.setItem('butter-manager-theme', theme)
-
-      console.log('应用主题:', theme, '实际主题:', actualTheme)
-    },
-    onThemeChanged(theme) {
-      this.theme = theme
-    },
     onAudioStarted(audio) {
       console.log('🎵 全局音频播放器开始播放:', audio.name)
       // 可以在这里添加额外的逻辑，比如显示通知等
@@ -862,19 +835,6 @@ export default {
       return 'home' // 默认返回主页
     },
     
-    // 加载安全键设置
-    async loadSafetyKeySettings() {
-      try {
-        const settings = await saveManager.loadSettings()
-        if (settings) {
-          this.safetyKeyEnabled = settings.safetyKeyEnabled || false
-          this.safetyKeyUrl = settings.safetyKeyUrl || 'https://www.bilibili.com/video/BV1jR4y1M78W/?p=17&share_source=copy_web&vd_source=7de8c277f16e8e03b48a5328dddfe2ce&t=466'
-          this.setupSafetyKeyListener()
-        }
-      } catch (error) {
-        console.warn('加载安全键设置失败:', error)
-      }
-    },
     
     // 加载自动备份设置
     async loadAutoBackupSettings() {
@@ -991,21 +951,6 @@ export default {
       }
     },
     
-    // 设置安全键监听
-    async setupSafetyKeyListener() {
-      try {
-        if (window.electronAPI && window.electronAPI.setSafetyKey) {
-          const result = await window.electronAPI.setSafetyKey(this.safetyKeyEnabled, this.safetyKeyUrl)
-          if (result.success) {
-            console.log('✅ 安全键全局快捷键已', this.safetyKeyEnabled ? '启用' : '禁用', '(ESC)')
-          } else {
-            console.warn('设置安全键失败:', result.error)
-          }
-        }
-      } catch (error) {
-        console.error('设置安全键监听失败:', error)
-      }
-    }
   },
   async mounted() {
     // 读取版本号
@@ -1107,30 +1052,22 @@ export default {
       console.error('通知服务初始化失败:', error)
     }
 
-    // 然后从 SaveManager 加载设置（所有降级逻辑由 SaveManager 处理）
-    try {
-      const settings = await saveManager.loadSettings()
-      const theme = settings?.theme || 'auto'
-      console.log('从 SaveManager 加载主题设置:', theme)
-      this.applyTheme(theme)
-      
-      // 加载个性化设置
-      if (settings?.customAppTitle) {
-        this.customAppTitle = settings.customAppTitle
-      }
-      if (settings?.customAppSubtitle) {
-        this.customAppSubtitle = settings.customAppSubtitle
-      }
-      
-      // 加载背景图片设置
-      if (settings?.backgroundImagePath) {
-        await this.applyBackgroundImage(settings.backgroundImagePath)
-      }
-    } catch (error) {
-      console.warn('从 SaveManager 加载设置失败，使用默认主题:', error)
-      // 如果 SaveManager 也失败了，使用默认主题
-      this.applyTheme('auto')
-    }
+    // 加载主题设置
+    await this.theme.loadTheme()
+    
+    // 加载个性化设置
+    await this.personalization.loadPersonalization()
+    
+    // 加载背景图片设置
+    await this.backgroundImage.loadBackgroundImage()
+    
+    // 初始化个性化设置事件监听
+    const cleanupPersonalization = this.personalization.initPersonalizationListener()
+    this.setCleanupPersonalization(cleanupPersonalization)
+    
+    // 初始化背景图片事件监听
+    const cleanupBackgroundImage = this.backgroundImage.initBackgroundImageListener()
+    this.setCleanupBackgroundImage(cleanupBackgroundImage)
 
     await this.checkFirstLoginAchievement()
 
@@ -1152,46 +1089,17 @@ export default {
     await this.startAppUsageTracking()
     
     // 加载安全键设置
-    await this.loadSafetyKeySettings()
+    await this.safetyKey.loadSafetyKeySettings()
+    
+    // 初始化安全键监听
+    const cleanup = this.safetyKey.initSafetyKeyListener()
+    this.setCleanupSafetyKeyListener(cleanup)
     
     // 加载自动备份设置
     await this.loadAutoBackupSettings()
     
     // 检测 WinRAR 安装状态
     await this.checkWinRARInstallation()
-    
-    // 监听自定义标题变化事件
-    window.addEventListener('custom-app-title-changed', (event: CustomEvent) => {
-      const { title } = event.detail
-      this.customAppTitle = title || ''
-    })
-    
-    // 监听自定义副标题变化事件
-    window.addEventListener('custom-app-subtitle-changed', (event: CustomEvent) => {
-      const { subtitle } = event.detail
-      this.customAppSubtitle = subtitle || ''
-    })
-    
-    // 监听背景图片变化事件
-    window.addEventListener('background-image-changed', async (event: CustomEvent) => {
-      const { path } = event.detail
-      this.backgroundImagePath = path || ''
-      if (path) {
-        await this.applyBackgroundImage(path)
-      } else {
-        this.backgroundImageUrl = ''
-      }
-    })
-    
-    // 监听安全键设置变化事件
-    window.addEventListener('safety-key-changed', async (event: CustomEvent) => {
-      const { enabled, url } = event.detail
-      this.safetyKeyEnabled = enabled
-      if (url) {
-        this.safetyKeyUrl = url
-      }
-      await this.setupSafetyKeyListener()
-    })
     
     // 监听自动备份时间间隔变化事件
     window.addEventListener('auto-backup-interval-changed', async (event: CustomEvent) => {
@@ -1205,14 +1113,6 @@ export default {
     window.addEventListener('custom-pages-updated', () => {
       this.reloadCustomPages()
     })
-    
-    // 监听安全键触发事件（来自主进程）
-    if (window.electronAPI && window.electronAPI.onSafetyKeyTriggered) {
-      window.electronAPI.onSafetyKeyTriggered(() => {
-        console.log('收到安全键触发事件（来自主进程）')
-        // 主进程已经处理了最小化和打开网页，这里可以添加额外的UI反馈
-      })
-    }
     
     // 所有初始化完成，隐藏加载提示
     this.isLoading = false
@@ -1231,13 +1131,28 @@ export default {
     // 停止自动备份定时器
     this.stopAutoBackupTimer()
     
-    // 禁用安全键（清理全局快捷键）
-    if (window.electronAPI && window.electronAPI.setSafetyKey) {
-      // 使用 Promise 而不是 await，因为 beforeUnmount 不能是 async
-      window.electronAPI.setSafetyKey(false, '').catch((error) => {
-        console.error('禁用安全键失败:', error)
-      })
+    // 清理安全键监听
+    const cleanupSafetyKey = this.getCleanupSafetyKeyListener()
+    if (cleanupSafetyKey) {
+      cleanupSafetyKey()
     }
+    
+    // 清理个性化设置监听
+    const cleanupPersonalization = this.getCleanupPersonalization()
+    if (cleanupPersonalization) {
+      cleanupPersonalization()
+    }
+    
+    // 清理背景图片监听
+    const cleanupBackgroundImage = this.getCleanupBackgroundImage()
+    if (cleanupBackgroundImage) {
+      cleanupBackgroundImage()
+    }
+    
+    // 禁用安全键（清理全局快捷键）
+    this.safetyKey.disableSafetyKey().catch((error) => {
+      console.error('禁用安全键失败:', error)
+    })
   }
 }
 </script>
