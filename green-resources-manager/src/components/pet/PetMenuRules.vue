@@ -50,6 +50,15 @@
             <div class="rule-number">4</div>
             <div class="rule-text">如果欲望没有被满足，宠物的好感度会下降</div>
           </div>
+
+          <div class="rule-block">
+            <div class="rule-number">5</div>
+            <div class="rule-text">食欲需要靠东西来解决，可以在商店购买食物</div>
+          </div>
+          <div class="rule-block">
+            <div class="rule-number">6</div>
+            <div class="rule-text">睡眠欲需要靠睡觉来解决，</div>
+          </div>
         </div>
       </div>
 

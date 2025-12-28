@@ -255,7 +255,9 @@ function registerIpcHandlers(ipcMain, isDev) {
             affectionExp: result.data.affectionExp,
             appetite: result.data.appetite || 0,
             sleepiness: result.data.sleepiness || 0,
-            libido: result.data.libido || 0
+            libido: result.data.libido || 0,
+            coins: result.data.coins !== undefined ? result.data.coins : 1000,
+            lastEarningsTime: result.data.lastEarningsTime || null
           }
         }
       }
@@ -268,7 +270,9 @@ function registerIpcHandlers(ipcMain, isDev) {
         affectionExp: undefined,
         appetite: 0,
         sleepiness: 0,
-        libido: 0
+        libido: 0,
+        coins: 1000,
+        lastEarningsTime: null
       }
     } catch (error) {
       console.error('获取桌宠数据失败:', error)
@@ -280,7 +284,9 @@ function registerIpcHandlers(ipcMain, isDev) {
           affectionExp: undefined,
           appetite: 0,
           sleepiness: 0,
-          libido: 0
+          libido: 0,
+          coins: 1000,
+          lastEarningsTime: null
         }
     }
   })
@@ -377,13 +383,15 @@ function registerIpcHandlers(ipcMain, isDev) {
         affection: 0,
         appetite: 0,
         sleepiness: 0,
-        libido: 0
+        libido: 0,
+        coins: 1000,
+        lastEarningsTime: null
       }
       const existingPath = possiblePaths.find(p => fs.existsSync(p))
       if (existingPath) {
         const result = await fileUtils.readJsonFile(existingPath)
         if (result.success && result.data) {
-          petData = result.data
+          petData = { ...petData, ...result.data }
         }
       }
       
@@ -400,6 +408,12 @@ function registerIpcHandlers(ipcMain, isDev) {
       if (data.libido !== undefined) {
         petData.libido = Math.max(0, Math.min(100, data.libido))
       }
+      if (data.coins !== undefined) {
+        petData.coins = Math.max(0, data.coins)
+      }
+      if (data.lastEarningsTime !== undefined) {
+        petData.lastEarningsTime = data.lastEarningsTime
+      }
       
       // 保存数据
       const result = await fileUtils.writeJsonFile(possiblePaths[0], petData)
@@ -409,7 +423,9 @@ function registerIpcHandlers(ipcMain, isDev) {
           affection: petData.affection,
           appetite: petData.appetite,
           sleepiness: petData.sleepiness,
-          libido: petData.libido
+          libido: petData.libido,
+          coins: petData.coins,
+          lastEarningsTime: petData.lastEarningsTime
         }
       } else {
         return { success: false, error: result.error || '保存失败' }

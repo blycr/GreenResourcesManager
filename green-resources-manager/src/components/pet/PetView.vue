@@ -53,8 +53,9 @@
       :libido="petData.libido.value"
       :debug-mode="debugMode"
       :debug-info="debugInfo"
-      :coins="petCoins"
+      :coins="petData.coins.value"
       :inventory-items="inventory.inventoryItems.value"
+      :last-earnings-time="petData.lastEarningsTime.value"
       @buy="handleBuyItem"
       @use="handleUseItem"
     />
@@ -71,6 +72,7 @@ import { usePetDebug } from '../../composables/pet/usePetDebug'
 import { usePetZoom } from '../../composables/pet/usePetZoom'
 import { usePetShop } from '../../composables/pet/usePetShop'
 import { usePetInventory } from '../../composables/pet/usePetInventory'
+import { usePetResourceEarnings } from '../../composables/pet/usePetResourceEarnings'
 import { regionConfig } from '../../composables/pet/usePetRegions'
 import PetDialog from './PetDialog.vue'
 import PetMenu from './PetMenu.vue'
@@ -96,12 +98,12 @@ const { debugMode, debugInfo, toggleDebugMode, showClickMarker, updateDebugInfo 
 
 const { handleWheel } = usePetZoom()
 
-// 金币（暂时使用固定值，后续可以从数据中加载）
-const petCoins = ref(1000)
-
-// 商店和仓库
-const shop = usePetShop(petCoins)
+// 商店和仓库（使用 petData.coins 作为金币源）
+const shop = usePetShop(petData.coins)
 const inventory = usePetInventory()
+
+// 资源收益系统
+usePetResourceEarnings(petData.coins, petData.lastEarningsTime, petData.savePetData)
 
 // 处理鼠标事件
 function handleMouseDown(e: MouseEvent) {
@@ -183,11 +185,13 @@ function handleSendMessage(message: string) {
 }
 
 // 处理购买物品
-function handleBuyItem(item: any) {
+async function handleBuyItem(item: any) {
   const result = shop.buyItem(item)
   if (result.success) {
     // 添加到仓库（传递完整的物品信息）
     inventory.addItem(item, 1)
+    // 保存金币变化
+    await petData.savePetData()
     // 显示提示
     dialog.showMessage(result.message || `成功购买 ${item.name}`)
   } else {

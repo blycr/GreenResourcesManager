@@ -2,6 +2,10 @@
   <div id="menu" :class="{ show: isVisible, hidden: !isVisible }" class="pet-menu">
     <div id="menu-header" class="menu-header">
       <div id="menu-title" class="menu-title">桌宠菜单</div>
+      <div class="menu-coins" v-if="coins !== undefined">
+        <span class="coins-icon">🪙</span>
+        <span class="coins-value">{{ coins }}</span>
+      </div>
     </div>
     <div class="menu-body">
       <!-- 侧边栏导航 -->
@@ -48,6 +52,7 @@
         />
         <PetMenuEarnings
           v-else-if="currentTab === 'earnings'"
+          :last-earnings-time="lastEarningsTime"
         />
         <PetMenuRules
           v-else-if="currentTab === 'rules'"
@@ -84,6 +89,7 @@ const props = defineProps<{
   }
   coins?: number
   inventoryItems: any[]
+  lastEarningsTime?: string | null
 }>()
 
 const emit = defineEmits<{
@@ -146,7 +152,7 @@ function handleUse(item: any) {
 
 .menu-header {
   display: flex;
-  justify-content: center;
+  justify-content: space-between;
   align-items: center;
   margin-bottom: 20px;
   padding-bottom: 15px;
@@ -157,6 +163,26 @@ function handleUse(item: any) {
   font-size: 18px;
   font-weight: bold;
   color: #333;
+}
+
+.menu-coins {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
+  border-radius: 16px;
+  font-weight: bold;
+  color: #333;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.coins-icon {
+  font-size: 16px;
+}
+
+.coins-value {
+  font-size: 14px;
 }
 
 .menu-body {

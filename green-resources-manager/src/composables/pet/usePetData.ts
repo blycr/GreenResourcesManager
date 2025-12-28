@@ -13,6 +13,8 @@ export interface PetData {
   appetite: number
   sleepiness: number
   libido: number
+  coins?: number
+  lastEarningsTime?: string | null
 }
 
 export function usePetData() {
@@ -22,6 +24,8 @@ export function usePetData() {
   const appetite = ref(0)
   const sleepiness = ref(0)
   const libido = ref(0)
+  const coins = ref(1000)
+  const lastEarningsTime = ref<string | null>(null)
   
   // 向后兼容：提供一个数值形式的好感度（用于显示，实际是总经验值）
   const affection = computed(() => affectionSystem.getTotalExp())
@@ -43,6 +47,8 @@ export function usePetData() {
           appetite.value = result.appetite || 0
           sleepiness.value = result.sleepiness || 0
           libido.value = result.libido || 0
+          coins.value = result.coins !== undefined ? result.coins : 1000
+          lastEarningsTime.value = result.lastEarningsTime || null
         }
       } catch (error) {
         console.error('加载桌宠数据失败:', error)
@@ -60,7 +66,9 @@ export function usePetData() {
           affectionExp: affectionSystem.exp.value, // 保存经验值
           appetite: appetite.value,
           sleepiness: sleepiness.value,
-          libido: libido.value
+          libido: libido.value,
+          coins: coins.value,
+          lastEarningsTime: lastEarningsTime.value
         })
       } catch (error) {
         console.error('保存桌宠数据失败:', error)
@@ -103,6 +111,8 @@ export function usePetData() {
     appetite,
     sleepiness,
     libido,
+    coins,
+    lastEarningsTime,
     loadPetData,
     savePetData,
     increaseAffection,
