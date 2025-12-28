@@ -354,12 +354,81 @@ async function deleteFile(filePath) {
  * 删除目录
  * @param {string} dirPath - 目录路径
  * @returns {Promise<Object>} { success: boolean, error?: string }
+ * @throws 如果尝试删除受保护的关键目录会抛出错误
  */
 async function deleteDirectory(dirPath) {
   try {
-    if (fs.existsSync(dirPath)) {
-      fs.rmSync(dirPath, { recursive: true, force: true })
+    // 验证输入
+    if (!dirPath || typeof dirPath !== 'string') {
+      return { success: false, error: '无效的目录路径' }
     }
+
+    // 规范化路径以进行安全比较
+    const normalizedPath = path.resolve(dirPath)
+    const appRootPath = path.resolve(__dirname, '../../..')
+
+    // 定义受保护的关键目录
+    const protectedPatterns = [
+      // 根目录
+      appRootPath,
+      // SaveData 根目录
+      path.resolve(appRootPath, 'SaveData'),
+      // 系统路径
+      path.resolve('C:\\'),
+      path.resolve('C:\\Windows'),
+      path.resolve('C:\\Program Files'),
+      path.resolve('C:\\Program Files (x86)'),
+      // Unix 系统路径
+      '/',
+      '/bin',
+      '/sbin',
+      '/usr',
+      '/usr/bin',
+      '/usr/local',
+      '/etc',
+      '/var',
+      '/home',
+      '/root'
+    ]
+
+    // 检查路径是否为受保护的关键目录或其父目录
+    const isProtected = protectedPatterns.some(pattern => {
+      const normalizedPattern = path.resolve(pattern)
+      // 如果要删除的路径是保护路径本身或保护路径的父路径，则阻止
+      return (
+        normalizedPath === normalizedPattern ||
+        normalizedPath.startsWith(normalizedPattern + path.sep)
+      )
+    })
+
+    if (isProtected) {
+      return {
+        success: false,
+        error: `无法删除受保护的目录: ${dirPath}。此目录是系统关键目录或应用数据目录。`
+      }
+    }
+
+    // 检查目录是否存在
+    if (!fs.existsSync(normalizedPath)) {
+      return {
+        success: false,
+        error: `目录不存在: ${dirPath}`
+      }
+    }
+
+    // 检查目录权限（可选）
+    try {
+      fs.accessSync(normalizedPath, fs.constants.W_OK)
+    } catch (accessError) {
+      return {
+        success: false,
+        error: `无权限删除目录: ${dirPath}`
+      }
+    }
+
+    // 执行删除操作
+    fs.rmSync(normalizedPath, { recursive: true, force: false })
+    
     return { success: true }
   } catch (error) {
     console.error('删除目录失败:', error)

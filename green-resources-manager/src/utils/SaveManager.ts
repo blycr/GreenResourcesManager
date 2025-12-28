@@ -12,7 +12,7 @@ class SaveManager {
   // 数据缓存
   dataCache: Record<string, any> = {}
   // 设置缓存
-  settingsCache: Record<string, any> = null
+  settingsCache: Record<string, any> | null = null
   settingsCacheDirty: boolean = false  // 标记缓存是否已被修改，需要写入磁盘
 
   constructor() {
@@ -2205,6 +2205,12 @@ class SaveManager {
     const customPath = `${this.dataDirectory}/CustomPages/${pageId}/data.json`
     const data = await this.readJsonFile(customPath)
     // 自定义页面直接存储数组
+    if (!Array.isArray(data)) {
+      console.error(
+        `加载自定义页面数据失败：${pageId}，路径：${customPath}。期望为数组，实际为：`,
+        data
+      )
+    }
     const result = Array.isArray(data) ? data : []
     this.dataCache[`custom_${pageId}`] = result // 更新缓存
     return result

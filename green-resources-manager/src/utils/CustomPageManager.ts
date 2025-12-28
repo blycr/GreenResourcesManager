@@ -15,6 +15,18 @@ class CustomPageManager {
   }
 
   /**
+   * 生成唯一的页面 ID
+   * 使用时间戳和随机数的组合确保唯一性
+   * @returns 唯一的页面 ID
+   */
+  private generatePageId(): string {
+    const timestamp = Date.now();
+    // 生成 8 位随机十六进制字符串，提供足够的随机性
+    const randomPart = Math.random().toString(16).substring(2, 10).padEnd(8, '0');
+    return `custom-${timestamp}-${randomPart}`;
+  }
+
+  /**
    * 获取页面配置文件路径
    */
   private get pagesFilePath(): string {
@@ -127,7 +139,7 @@ class CustomPageManager {
     const now = Date.now();
     const newPage: PageConfig = {
       ...page,
-      id: `custom-${now}`,
+      id: this.generatePageId(),
       order: this.pages.length + 1,
       createdAt: now,
       updatedAt: now
@@ -204,9 +216,32 @@ class CustomPageManager {
 
   /**
    * 重新排序页面
-   * @param newOrderIds 新的页面ID顺序数组
+   * @param newOrderIds 新的页面ID顺序数组，必须包含所有现有页面的ID
+   * @throws 如果 newOrderIds 与现有页面的ID不匹配则抛出错误
    */
   async reorderPages(newOrderIds: string[]) {
+    // 验证 newOrderIds 包含的 ID 集合与现有页面 ID 集合一致
+    const existingIds = new Set(this.pages.map(p => p.id));
+    const providedIds = new Set(newOrderIds);
+
+    // 检查是否存在不存在的 ID
+    const nonexistentIds = newOrderIds.filter(id => !existingIds.has(id));
+    if (nonexistentIds.length > 0) {
+      throw new Error(
+        `无法重新排序页面：包含不存在的页面ID: ${nonexistentIds.join(', ')}`
+      );
+    }
+
+    // 检查是否有页面未被包含在 newOrderIds 中
+    const missingIds = Array.from(existingIds).filter(id => !providedIds.has(id));
+    if (missingIds.length > 0) {
+      throw new Error(
+        `无法重新排序页面：缺少必要的页面ID: ${missingIds.join(', ')}。` +
+        `必须为所有页面提供顺序。`
+      );
+    }
+
+    // 创建顺序映射
     const orderMap = new Map(newOrderIds.map((id, index) => [id, index + 1]));
 
     let changed = false;

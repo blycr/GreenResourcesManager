@@ -61,10 +61,17 @@ export default defineComponent({
       }
     });
 
-    // If component is not found, emit empty filter data to stop loading spinner
-    if (!viewComponent.value) {
-      emit('filter-data-updated', { filters: [] });
-    }
+    // 当组件不存在时，发出空过滤数据以停止加载状态
+    // 使用 watch 确保能处理 pageConfig 动态变化
+    watch(
+      () => viewComponent.value,
+      (component) => {
+        if (!component) {
+          emit('filter-data-updated', { filters: [] });
+        }
+      },
+      { immediate: true }
+    );
 
     // Expose updateFilterData method to parent
     const updateFilterData = () => {
