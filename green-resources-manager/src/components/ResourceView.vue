@@ -44,9 +44,10 @@ export default defineComponent({
     const viewComponent = computed(() => {
       if (!props.pageConfig || !props.pageConfig.type) return null;
       
-      const normalizedType = props.pageConfig.type.charAt(0).toUpperCase() + props.pageConfig.type.slice(1).toLowerCase();
+      // 直接使用原始类型，因为 PageConfig.type 已经是正确的 ResourceType 格式
+      const type = props.pageConfig.type;
       
-      switch (normalizedType) {
+      switch (type) {
         case 'Game':
           return GameView;
         case 'Software':

@@ -2,15 +2,15 @@
   <div v-if="visible" class="modal-overlay" @mousedown="handleOverlayMouseDown">
     <div class="modal-content" @mousedown.stop>
       <div class="modal-header">
-        <h3>{{ mode === 'add' ? '添加漫画' : '编辑漫画' }}</h3>
+        <h3>{{ getTitle() }}</h3>
         <button class="modal-close" @click="handleClose">✕</button>
       </div>
       <div class="modal-body">
         <FormField
-          :label="mode === 'add' ? '漫画名称 (可选)' : '名称'"
+          :label="mode === 'add' ? (singleImageOnly ? '图片名称 (可选)' : '漫画名称 (可选)') : '名称'"
           type="text"
           v-model="formData.name"
-          :placeholder="mode === 'add' ? '留空将自动从文件夹名提取' : '输入漫画名称'"
+          :placeholder="mode === 'add' ? (singleImageOnly ? '留空将自动从文件名提取' : '留空将自动从文件夹名提取') : '输入名称'"
         />
         <FormField
           :label="mode === 'add' ? '作者 (可选)' : '作者'"
@@ -19,29 +19,54 @@
           placeholder="输入作者名称"
         />
         <FormField
-          :label="mode === 'add' ? '漫画简介 (可选)' : '漫画简介'"
+          :label="mode === 'add' ? (singleImageOnly ? '图片简介 (可选)' : '漫画简介 (可选)') : (singleImageOnly ? '图片简介' : '漫画简介')"
           type="textarea"
           v-model="formData.description"
-          placeholder="输入漫画简介或描述..."
+          placeholder="输入简介或描述..."
           :rows="3"
         />
         <FormField
-          :label="mode === 'add' ? '漫画标签 (可选)' : '漫画标签'"
+          :label="mode === 'add' ? (singleImageOnly ? '图片标签 (可选)' : '漫画标签 (可选)') : (singleImageOnly ? '图片标签' : '漫画标签')"
           type="tags"
           v-model="formData.tags"
           v-model:tagInput="localTagInput"
           @add-tag="handleAddTag"
           @remove-tag="handleRemoveTag"
         />
+        <!-- 添加模式：选择添加类型（文件夹或单个图片） -->
+        <div v-if="mode === 'add' && allowSingleImage && !singleImageOnly" class="add-type-selector">
+          <label class="add-type-label">添加类型：</label>
+          <div class="add-type-options">
+            <label class="add-type-option">
+              <input 
+                type="radio" 
+                value="folder" 
+                v-model="addType"
+                @change="handleAddTypeChange"
+              />
+              <span>文件夹</span>
+            </label>
+            <label class="add-type-option">
+              <input 
+                type="radio" 
+                value="single" 
+                v-model="addType"
+                @change="handleAddTypeChange"
+              />
+              <span>单个图片</span>
+            </label>
+          </div>
+        </div>
         <FormField
-          label="漫画文件夹"
+          :label="(singleImageOnly || (addType === 'single' && mode === 'add' && allowSingleImage)) ? '图片文件' : '漫画文件夹'"
           type="file"
           v-model="formData.folderPath"
-          placeholder="选择漫画文件夹"
+          :placeholder="(singleImageOnly || (addType === 'single' && mode === 'add' && allowSingleImage)) ? '选择图片文件' : '选择漫画文件夹'"
           @browse="handleBrowseFolder"
         />
-        <!-- 封面选择器 -->
+        <!-- 封面选择器 - 单图模式下隐藏，因为图片本身就是封面 -->
         <CoverSelector
+          v-if="!singleImageOnly"
           :cover="cover"
           :folderPath="formData.folderPath"
           :label="mode === 'add' ? '封面图片 (可选)' : '封面图片'"
@@ -129,11 +154,20 @@ export default {
     clearCover: {
       type: Function,
       required: true
+    },
+    allowSingleImage: {
+      type: Boolean,
+      default: false
+    },
+    singleImageOnly: {
+      type: Boolean,
+      default: false
     }
   },
-  emits: ['update:visible', 'update:formData', 'update:cover', 'update:tagInput', 'submit', 'close', 'browse-folder', 'add-tag', 'remove-tag'],
+  emits: ['update:visible', 'update:formData', 'update:cover', 'update:tagInput', 'submit', 'close', 'browse-folder', 'browse-image-file', 'add-tag', 'remove-tag'],
   setup(props, { emit }) {
     const localTagInput = ref(props.tagInput)
+    const addType = ref<'folder' | 'single'>(props.singleImageOnly ? 'single' : 'folder')
 
     // 监听 visible 变化
     watch(() => props.visible, () => {
@@ -176,8 +210,17 @@ export default {
       }
     }
 
+    const handleAddTypeChange = () => {
+      // 切换类型时清空路径
+      emit('update:formData', { ...props.formData, folderPath: '' })
+    }
+
     const handleBrowseFolder = () => {
-      emit('browse-folder')
+      if (props.singleImageOnly || (addType.value === 'single' && props.mode === 'add' && props.allowSingleImage)) {
+        emit('browse-image-file')
+      } else {
+        emit('browse-folder')
+      }
     }
 
     const handleAddTag = () => {
@@ -204,19 +247,30 @@ export default {
       props.clearCover()
     }
 
+    const getTitle = () => {
+      if (props.mode === 'add') {
+        return props.singleImageOnly ? '添加图片' : '添加漫画'
+      } else {
+        return props.singleImageOnly ? '编辑图片' : '编辑漫画'
+      }
+    }
+
     return {
       localTagInput,
+      addType,
       canSubmit,
       handleClose,
       handleOverlayMouseDown,
       handleSubmit,
+      handleAddTypeChange,
       handleBrowseFolder,
       handleAddTag,
       handleRemoveTag,
       handleUseFirstImage,
       handleSelectFromFolder,
       handleBrowseImage,
-      handleClearCover
+      handleClearCover,
+      getTitle
     }
   }
 }
@@ -329,6 +383,44 @@ export default {
 .btn-confirm:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.add-type-selector {
+  margin-bottom: 20px;
+  padding: 16px;
+  background: var(--bg-tertiary, #f9f9f9);
+  border-radius: 8px;
+  border: 1px solid var(--border-color, #e0e0e0);
+}
+
+.add-type-label {
+  display: block;
+  margin-bottom: 12px;
+  font-weight: 600;
+  color: var(--text-primary, #333);
+  font-size: 14px;
+}
+
+.add-type-options {
+  display: flex;
+  gap: 20px;
+}
+
+.add-type-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.add-type-option input[type="radio"] {
+  cursor: pointer;
+}
+
+.add-type-option span {
+  color: var(--text-primary, #333);
+  font-size: 14px;
 }
 </style>
 

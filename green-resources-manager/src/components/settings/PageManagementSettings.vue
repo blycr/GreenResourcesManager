@@ -91,7 +91,7 @@
           </div>
           <div class="form-group">
             <label>资源类型</label>
-            <select v-model="editingPage.type" :disabled="isEditing">
+            <select v-model="editingPage.type" :disabled="isEditing || editingPage.isDefault">
               <option value="Game">游戏 (Game)</option>
               <option value="Software">软件 (Software)</option>
               <option value="Image">图片 (Image)</option>
@@ -102,7 +102,8 @@
               <option value="Audio">音频 (Audio)</option>
               <option value="Website">网站 (Website)</option>
             </select>
-            <p class="help-text" v-if="isEditing">资源类型创建后不可修改</p>
+            <p class="help-text" v-if="isEditing && !editingPage.isDefault">资源类型创建后不可修改</p>
+            <p class="help-text" v-if="editingPage.isDefault">系统默认页面的资源类型不可修改</p>
           </div>
           <div class="form-group">
             <label>图标</label>

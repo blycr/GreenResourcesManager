@@ -52,6 +52,11 @@ export interface ImageDragDropOptions {
    * 保存专辑的回调函数
    */
   onSaveAlbums?: () => Promise<void>
+  
+  /**
+   * 是否只接受单个图片文件（不接受文件夹）
+   */
+  singleImageOnly?: boolean
 }
 
 /**
@@ -64,7 +69,8 @@ export function useImageDragDrop(options: ImageDragDropOptions) {
     onShowPathUpdateDialog,
     onExtractAllTags,
     onCheckAchievements,
-    onSaveAlbums
+    onSaveAlbums,
+    singleImageOnly = false
   } = options
 
   // 获取当前专辑列表
@@ -79,16 +85,78 @@ export function useImageDragDrop(options: ImageDragDropOptions) {
   })
 
   /**
+   * 检查文件是否为图片文件
+   */
+  function isImageFile(filePath: string): boolean {
+    const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.svg']
+    const lowerPath = filePath.toLowerCase()
+    return imageExtensions.some(ext => lowerPath.endsWith(ext))
+  }
+
+  /**
    * 处理图片文件夹拖拽
    */
   async function handleImageDrop(files: File[]) {
     try {
       console.log('=== 拖拽事件开始 ===')
       console.log('拖拽文件数量:', files.length)
+      console.log('单图模式:', singleImageOnly)
       
       if (files.length === 0) {
         console.log('没有拖拽文件，显示错误通知')
-        notify.native('拖拽失败', '请拖拽文件夹到此处')
+        notify.native('拖拽失败', singleImageOnly ? '请拖拽图片文件到此处' : '请拖拽文件夹到此处')
+        return
+      }
+      
+      // 如果只接受单个图片文件，过滤出图片文件
+      if (singleImageOnly) {
+        const imageFiles = files.filter(file => {
+          const filePath = (file as any).path || file.name || ''
+          return isImageFile(filePath)
+        })
+        
+        if (imageFiles.length === 0) {
+          console.log('未检测到图片文件，显示错误通知')
+          notify.native('拖拽失败', '请拖拽图片文件到此处（支持 .jpg、.jpeg、.png、.gif、.bmp、.webp、.svg 格式）')
+          return
+        }
+        
+        // 将图片文件转换为文件夹格式
+        const detectedFolders: FolderInfo[] = imageFiles.map(file => {
+          const filePath = (file as any).path || file.name || ''
+          const fileName = file.name || ''
+          const imageName = fileName.replace(/\.[^/.]+$/, '') || filePath.split(/[/\\]/).pop()?.replace(/\.[^/.]+$/, '') || '未命名图片'
+          
+          return {
+            path: filePath,
+            name: imageName,
+            files: [file]
+          }
+        })
+        
+        console.log('检测到的图片文件:', detectedFolders.length)
+        console.log('开始批量处理图片文件...')
+        const results = await processMultipleFolders(detectedFolders)
+        console.log('批量处理完成，结果:', results)
+        
+        // 显示结果通知
+        const successCount = results.filter(r => r.success).length
+        const failCount = results.filter(r => !r.success).length
+        
+        if (successCount > 0) {
+          console.log('显示批量操作结果通知')
+          notify.toast('success', '批量添加完成', '', results)
+        } else {
+          console.log('所有图片添加失败，显示失败通知')
+          const failureReasons = results
+            .filter(r => !r.success)
+            .map((r, index) => `${index + 1}. "${r.folderName}": ${r.error || '未知错误'}`)
+            .join('\n')
+          
+          notify.toast('error', '添加失败', `所有图片添加失败:\n${failureReasons}`, results)
+        }
+        
+        console.log('=== 拖拽事件完成 ===')
         return
       }
       
@@ -215,7 +283,7 @@ export function useImageDragDrop(options: ImageDragDropOptions) {
         })
       }
       
-      // 方法3: 处理单个文件拖拽的特殊情况（包括压缩包文件）
+      // 方法3: 处理单个文件拖拽的特殊情况（包括压缩包文件和单个图片文件）
       if (folders.size === 0 && files.length === 1) {
         console.log('方法2失败，尝试方法3 - 单文件特殊情况')
         const singleFile = files[0]
@@ -236,7 +304,17 @@ export function useImageDragDrop(options: ImageDragDropOptions) {
               name: folderName,
               files: [singleFile]
             })
-          } else if (!hasImageExtension) {
+          } else if (hasImageExtension) {
+            // 单个图片文件，直接作为专辑处理（单页专辑）
+            console.log('检测到单个图片文件:', filePath)
+            const imageName = fileName.replace(/\.[^/.]+$/, '') || filePath.split(/[/\\]/).pop()?.replace(/\.[^/.]+$/, '') || '未命名图片'
+            
+            folders.set(filePath, {
+              path: filePath,
+              name: imageName,
+              files: [singleFile]
+            })
+          } else {
             // 没有图片扩展名，可能是文件夹
             const folderPath = filePath
             const folderName = fileName || folderPath.split(/[/\\]/).pop() || '未命名漫画'
@@ -246,28 +324,24 @@ export function useImageDragDrop(options: ImageDragDropOptions) {
               name: folderName,
               files: [singleFile]
             })
-          } else {
-            // 有图片扩展名，尝试使用父目录
-            const parentDir = filePath.substring(0, filePath.lastIndexOf('/'))
-            if (parentDir) {
-              const folderName = parentDir.split(/[/\\]/).pop() || '未命名漫画'
-              
-              folders.set(parentDir, {
-                path: parentDir,
-                name: folderName,
-                files: [singleFile]
-              })
-            }
           }
         }
       }
       
-      // 方法4: 检测多个压缩包文件拖拽
+      // 方法4: 检测多个压缩包文件或图片文件拖拽
       if (folders.size === 0 && files.length > 1) {
-        console.log('方法3失败，尝试方法4 - 多压缩包文件检测')
+        console.log('方法3失败，尝试方法4 - 多文件检测')
         const archiveFiles = files.filter(file => {
           if ((file as any).path) {
             return isArchiveFile((file as any).path)
+          }
+          return false
+        })
+        
+        const imageFiles = files.filter(file => {
+          if ((file as any).path) {
+            const fileName = file.name || ''
+            return /\.(jpg|jpeg|png|gif|bmp|webp|svg)$/i.test(fileName)
           }
           return false
         })
@@ -281,6 +355,20 @@ export function useImageDragDrop(options: ImageDragDropOptions) {
             folders.set(filePath, {
               path: filePath,
               name: fileName,
+              files: [file]
+            })
+          })
+        } else if (imageFiles.length > 0) {
+          // 检测到多个图片文件，每个图片文件作为单独的专辑
+          console.log('检测到多个图片文件:', imageFiles.length)
+          imageFiles.forEach(file => {
+            const filePath = (file as any).path
+            const fileName = file.name || ''
+            const imageName = fileName.replace(/\.[^/.]+$/, '') || filePath.split(/[/\\]/).pop()?.replace(/\.[^/.]+$/, '') || '未命名图片'
+            
+            folders.set(filePath, {
+              path: filePath,
+              name: imageName,
               files: [file]
             })
           })

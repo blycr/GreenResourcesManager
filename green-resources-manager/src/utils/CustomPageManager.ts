@@ -71,11 +71,31 @@ class CustomPageManager {
           };
         }).filter((page): page is PageConfig => page !== null);
         
-        // 检查并添加缺失的默认页面
+        // 检查并添加缺失的默认页面，同时修复系统默认页面的类型
         const defaultPages = this.getDefaultPages();
+        const defaultPagesMap = new Map(defaultPages.map(p => [p.id, p]));
         const existingPageIds = new Set(this.pages.map(p => p.id));
         let hasNewPages = false;
+        let hasFixedPages = false;
         
+        // 修复系统默认页面的类型
+        for (let i = 0; i < this.pages.length; i++) {
+          const page = this.pages[i];
+          if (page.isDefault && defaultPagesMap.has(page.id)) {
+            const defaultPage = defaultPagesMap.get(page.id)!;
+            if (page.type !== defaultPage.type) {
+              console.log(`[CustomPageManager] 检测到系统默认页面 "${page.id}" 的类型不正确 (${page.type} -> ${defaultPage.type})，正在修复...`);
+              this.pages[i] = {
+                ...page,
+                type: defaultPage.type,
+                updatedAt: Date.now()
+              };
+              hasFixedPages = true;
+            }
+          }
+        }
+        
+        // 添加缺失的默认页面
         for (const defaultPage of defaultPages) {
           if (!existingPageIds.has(defaultPage.id)) {
             // 找到缺失的默认页面，添加它
@@ -85,8 +105,8 @@ class CustomPageManager {
           }
         }
         
-        // 如果有页面因类型无效而被过滤掉，或者添加了新的默认页面，需要保存更新后的列表
-        if (this.pages.length !== loadedPages.length || hasNewPages) {
+        // 如果有页面因类型无效而被过滤掉，或者添加了新的默认页面，或者修复了系统默认页面，需要保存更新后的列表
+        if (this.pages.length !== loadedPages.length || hasNewPages || hasFixedPages) {
           await this.savePages();
         }
       } else {

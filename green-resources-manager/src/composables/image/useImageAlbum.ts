@@ -81,6 +81,15 @@ export function useImageAlbum(pageId: string = 'images') {
   }
 
   /**
+   * 检查路径是否为单个图片文件
+   */
+  const isImageFile = (path: string): boolean => {
+    const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.svg']
+    const lowerPath = path.toLowerCase()
+    return imageExtensions.some(ext => lowerPath.endsWith(ext))
+  }
+
+  /**
    * 添加新专辑
    */
   const addAlbum = async (albumData: Partial<Album>): Promise<Album> => {
@@ -88,21 +97,28 @@ export function useImageAlbum(pageId: string = 'images') {
       throw new Error('文件夹路径不能为空')
     }
 
+    const path = albumData.folderPath.trim()
+    const isSingleImage = isImageFile(path)
+
     // 检查是否已存在相同路径的专辑
     const existingAlbum = albums.value.find(
-      a => a.folderPath === albumData.folderPath
+      a => a.folderPath === path
     )
     if (existingAlbum) {
-      throw new Error(`文件夹 "${albumData.folderPath}" 已经存在`)
+      throw new Error(`路径 "${path}" 已经存在`)
     }
 
     // 检查是否为压缩包
     const isArchive = albumData.isArchive || false
     
-    // 扫描图片文件（压缩包文件暂时不扫描，需要先解压）
+    // 扫描图片文件
     let pages: string[] = []
-    if (!isArchive && window.electronAPI?.listImageFiles) {
-      const resp = await window.electronAPI.listImageFiles(albumData.folderPath.trim())
+    if (isSingleImage) {
+      // 单个图片文件，直接使用该文件路径
+      pages = [path]
+    } else if (!isArchive && window.electronAPI?.listImageFiles) {
+      // 文件夹，扫描其中的图片文件
+      const resp = await window.electronAPI.listImageFiles(path)
       if (resp.success) {
         pages = resp.files || []
       } else {
@@ -110,13 +126,26 @@ export function useImageAlbum(pageId: string = 'images') {
       }
     }
 
+    // 提取名称
+    let albumName = albumData.name?.trim()
+    if (!albumName) {
+      if (isSingleImage) {
+        // 单个图片：使用文件名（不含扩展名）
+        const fileName = extractFolderName(path)
+        albumName = fileName.replace(/\.[^/.]+$/, '')
+      } else {
+        // 文件夹：使用文件夹名
+        albumName = extractFolderName(path)
+      }
+    }
+
     const album: Album = {
       id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
-      name: albumData.name?.trim() || extractFolderName(albumData.folderPath),
+      name: albumName,
       author: albumData.author?.trim() || '',
       description: albumData.description?.trim() || '',
       tags: albumData.tags || [],
-      folderPath: albumData.folderPath.trim(),
+      folderPath: path,
       cover: albumData.cover || pages[0] || '',
       pagesCount: pages.length,
       addedDate: new Date().toISOString(),
@@ -188,6 +217,17 @@ export function useImageAlbum(pageId: string = 'images') {
    * 刷新专辑的页面信息
    */
   const refreshAlbumPages = async (album: Album): Promise<void> => {
+    const isSingleImage = isImageFile(album.folderPath)
+    
+    if (isSingleImage) {
+      // 单个图片文件，直接使用该文件
+      album.pagesCount = 1
+      if (!album.cover) {
+        album.cover = album.folderPath
+      }
+      return
+    }
+    
     if (!window.electronAPI?.listImageFiles) return
 
     try {
