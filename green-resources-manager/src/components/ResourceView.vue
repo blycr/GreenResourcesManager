@@ -46,19 +46,15 @@ export default defineComponent({
       
       const normalizedType = props.pageConfig.type.charAt(0).toUpperCase() + props.pageConfig.type.slice(1).toLowerCase();
       
-      // 特殊处理：根据 pageConfig.id 选择不同的 Image 组件
-      if (normalizedType === 'Image') {
-        if (props.pageConfig.id === 'single-image') {
-          return SingleImageView;
-        }
-        return ImageView;
-      }
-      
       switch (normalizedType) {
         case 'Game':
           return GameView;
         case 'Software':
           return SoftwareView;
+        case 'Image':
+          return ImageView;
+        case 'SingleImage':
+          return SingleImageView;
         case 'Video':
           return VideoView;
         case 'Anime':

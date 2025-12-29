@@ -123,6 +123,7 @@ const resourceTypeToComponent: Record<string, () => Promise<any>> = {
   Game: () => import('../pages/resources/GameView.vue'),
   Software: () => import('../pages/resources/SoftwareView.vue'),
   Image: () => import('../pages/resources/ImageView.vue'),
+  SingleImage: () => import('../pages/resources/SingleImageView.vue'),
   Video: () => import('../pages/resources/VideoView.vue'),
   Anime: () => import('../pages/resources/VideoAnimeSeriesView.vue'),
   Novel: () => import('../pages/resources/NovelView.vue'),

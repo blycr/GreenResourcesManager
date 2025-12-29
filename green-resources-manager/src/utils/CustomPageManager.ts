@@ -113,7 +113,7 @@ class CustomPageManager {
       { id: 'games', name: '游戏', icon: '🎮', type: 'Game', description: '可以管理游戏、应用等exe文件', isDefault: true, order: 1, createdAt: now, updatedAt: now },
       { id: 'software', name: '软件', icon: '💾', type: 'Software', description: '可以管理软件、应用等exe文件', isDefault: true, order: 2, createdAt: now, updatedAt: now },
       { id: 'images', name: '漫画', icon: '🖼️', type: 'Image', description: '可以管理图片文件夹，暂不支持单一图片的管理', isDefault: true, order: 3, createdAt: now, updatedAt: now },
-      { id: 'single-image', name: '单图', icon: '🖼️', type: 'Image', description: '可以管理单一图片文件', isDefault: true, order: 4, createdAt: now, updatedAt: now },
+      { id: 'single-image', name: '单图', icon: '🖼️', type: 'SingleImage', description: '可以管理单一图片文件', isDefault: true, order: 4, createdAt: now, updatedAt: now },
       { id: 'videos', name: '电影', icon: '🎬', type: 'Video', description: '可以管理单一视频', isDefault: true, order: 5, createdAt: now, updatedAt: now },
       { id: 'anime-series', name: '番剧', icon: '📺', type: 'Anime', description: '可以管理番剧和电视剧', isDefault: true, order: 6, createdAt: now, updatedAt: now },
       { id: 'novels', name: '小说', icon: '📚', type: 'Novel', description: '可以管理txt文件，暂不支持其余格式', isDefault: true, order: 7, createdAt: now, updatedAt: now },

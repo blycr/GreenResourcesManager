@@ -203,7 +203,7 @@ export default {
   props: {
     pageConfig: {
       type: Object as PropType<PageConfig>,
-      default: () => ({ id: 'single-image', type: 'Image' })
+      default: () => ({ id: 'single-image', type: 'SingleImage' })
     }
   },
   setup(props) {

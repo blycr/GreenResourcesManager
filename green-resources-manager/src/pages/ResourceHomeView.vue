@@ -18,6 +18,7 @@ const resourceConfigMap: Record<ResourceType, { name: string; icon: string }> = 
   Game: { name: '游戏', icon: '🎮' },
   Software: { name: '软件', icon: '💾' },
   Image: { name: '图片', icon: '🖼️' },
+  SingleImage: { name: '单图', icon: '🖼️' },
   Video: { name: '电影', icon: '🎬' },
   Anime: { name: '番剧', icon: '📺' },
   Novel: { name: '小说', icon: '📚' },
