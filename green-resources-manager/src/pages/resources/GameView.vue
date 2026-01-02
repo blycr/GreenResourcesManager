@@ -780,6 +780,18 @@ export default {
       this.clearDeveloperFilter()
       this.updateFilterData()
     },
+    handleFilterByPublisher(publisherName: string) {
+      this.filterByPublisher(publisherName)
+      this.updateFilterData()
+    },
+    handleExcludeByPublisher(publisherName: string) {
+      this.excludeByPublisher(publisherName)
+      this.updateFilterData()
+    },
+    handleClearPublisherFilter() {
+      this.clearPublisherFilter()
+      this.updateFilterData()
+    },
     handleFilterByOther(otherName: string) {
       this.filterByOther(otherName)
       this.updateFilterData()
@@ -801,6 +813,8 @@ export default {
             this.handleFilterByTag(data.itemName)
           } else if (data.filterKey === 'developers') {
             this.handleFilterByDeveloper(data.itemName)
+          } else if (data.filterKey === 'publishers') {
+            this.handleFilterByPublisher(data.itemName)
           } else if (data.filterKey === 'others') {
             this.handleFilterByOther(data.itemName)
           }
@@ -810,6 +824,8 @@ export default {
             this.handleExcludeByTag(data.itemName)
           } else if (data.filterKey === 'developers') {
             this.handleExcludeByDeveloper(data.itemName)
+          } else if (data.filterKey === 'publishers') {
+            this.handleExcludeByPublisher(data.itemName)
           } else if (data.filterKey === 'others') {
             this.handleExcludeByOther(data.itemName)
           }
@@ -819,6 +835,8 @@ export default {
             this.handleClearTagFilter()
           } else if (data === 'developers') {
             this.handleClearDeveloperFilter()
+          } else if (data === 'publishers') {
+            this.handleClearPublisherFilter()
           } else if (data === 'others') {
             this.handleClearOtherFilter()
           }

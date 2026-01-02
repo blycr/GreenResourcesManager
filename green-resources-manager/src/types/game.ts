@@ -68,6 +68,8 @@ export interface GameFilterOptions {
   excludedTags: string[]
   selectedDevelopers: string[]
   excludedDevelopers: string[]
+  selectedPublishers: string[]
+  excludedPublishers: string[]
   selectedOthers: string[]
   excludedOthers: string[]
 }
@@ -112,11 +114,14 @@ export interface GameDragDropOptions {
 export interface GameFilterData {
   allTags: FilterItem[]
   allDevelopers: FilterItem[]
+  allPublishers: FilterItem[]
   allOthers: FilterItem[]
   selectedTags: string[]
   excludedTags: string[]
   selectedDevelopers: string[]
   excludedDevelopers: string[]
+  selectedPublishers: string[]
+  excludedPublishers: string[]
   selectedOthers: string[]
   excludedOthers: string[]
 }

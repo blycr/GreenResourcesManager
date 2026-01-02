@@ -10,20 +10,24 @@ export function useGameFilter(games: Ref<Game[]>, searchQuery: Ref<string>, sort
   const excludedTags = ref<string[]>([])
   const selectedDevelopers = ref<string[]>([])
   const excludedDevelopers = ref<string[]>([])
+  const selectedPublishers = ref<string[]>([])
+  const excludedPublishers = ref<string[]>([])
   const selectedOthers = ref<string[]>([])
   const excludedOthers = ref<string[]>([])
 
   // 筛选选项
   const allTags = ref<FilterItem[]>([])
   const allDevelopers = ref<FilterItem[]>([])
+  const allPublishers = ref<FilterItem[]>([])
   const allOthers = ref<FilterItem[]>([])
 
   /**
-   * 从所有游戏中提取标签和开发商
+   * 从所有游戏中提取标签、开发商和发行商
    */
   function extractAllTags() {
     const tagCount: Record<string, number> = {}
     const developerCount: Record<string, number> = {}
+    const publisherCount: Record<string, number> = {}
     let missingResourcesCount = 0
 
     games.value.forEach(game => {
@@ -39,6 +43,11 @@ export function useGameFilter(games: Ref<Game[]>, searchQuery: Ref<string>, sort
         developerCount[game.developer] = (developerCount[game.developer] || 0) + 1
       }
 
+      // 提取发行商
+      if (game.publisher) {
+        publisherCount[game.publisher] = (publisherCount[game.publisher] || 0) + 1
+      }
+
       // 统计丢失的资源
       if (game.fileExists === false) {
         missingResourcesCount++
@@ -51,6 +60,10 @@ export function useGameFilter(games: Ref<Game[]>, searchQuery: Ref<string>, sort
       .sort((a, b) => a.name.localeCompare(b.name))
 
     allDevelopers.value = Object.entries(developerCount)
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => a.name.localeCompare(b.name))
+
+    allPublishers.value = Object.entries(publisherCount)
       .map(([name, count]) => ({ name, count }))
       .sort((a, b) => a.name.localeCompare(b.name))
 
@@ -71,7 +84,8 @@ export function useGameFilter(games: Ref<Game[]>, searchQuery: Ref<string>, sort
     let filtered = games.value.filter(game => {
       // 搜索筛选
       const matchesSearch = game.name.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-        (game.developer && game.developer.toLowerCase().includes(searchQuery.value.toLowerCase()))
+        (game.developer && game.developer.toLowerCase().includes(searchQuery.value.toLowerCase())) ||
+        (game.publisher && game.publisher.toLowerCase().includes(searchQuery.value.toLowerCase()))
 
       // 标签筛选 - 必须包含所有选中的标签（AND逻辑）
       const matchesTag = selectedTags.value.length === 0 || 
@@ -84,6 +98,12 @@ export function useGameFilter(games: Ref<Game[]>, searchQuery: Ref<string>, sort
         selectedDevelopers.value.includes(game.developer || '')
       const notExcludedDeveloper = excludedDevelopers.value.length === 0 || 
         !excludedDevelopers.value.includes(game.developer || '')
+
+      // 发行商筛选 - 发行商是"或"逻辑（一个游戏只能有一个发行商）
+      const matchesPublisher = selectedPublishers.value.length === 0 || 
+        selectedPublishers.value.includes(game.publisher || '')
+      const notExcludedPublisher = excludedPublishers.value.length === 0 || 
+        !excludedPublishers.value.includes(game.publisher || '')
 
       // 其他筛选
       let matchesOther = true
@@ -103,7 +123,7 @@ export function useGameFilter(games: Ref<Game[]>, searchQuery: Ref<string>, sort
           return false
         })
 
-      return matchesSearch && matchesTag && notExcludedTag && matchesDeveloper && notExcludedDeveloper && matchesOther && notExcludedOther
+      return matchesSearch && matchesTag && notExcludedTag && matchesDeveloper && notExcludedDeveloper && matchesPublisher && notExcludedPublisher && matchesOther && notExcludedOther
     })
 
     // 排序
@@ -214,6 +234,48 @@ export function useGameFilter(games: Ref<Game[]>, searchQuery: Ref<string>, sort
   }
 
   /**
+   * 发行商筛选方法
+   */
+  function filterByPublisher(publisherName: string) {
+    if (selectedPublishers.value.includes(publisherName)) {
+      // 如果当前是选中状态，则取消选择
+      selectedPublishers.value = selectedPublishers.value.filter(pub => pub !== publisherName)
+    } else if (excludedPublishers.value.includes(publisherName)) {
+      // 如果当前是排除状态，则切换为选中状态
+      excludedPublishers.value = excludedPublishers.value.filter(pub => pub !== publisherName)
+      selectedPublishers.value = [...selectedPublishers.value, publisherName]
+    } else {
+      // 否则直接设置为选中状态
+      selectedPublishers.value = [...selectedPublishers.value, publisherName]
+    }
+  }
+
+  /**
+   * 排除发行商
+   */
+  function excludeByPublisher(publisherName: string) {
+    if (excludedPublishers.value.includes(publisherName)) {
+      // 如果已经是排除状态，则取消排除
+      excludedPublishers.value = excludedPublishers.value.filter(pub => pub !== publisherName)
+    } else if (selectedPublishers.value.includes(publisherName)) {
+      // 如果当前是选中状态，则切换为排除状态
+      selectedPublishers.value = selectedPublishers.value.filter(pub => pub !== publisherName)
+      excludedPublishers.value = [...excludedPublishers.value, publisherName]
+    } else {
+      // 否则直接设置为排除状态
+      excludedPublishers.value = [...excludedPublishers.value, publisherName]
+    }
+  }
+
+  /**
+   * 清除发行商筛选
+   */
+  function clearPublisherFilter() {
+    selectedPublishers.value = []
+    excludedPublishers.value = []
+  }
+
+  /**
    * 其他筛选方法
    */
   function filterByOther(otherName: string) {
@@ -276,6 +338,13 @@ export function useGameFilter(games: Ref<Game[]>, searchQuery: Ref<string>, sort
           excluded: excludedDevelopers.value
         },
         {
+          key: 'publishers',
+          title: '发行商筛选',
+          items: allPublishers.value,
+          selected: selectedPublishers.value,
+          excluded: excludedPublishers.value
+        },
+        {
           key: 'others',
           title: '其他筛选',
           items: allOthers.value,
@@ -292,10 +361,13 @@ export function useGameFilter(games: Ref<Game[]>, searchQuery: Ref<string>, sort
     excludedTags,
     selectedDevelopers,
     excludedDevelopers,
+    selectedPublishers,
+    excludedPublishers,
     selectedOthers,
     excludedOthers,
     allTags,
     allDevelopers,
+    allPublishers,
     allOthers,
     
     // 计算属性
@@ -309,6 +381,9 @@ export function useGameFilter(games: Ref<Game[]>, searchQuery: Ref<string>, sort
     filterByDeveloper,
     excludeByDeveloper,
     clearDeveloperFilter,
+    filterByPublisher,
+    excludeByPublisher,
+    clearPublisherFilter,
     filterByOther,
     excludeByOther,
     clearOtherFilter,
