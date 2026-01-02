@@ -44,7 +44,6 @@ export class WebsiteManager {
         name: websiteData.name || '',
         url: websiteData.url || '',
         description: websiteData.description || '',
-        category: websiteData.category || '未分类',
         tags: Array.isArray(websiteData.tags) ? websiteData.tags : [],
         icon: websiteData.icon || '',
         favicon: websiteData.favicon || '',
@@ -175,7 +174,6 @@ export class WebsiteManager {
       website.name.toLowerCase().includes(lowerQuery) ||
       website.url.toLowerCase().includes(lowerQuery) ||
       website.description.toLowerCase().includes(lowerQuery) ||
-      website.category.toLowerCase().includes(lowerQuery) ||
       website.tags.some(tag => tag.toLowerCase().includes(lowerQuery))
     )
   }
@@ -195,11 +193,6 @@ export class WebsiteManager {
     return [...this.websites].sort((a, b) => a.name.localeCompare(b.name))
   }
 
-  // 按分类排序
-  sortByCategory() {
-    return [...this.websites].sort((a, b) => a.category.localeCompare(b.category))
-  }
-
   // 按最后访问时间排序
   sortByLastVisited() {
     return [...this.websites].sort((a, b) => {
@@ -210,30 +203,10 @@ export class WebsiteManager {
     })
   }
 
-  // 获取分类列表
-  getCategories() {
-    const categories = [...new Set(this.websites.map(website => website.category).filter(category => category))]
-    return categories.sort()
-  }
-
-  // 按分类分组
-  groupByCategory() {
-    const groups = {}
-    this.websites.forEach(website => {
-      const category = website.category || '未分类'
-      if (!groups[category]) {
-        groups[category] = []
-      }
-      groups[category].push(website)
-    })
-    return groups
-  }
-
   // 获取统计信息
   getStats() {
     const totalWebsites = this.websites.length
     const totalVisits = this.websites.reduce((sum, website) => sum + (website.visitCount || 0), 0)
-    const categories = this.getCategories().length
     const bookmarks = this.websites.filter(website => website.isBookmark).length
     const privateWebsites = this.websites.filter(website => website.isPrivate).length
     const activeWebsites = this.websites.filter(website => website.status === 'active').length
@@ -241,7 +214,6 @@ export class WebsiteManager {
     return {
       totalWebsites,
       totalVisits,
-      categories,
       bookmarks,
       privateWebsites,
       activeWebsites

@@ -212,14 +212,13 @@ export default {
         id: website.id,
         type: 'website',
         name: website.name,
-        category: website.category || '游戏资源网站',
+        category: website.tags && website.tags.length > 0 ? website.tags[0] : '网站',
         description: website.description,
         thumbnail: website.favicon || website.icon,
         lastAccessed: website.lastVisited,
         badge: website.isBookmark ? '已收藏' : undefined,
         metadata: {
           url: website.url,
-          category: website.category,
           visitCount: website.visitCount,
           tags: website.tags
         }

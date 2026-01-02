@@ -6,7 +6,7 @@
 export interface ParsedBookmark {
   name: string
   url: string
-  category?: string
+  tags?: string[]  // 父级文件夹作为标签
   addDate?: string
 }
 
@@ -28,27 +28,31 @@ export function parseBookmarkFile(htmlContent: string): ParsedBookmark[] {
     
     links.forEach((link) => {
       const href = link.getAttribute('href')
-      const name = link.textContent?.trim() || link.innerText?.trim() || ''
+      const name = link.textContent?.trim() || (link as HTMLElement).innerText?.trim() || ''
       const addDate = link.getAttribute('add_date') || link.getAttribute('ADD_DATE') || ''
       
       // 验证URL有效性
       if (href && isValidUrl(href) && name) {
-        // 尝试从父级元素获取分类信息
-        let category = '未分类'
+        // 收集所有父级文件夹作为标签
+        const tags: string[] = []
         
-        // 方法1: 查找最近的H3标签（文件夹名称）
+        // 方法1: 向上查找所有H3标签（文件夹名称）
         let currentElement: Element | null = link.parentElement
         while (currentElement) {
+          // 查找同级的H3标签（当前文件夹）
           const h3Element = currentElement.previousElementSibling
           if (h3Element && h3Element.tagName === 'H3') {
             const folderName = h3Element.textContent?.trim()
-            if (folderName && folderName !== '') {
-              category = folderName
-              break
+            // 排除"书签栏"等系统文件夹
+            if (folderName && 
+                folderName !== '' && 
+                folderName !== '书签栏' && 
+                !h3Element.getAttribute('PERSONAL_TOOLBAR_FOLDER')) {
+              tags.unshift(folderName) // 从前面插入，保持层级顺序
             }
           }
           
-          // 向上查找
+          // 向上查找父级文件夹
           if (currentElement.tagName === 'DL') {
             currentElement = currentElement.parentElement
           } else {
@@ -56,19 +60,23 @@ export function parseBookmarkFile(htmlContent: string): ParsedBookmark[] {
           }
         }
         
-        // 方法2: 如果没找到，尝试从最近的DT元素查找
-        if (category === '未分类') {
+        // 方法2: 如果方法1没找到，尝试从最近的DT元素查找
+        if (tags.length === 0) {
           const dtElement = link.closest('dt')
           if (dtElement) {
-            const parentDl = dtElement.parentElement
-            if (parentDl) {
+            let parentDl = dtElement.parentElement
+            while (parentDl) {
               const h3Element = parentDl.previousElementSibling
               if (h3Element && h3Element.tagName === 'H3') {
                 const folderName = h3Element.textContent?.trim()
-                if (folderName && folderName !== '') {
-                  category = folderName
+                if (folderName && 
+                    folderName !== '' && 
+                    folderName !== '书签栏' &&
+                    !h3Element.getAttribute('PERSONAL_TOOLBAR_FOLDER')) {
+                  tags.unshift(folderName)
                 }
               }
+              parentDl = parentDl.parentElement?.closest('dl') || null
             }
           }
         }
@@ -76,7 +84,7 @@ export function parseBookmarkFile(htmlContent: string): ParsedBookmark[] {
         bookmarks.push({
           name,
           url: href,
-          category,
+          tags: tags.length > 0 ? tags : undefined,
           addDate
         })
       }
@@ -92,15 +100,31 @@ export function parseBookmarkFile(htmlContent: string): ParsedBookmark[] {
         const name = match[2].trim()
         
         if (url && isValidUrl(url) && name) {
-          // 尝试提取分类信息
+          // 尝试提取父级文件夹作为标签
           const beforeMatch = htmlContent.substring(0, match.index)
-          const h3Match = beforeMatch.match(/<H3[^>]*>([^<]*)<\/H3>/i)
-          const category = h3Match ? h3Match[1].trim() : '未分类'
+          const h3Matches = beforeMatch.match(/<H3[^>]*>([^<]*)<\/H3>/gi)
+          const tags: string[] = []
+          
+          if (h3Matches) {
+            // 提取所有H3标签的文本，排除系统文件夹
+            h3Matches.forEach(h3Tag => {
+              const textMatch = h3Tag.match(/<H3[^>]*>([^<]*)<\/H3>/i)
+              if (textMatch) {
+                const folderName = textMatch[1].trim()
+                if (folderName && 
+                    folderName !== '' && 
+                    folderName !== '书签栏' &&
+                    !h3Tag.includes('PERSONAL_TOOLBAR_FOLDER')) {
+                  tags.push(folderName)
+                }
+              }
+            })
+          }
           
           bookmarks.push({
             name,
             url,
-            category
+            tags: tags.length > 0 ? tags : undefined
           })
         }
       }

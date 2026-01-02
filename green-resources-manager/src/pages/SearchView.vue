@@ -199,7 +199,7 @@ export default {
         
         // 搜索网站
         websites.forEach((website: any) => {
-          if (this.matchesQuery(website, query, ['name', 'description', 'url', 'category'])) {
+          if (this.matchesQuery(website, query, ['name', 'description', 'url'])) {
             results.push({
               id: website.id,
               name: website.name,

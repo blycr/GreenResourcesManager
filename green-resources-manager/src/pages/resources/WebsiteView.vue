@@ -134,21 +134,6 @@
           />
           
           <FormField
-            label="分类"
-            type="select"
-            v-model="editWebsiteData.category"
-            :options="categoryOptions"
-            placeholder="选择分类"
-          />
-          <FormField
-            v-if="editWebsiteData.category === '__new__'"
-            label="新分类名称"
-            type="text"
-            v-model="newCategory"
-            placeholder="输入新分类名称"
-          />
-          
-          <FormField
             label="网站标签"
             type="tags"
             v-model="editWebsiteData.tags"
@@ -220,7 +205,7 @@ export default {
   setup(props) {
     // 响应式数据
     const searchQuery = ref('')
-    const sortBy = ref<'name' | 'category' | 'visitCount' | 'addedDate' | 'lastVisited'>('name')
+    const sortBy = ref<'name' | 'visitCount' | 'addedDate' | 'lastVisited'>('name')
 
     // 使用网站管理 composable
     const websiteManagement = useWebsiteManagement(props.pageConfig.id)
@@ -291,14 +276,12 @@ export default {
         name: '',
         url: '',
         description: '',
-        category: '',
         tags: [],
         isBookmark: false,
         isPrivate: false,
         notes: ''
       },
       newTag: '',
-      newCategory: '',
       editTagInput: '',
       urlError: '',
       editUrlError: '',
@@ -328,7 +311,6 @@ export default {
         searchPlaceholder: '搜索网站...',
         sortOptions: [
           { value: 'name', label: '按名称' },
-          { value: 'category', label: '按分类' },
           { value: 'visitCount', label: '按访问次数' },
           { value: 'addedDate', label: '按添加时间' },
           { value: 'lastVisited', label: '按最后访问' }
@@ -361,9 +343,6 @@ export default {
         itemType: '网站'
       }
     },
-    categories() {
-      return this.websiteManager.getCategories()
-    },
     isFormValid() {
       return this.newWebsite.url.trim() && 
              this.websiteManager.validateUrl(this.newWebsite.url) &&
@@ -373,17 +352,6 @@ export default {
       return this.editWebsiteData.url.trim() && 
              this.websiteManager.validateUrl(this.editWebsiteData.url) &&
              !this.editUrlError
-    },
-    categoryOptions() {
-      const options = [
-        { value: '未分类', label: '未分类' },
-        ...this.categories.map(category => ({
-          value: category,
-          label: category
-        })),
-        { value: '__new__', label: '+ 新建分类' }
-      ]
-      return options
     },
     websiteStats() {
       if (!this.selectedWebsite) return []
@@ -460,22 +428,16 @@ export default {
         case 'filter-select':
           if (data.filterKey === 'tags') {
             this.filterByTag(data.itemName)
-          } else if (data.filterKey === 'categories') {
-            this.filterByCategory(data.itemName)
           }
           break
         case 'filter-exclude':
           if (data.filterKey === 'tags') {
             this.excludeByTag(data.itemName)
-          } else if (data.filterKey === 'categories') {
-            this.excludeByCategory(data.itemName)
           }
           break
         case 'filter-clear':
           if (data === 'tags') {
             this.clearTagFilter()
-          } else if (data === 'categories') {
-            this.clearCategoryFilter()
           }
           break
       }
@@ -499,7 +461,6 @@ export default {
           ...this.newWebsite,
           // 如果没有填写名称，从URL中提取域名作为名称
           name: this.newWebsite.name.trim() || this.websiteManager.getDomain(this.newWebsite.url),
-          category: '未分类',
           tags: [],
           favicon: await this.websiteManager.getBestFaviconUrl(this.newWebsite.url)
         }
@@ -718,7 +679,6 @@ export default {
         name: originalWebsite.name || '',
         url: originalWebsite.url || '',
         description: originalWebsite.description || '',
-        category: originalWebsite.category || '未分类',
         tags: [...(originalWebsite.tags || [])],
         isBookmark: originalWebsite.isBookmark || false,
         isPrivate: originalWebsite.isPrivate || false,
@@ -726,7 +686,6 @@ export default {
       }
       
       this.editTagInput = ''
-      this.newCategory = ''
       this.editUrlError = ''
       this.showEditDialog = true
     },
@@ -751,14 +710,12 @@ export default {
         name: '',
         url: '',
         description: '',
-        category: '',
         tags: [],
         isBookmark: false,
         isPrivate: false,
         notes: ''
       }
       this.editTagInput = ''
-      this.newCategory = ''
       this.editUrlError = ''
     },
     
@@ -770,17 +727,10 @@ export default {
           return
         }
         
-        // 处理新分类
-        let finalCategory = this.editWebsiteData.category
-        if (this.editWebsiteData.category === '__new__' && this.newCategory.trim()) {
-          finalCategory = this.newCategory.trim()
-        }
-        
         const updateData = {
           name: this.editWebsiteData.name.trim() || this.websiteManager.getDomain(this.editWebsiteData.url),
           url: this.editWebsiteData.url.trim(),
           description: this.editWebsiteData.description.trim(),
-          category: finalCategory,
           tags: this.editWebsiteData.tags,
           isBookmark: this.editWebsiteData.isBookmark,
           isPrivate: this.editWebsiteData.isPrivate,
@@ -889,7 +839,7 @@ export default {
         // 将 favicon 映射为 image 字段，MediaCard 会使用这个字段
         image: website.favicon,
         // 图片类型需要的字段
-        author: website.category, // 使用分类作为作者
+        author: '', // 不再使用分类
         description: website.description,
         // 访问次数相关
         viewCount: website.visitCount || 0,
@@ -1115,8 +1065,7 @@ export default {
               name: bookmark.name,
               url: bookmark.url,
               description: '',
-              category: bookmark.category || '未分类',
-              tags: [],
+              tags: bookmark.tags || [], // 使用解析出的标签（父级文件夹）
               favicon: favicon || ''
             }
 

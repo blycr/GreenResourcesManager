@@ -5,14 +5,13 @@ export interface FilterItem {
   count: number
 }
 
-export type WebsiteSortBy = 'name' | 'category' | 'visitCount' | 'addedDate' | 'lastVisited'
+export type WebsiteSortBy = 'name' | 'visitCount' | 'addedDate' | 'lastVisited'
 
 export interface Website {
   id: string
   name: string
   url: string
   description?: string
-  category: string
   tags: string[]
   visitCount?: number
   addedDate: string
@@ -34,19 +33,15 @@ export function useWebsiteFilter(
   // 筛选状态
   const selectedTags = ref<string[]>([])
   const excludedTags = ref<string[]>([])
-  const selectedCategories = ref<string[]>([])
-  const excludedCategories = ref<string[]>([])
 
   // 筛选选项
   const allTags = ref<FilterItem[]>([])
-  const allCategories = ref<FilterItem[]>([])
 
   /**
-   * 从所有网站中提取标签和分类
+   * 从所有网站中提取标签
    */
   function extractAllTagsAndCategories() {
     const tagCount: Record<string, number> = {}
-    const categoryCount: Record<string, number> = {}
 
     websites.value.forEach(website => {
       // 提取标签
@@ -55,19 +50,10 @@ export function useWebsiteFilter(
           tagCount[tag] = (tagCount[tag] || 0) + 1
         })
       }
-
-      // 提取分类
-      if (website.category) {
-        categoryCount[website.category] = (categoryCount[website.category] || 0) + 1
-      }
     })
 
     // 转换为数组并按名称排序
     allTags.value = Object.entries(tagCount)
-      .map(([name, count]) => ({ name, count }))
-      .sort((a, b) => a.name.localeCompare(b.name))
-
-    allCategories.value = Object.entries(categoryCount)
       .map(([name, count]) => ({ name, count }))
       .sort((a, b) => a.name.localeCompare(b.name))
   }
@@ -84,7 +70,6 @@ export function useWebsiteFilter(
           website.name.toLowerCase().includes(query) ||
           website.url.toLowerCase().includes(query) ||
           (website.description && website.description.toLowerCase().includes(query)) ||
-          website.category.toLowerCase().includes(query) ||
           (website.tags && website.tags.some(tag => tag.toLowerCase().includes(query)))
 
         if (!matchesSearch) return false
@@ -102,18 +87,6 @@ export function useWebsiteFilter(
         }
       }
 
-      // 分类筛选 - 分类是"或"逻辑（一个网站只能有一个分类）
-      if (selectedCategories.value.length > 0) {
-        if (!selectedCategories.value.includes(website.category)) {
-          return false
-        }
-      }
-      if (excludedCategories.value.length > 0) {
-        if (excludedCategories.value.includes(website.category)) {
-          return false
-        }
-      }
-
       return true
     })
 
@@ -122,8 +95,6 @@ export function useWebsiteFilter(
       switch (sortBy.value) {
         case 'name':
           return a.name.localeCompare(b.name)
-        case 'category':
-          return a.category.localeCompare(b.category)
         case 'visitCount':
           return (b.visitCount || 0) - (a.visitCount || 0)
         case 'addedDate':
@@ -184,48 +155,6 @@ export function useWebsiteFilter(
   }
 
   /**
-   * 分类筛选方法
-   */
-  function filterByCategory(categoryName: string) {
-    if (selectedCategories.value.includes(categoryName)) {
-      // 如果当前是选中状态，则取消选择
-      selectedCategories.value = selectedCategories.value.filter(category => category !== categoryName)
-    } else if (excludedCategories.value.includes(categoryName)) {
-      // 如果当前是排除状态，则切换为选中状态
-      excludedCategories.value = excludedCategories.value.filter(category => category !== categoryName)
-      selectedCategories.value = [...selectedCategories.value, categoryName]
-    } else {
-      // 否则直接设置为选中状态
-      selectedCategories.value = [...selectedCategories.value, categoryName]
-    }
-  }
-
-  /**
-   * 排除分类
-   */
-  function excludeByCategory(categoryName: string) {
-    if (excludedCategories.value.includes(categoryName)) {
-      // 如果已经是排除状态，则取消排除
-      excludedCategories.value = excludedCategories.value.filter(category => category !== categoryName)
-    } else if (selectedCategories.value.includes(categoryName)) {
-      // 如果当前是选中状态，则切换为排除状态
-      selectedCategories.value = selectedCategories.value.filter(category => category !== categoryName)
-      excludedCategories.value = [...excludedCategories.value, categoryName]
-    } else {
-      // 否则直接设置为排除状态
-      excludedCategories.value = [...excludedCategories.value, categoryName]
-    }
-  }
-
-  /**
-   * 清除分类筛选
-   */
-  function clearCategoryFilter() {
-    selectedCategories.value = []
-    excludedCategories.value = []
-  }
-
-  /**
    * 获取筛选器数据（用于 FilterSidebar）
    */
   function getFilterData() {
@@ -237,13 +166,6 @@ export function useWebsiteFilter(
           items: allTags.value,
           selected: selectedTags.value,
           excluded: excludedTags.value
-        },
-        {
-          key: 'categories',
-          title: '分类筛选',
-          items: allCategories.value,
-          selected: selectedCategories.value,
-          excluded: excludedCategories.value
         }
       ]
     }
@@ -253,10 +175,7 @@ export function useWebsiteFilter(
     // 状态
     selectedTags,
     excludedTags,
-    selectedCategories,
-    excludedCategories,
     allTags,
-    allCategories,
 
     // 计算属性
     filteredWebsites,
@@ -266,9 +185,6 @@ export function useWebsiteFilter(
     filterByTag,
     excludeByTag,
     clearTagFilter,
-    filterByCategory,
-    excludeByCategory,
-    clearCategoryFilter,
     getFilterData
   }
 }
