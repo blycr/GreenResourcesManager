@@ -444,8 +444,8 @@ export default {
     videoActions() {
       return [
         { key: 'folder', icon: '📁', label: '打开文件夹', class: 'btn-open-folder' },
-        { key: 'edit', icon: '✏️', label: '编辑信息', class: 'btn-edit-folder' },
-        { key: 'remove', icon: '🗑️', label: '删除文件夹', class: 'btn-remove-folder' }
+        { key: 'edit', icon: '✏️', label: '编辑信息', class: 'btn-edit' },
+        { key: 'remove', icon: '🗑️', label: '删除文件夹', class: 'btn-remove' }
       ]
     },
     // 动态更新分页配置（使用 composable 的 paginationConfig）
@@ -2778,50 +2778,6 @@ export default {
   }
 }
 
-.btn-play {
-  padding: var(--spacing-md) var(--spacing-xl);
-  background: var(--accent-color);
-  color: white;
-  border: none;
-  border-radius: var(--radius-lg);
-  font-size: var(--font-size-base);
-  cursor: pointer;
-  transition: all var(--transition-base);
-
-  &:hover {
-    background: var(--accent-hover);
-  }
-}
-
-.btn-edit {
-  padding: var(--spacing-md) var(--spacing-xl);
-  background: var(--bg-secondary);
-  color: var(--text-primary);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-lg);
-  font-size: var(--font-size-base);
-  cursor: pointer;
-  transition: all var(--transition-base);
-
-  &:hover {
-    background: var(--bg-tertiary);
-  }
-}
-
-.btn-delete {
-  padding: var(--spacing-md) var(--spacing-xl);
-  background: #dc3545;
-  color: white;
-  border: none;
-  border-radius: var(--radius-lg);
-  font-size: var(--font-size-base);
-  cursor: pointer;
-  transition: all var(--transition-base);
-
-  &:hover {
-    background: #c82333;
-  }
-}
 
 .btn-open-folder {
   background: var(--bg-tertiary);

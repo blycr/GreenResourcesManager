@@ -461,15 +461,15 @@ export default {
       if (this.selectedVideo?.type === 'folder') {
         return [
           { key: 'folder', icon: '📁', label: '打开文件夹', class: 'btn-open-folder' },
-          { key: 'edit', icon: '✏️', label: '编辑信息', class: 'btn-edit-game' },
-          { key: 'remove', icon: '🗑️', label: '删除文件夹', class: 'btn-remove-game' }
+          { key: 'edit', icon: '✏️', label: '编辑信息', class: 'btn-edit' },
+          { key: 'remove', icon: '🗑️', label: '删除文件夹', class: 'btn-remove' }
         ]
       } else {
         const actions = [
-          { key: 'play', icon: '▶️', label: '播放', class: 'btn-play-game' },
+          { key: 'play', icon: '▶️', label: '播放', class: 'btn-play' },
           { key: 'folder', icon: '📁', label: '打开文件夹', class: 'btn-open-folder' },
-          { key: 'edit', icon: '✏️', label: '编辑信息', class: 'btn-edit-game' },
-          { key: 'remove', icon: '🗑️', label: '删除视频', class: 'btn-remove-game' }
+          { key: 'edit', icon: '✏️', label: '编辑信息', class: 'btn-edit' },
+          { key: 'remove', icon: '🗑️', label: '删除视频', class: 'btn-remove' }
         ]
         
         // 如果没有时长，添加更新时长按钮
@@ -2785,50 +2785,6 @@ export default {
   }
 }
 
-.btn-play {
-  padding: var(--spacing-md) var(--spacing-xl);
-  background: var(--accent-color);
-  color: white;
-  border: none;
-  border-radius: var(--radius-lg);
-  font-size: var(--font-size-base);
-  cursor: pointer;
-  transition: all var(--transition-base);
-
-  &:hover {
-    background: var(--accent-hover);
-  }
-}
-
-.btn-edit {
-  padding: var(--spacing-md) var(--spacing-xl);
-  background: var(--bg-secondary);
-  color: var(--text-primary);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-lg);
-  font-size: var(--font-size-base);
-  cursor: pointer;
-  transition: all var(--transition-base);
-
-  &:hover {
-    background: var(--bg-tertiary);
-  }
-}
-
-.btn-delete {
-  padding: var(--spacing-md) var(--spacing-xl);
-  background: #dc3545;
-  color: white;
-  border: none;
-  border-radius: var(--radius-lg);
-  font-size: var(--font-size-base);
-  cursor: pointer;
-  transition: all var(--transition-base);
-
-  &:hover {
-    background: #c82333;
-  }
-}
 
 .btn-open-folder {
   background: var(--bg-tertiary);

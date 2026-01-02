@@ -421,11 +421,11 @@ export default {
     },
     audioActions() {
       const actions = [
-        { key: 'play', icon: '▶️', label: '播放', class: 'btn-play-game' },
+        { key: 'play', icon: '▶️', label: '播放', class: 'btn-play' },
         { key: 'addToPlaylist', icon: '➕', label: '添加到播放列表', class: 'btn-add-to-playlist' },
         { key: 'folder', icon: '📁', label: '打开文件夹', class: 'btn-open-folder' },
-        { key: 'edit', icon: '✏️', label: '编辑信息', class: 'btn-edit-game' },
-        { key: 'remove', icon: '🗑️', label: '删除音频', class: 'btn-remove-game' }
+        { key: 'edit', icon: '✏️', label: '编辑信息', class: 'btn-edit' },
+        { key: 'remove', icon: '🗑️', label: '删除音频', class: 'btn-remove' }
       ]
       
       // 如果没有时长，添加更新时长按钮
@@ -1414,66 +1414,7 @@ export default {
   margin: 0;
 }
 
-// 详情按钮样式
-.btn-play {
-  background: var(--accent-color);
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-weight: 500;
-  transition: background 0.3s ease;
-
-  &:hover {
-    background: var(--accent-hover);
-  }
-}
-
-.btn-open-folder {
-  background: #10b981;
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-weight: 500;
-  transition: background 0.3s ease;
-
-  &:hover {
-    background: #059669;
-  }
-}
-
-.btn-edit {
-  background: #f59e0b;
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-weight: 500;
-  transition: background 0.3s ease;
-
-  &:hover {
-    background: #d97706;
-  }
-}
-
-.btn-delete {
-  background: #ef4444;
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-weight: 500;
-  transition: background 0.3s ease;
-
-  &:hover {
-    background: #dc2626;
-  }
-}
+// 详情按钮样式（已移至公共样式文件）
 
 .btn-add-to-playlist {
   background: #8b5cf6;

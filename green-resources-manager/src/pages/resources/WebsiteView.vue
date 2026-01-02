@@ -428,7 +428,7 @@ export default {
         { key: 'visit', icon: '🔗', label: '访问网站', class: 'btn-visit' },
         { key: 'refreshFavicon', icon: '🔄', label: '刷新图标', class: 'btn-refresh-favicon' },
         { key: 'edit', icon: '✏️', label: '编辑信息', class: 'btn-edit' },
-        { key: 'remove', icon: '🗑️', label: '删除网站', class: 'btn-delete' }
+        { key: 'remove', icon: '🗑️', label: '删除网站', class: 'btn-remove' }
       ]
       
       return actions
@@ -1520,35 +1520,7 @@ export default {
   background: var(--accent-hover);
 }
 
-.btn-edit {
-  background: #f59e0b;
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-weight: 500;
-  transition: background 0.3s ease;
-}
 
-.btn-edit:hover {
-  background: #d97706;
-}
-
-.btn-delete {
-  background: #ef4444;
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-weight: 500;
-  transition: background 0.3s ease;
-}
-
-.btn-delete:hover {
-  background: #dc2626;
-}
 
 .btn-refresh-favicon {
   background: #8b5cf6;

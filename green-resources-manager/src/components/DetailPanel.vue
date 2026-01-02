@@ -260,28 +260,28 @@ export default {
           defaultActions.push(
             { key: 'terminate', icon: '⏹️', label: '结束游戏', class: 'btn-stop-game' },
             { key: 'folder', icon: '📁', label: '打开文件夹', class: 'btn-open-folder' },
-            { key: 'edit', icon: '✏️', label: '编辑信息', class: 'btn-edit-game' },
-            { key: 'remove', icon: '🗑️', label: '删除游戏', class: 'btn-remove-game' }
+            { key: 'edit', icon: '✏️', label: '编辑信息', class: 'btn-edit' },
+            { key: 'remove', icon: '🗑️', label: '删除游戏', class: 'btn-remove' }
           )
         } else {
           // 压缩包不显示启动按钮
           if (!isArchive) {
             defaultActions.push(
-              { key: 'launch', icon: '▶️', label: '开始游戏', class: 'btn-play-game' }
+              { key: 'launch', icon: '▶️', label: '开始游戏', class: 'btn-play' }
             )
           }
           defaultActions.push(
             { key: 'folder', icon: '📁', label: '打开文件夹', class: 'btn-open-folder' },
-            { key: 'edit', icon: '✏️', label: '编辑信息', class: 'btn-edit-game' },
-            { key: 'remove', icon: '🗑️', label: '删除游戏', class: 'btn-remove-game' }
+            { key: 'edit', icon: '✏️', label: '编辑信息', class: 'btn-edit' },
+            { key: 'remove', icon: '🗑️', label: '删除游戏', class: 'btn-remove' }
           )
         }
       } else if (this.type === 'image' || this.type === 'album') {
         defaultActions.push(
-          { key: 'open', icon: '📖', label: '开始阅读', class: 'btn-start-reading' },
+          { key: 'open', icon: '📖', label: '开始阅读', class: 'btn-play' },
           { key: 'folder', icon: '📁', label: '打开文件夹', class: 'btn-open-folder' },
-          { key: 'edit', icon: '✏️', label: '编辑信息', class: 'btn-edit-album' },
-          { key: 'remove', icon: '🗑️', label: '删除漫画', class: 'btn-remove-album' }
+          { key: 'edit', icon: '✏️', label: '编辑信息', class: 'btn-edit' },
+          { key: 'remove', icon: '🗑️', label: '删除漫画', class: 'btn-remove' }
         )
       }
       
@@ -777,27 +777,6 @@ export default {
   flex-wrap: wrap;
 }
 
-.btn-play-game,
-.btn-start-reading {
-  background: var(--accent-color);
-  color: white;
-  border: none;
-  padding: 12px 24px;
-  border-radius: 8px;
-  cursor: pointer;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  transition: background 0.3s ease;
-  flex: 1;
-  justify-content: center;
-}
-
-.btn-play-game:hover,
-.btn-start-reading:hover {
-  background: var(--accent-hover);
-}
 
 .btn-stop-game {
   background: #ef4444;
@@ -819,39 +798,6 @@ export default {
   background: #dc2626;
 }
 
-.btn-edit-game,
-.btn-edit-album,
-.btn-remove-game,
-.btn-remove-album {
-  background: var(--bg-tertiary);
-  color: var(--text-primary);
-  border: 1px solid var(--border-color);
-  padding: 12px 20px;
-  border-radius: 8px;
-  cursor: pointer;
-  font-weight: 500;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  transition: all 0.3s ease;
-}
-
-.btn-edit-game:hover,
-.btn-edit-album:hover {
-  background: var(--bg-secondary);
-}
-
-.btn-remove-game,
-.btn-remove-album {
-  background: #fee2e2;
-  color: #dc2626;
-  border-color: #fecaca;
-}
-
-.btn-remove-game:hover,
-.btn-remove-album:hover {
-  background: #fecaca;
-}
 
 .btn-open-folder {
   background: var(--bg-tertiary);
@@ -967,23 +913,6 @@ export default {
   background: var(--bg-secondary);
 }
 
-.btn-delete {
-  background: #fee2e2;
-  color: #dc2626;
-  border: 1px solid #fecaca;
-  padding: 12px 20px;
-  border-radius: 8px;
-  cursor: pointer;
-  font-weight: 500;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  transition: all 0.3s ease;
-}
-
-.btn-delete:hover {
-  background: #fecaca;
-}
 
 .btn-remove {
   background: #fee2e2;
@@ -1022,65 +951,7 @@ export default {
   transform: translateY(-1px);
 }
 
-.btn-read-novel {
-  background: var(--accent-color);
-  color: white;
-  border: none;
-  padding: 12px 24px;
-  border-radius: 8px;
-  cursor: pointer;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  transition: background 0.3s ease;
-  flex: 1;
-  justify-content: center;
-}
 
-.btn-read-novel:hover {
-  background: var(--accent-hover);
-}
-
-.btn-edit-novel,
-.btn-edit-game {
-  background: var(--bg-tertiary);
-  color: var(--text-primary);
-  border: 1px solid var(--border-color);
-  padding: 12px 20px;
-  border-radius: 8px;
-  cursor: pointer;
-  font-weight: 500;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  transition: all 0.3s ease;
-}
-
-.btn-edit-novel:hover,
-.btn-edit-game:hover {
-  background: var(--bg-secondary);
-}
-
-.btn-remove-novel,
-.btn-remove-game {
-  background: #fee2e2;
-  color: #dc2626;
-  border: 1px solid #fecaca;
-  padding: 12px 20px;
-  border-radius: 8px;
-  cursor: pointer;
-  font-weight: 500;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  transition: all 0.3s ease;
-}
-
-.btn-remove-novel:hover,
-.btn-remove-game:hover {
-  background: #fecaca;
-}
 
 .btn-icon {
   font-size: 1rem;

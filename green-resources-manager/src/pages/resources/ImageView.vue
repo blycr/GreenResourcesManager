@@ -496,10 +496,10 @@ export default {
     // 专辑详情页操作按钮
     albumActions() {
       const actions = [
-        { key: 'open', icon: '📖', label: '开始阅读', class: 'btn-start-reading' },
+        { key: 'open', icon: '📖', label: '开始阅读', class: 'btn-play' },
         { key: 'folder', icon: '📁', label: '打开文件夹', class: 'btn-open-folder' },
-        { key: 'edit', icon: '✏️', label: '编辑信息', class: 'btn-edit-album' },
-        { key: 'remove', icon: '🗑️', label: '删除漫画', class: 'btn-remove-album' }
+        { key: 'edit', icon: '✏️', label: '编辑信息', class: 'btn-edit' },
+        { key: 'remove', icon: '🗑️', label: '删除漫画', class: 'btn-remove' }
       ]
       return actions
     }

@@ -501,13 +501,13 @@ export default {
     },
     novelActions() {
       const actions = [
-        { key: 'read', icon: '📖', label: '开始阅读', class: 'btn-read-novel' }
+        { key: 'read', icon: '📖', label: '开始阅读', class: 'btn-play' }
       ]
       
       actions.push(
         { key: 'folder', icon: '📁', label: '打开文件夹', class: 'btn-open-folder' },
-        { key: 'edit', icon: '✏️', label: '编辑信息', class: 'btn-edit-novel' },
-        { key: 'remove', icon: '🗑️', label: '删除小说', class: 'btn-remove-novel' }
+        { key: 'edit', icon: '✏️', label: '编辑信息', class: 'btn-edit' },
+        { key: 'remove', icon: '🗑️', label: '删除小说', class: 'btn-remove' }
       )
       
       return actions
@@ -2545,56 +2545,7 @@ export default {
   flex-wrap: wrap;
 }
 
-.btn-read-novel {
-  background: var(--accent-color);
-  color: white;
-  border: none;
-  padding: 12px 24px;
-  border-radius: 8px;
-  cursor: pointer;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  transition: background 0.3s ease;
-  flex: 1;
-  justify-content: center;
 
-  &:hover {
-    background: var(--accent-hover);
-  }
-}
-
-.btn-edit-novel,
-.btn-remove-novel {
-  background: var(--bg-tertiary);
-  color: var(--text-primary);
-  border: 1px solid var(--border-color);
-  padding: 12px 20px;
-  border-radius: 8px;
-  cursor: pointer;
-  font-weight: 500;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  transition: all 0.3s ease;
-}
-
-.btn-edit-novel {
-  &:hover {
-    background: var(--bg-secondary);
-  }
-}
-
-.btn-remove-novel {
-  background: #fee2e2;
-  color: #dc2626;
-  border-color: #fecaca;
-
-  &:hover {
-    background: #fecaca;
-  }
-}
 
 .btn-open-folder {
   background: var(--bg-tertiary);

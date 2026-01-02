@@ -2792,41 +2792,6 @@ export default {
   }
 }
 
-.btn-edit {
-  background: var(--bg-tertiary);
-  color: var(--text-primary);
-  border: 1px solid var(--border-color);
-  padding: 12px 20px;
-  border-radius: 8px;
-  cursor: pointer;
-  font-weight: 500;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  transition: all 0.3s ease;
-
-  &:hover {
-    background: var(--bg-secondary);
-  }
-}
-
-.btn-remove {
-  background: #fee2e2;
-  color: #dc2626;
-  border: 1px solid #fecaca;
-  padding: 12px 20px;
-  border-radius: 8px;
-  cursor: pointer;
-  font-weight: 500;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  transition: all 0.3s ease;
-
-  &:hover {
-    background: #fecaca;
-  }
-}
 
 .btn-open-folder {
   background: var(--bg-tertiary);
