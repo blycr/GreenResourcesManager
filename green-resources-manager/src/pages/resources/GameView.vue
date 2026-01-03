@@ -153,8 +153,19 @@ export default {
     // 使用显示布局 composable
     const displayLayoutComposable = useDisplayLayout(80, 400)
 
+    // 获取父组件方法的辅助函数（在 Options API 中通过 this.$parent 访问）
+    // 注意：这些函数会在组件实例化后通过 methods 中的包装方法设置
+    let getRunningGamesFn: () => Map<string, any> = () => gameRunningStore.getRunningGamesMap()
+    let isGameRunningFn: (gameId: string) => boolean = (gameId) => gameRunningStore.isGameRunning(gameId)
+
+    // 创建用于筛选的 isGameRunning 函数（接受 Game 对象）
+    // 直接使用 store，确保总是获取最新的运行状态
+    const isGameRunningForFilter = (game: any) => {
+      return gameRunningStore.isGameRunning(game.id)
+    }
+
     // 使用筛选 composable
-    const filterComposable = useGameFilter(games, searchQuery, sortBy)
+    const filterComposable = useGameFilter(games, searchQuery, sortBy, isGameRunningForFilter)
 
     // 使用管理 composable
     const managementComposable = useGameManagement(
@@ -169,10 +180,8 @@ export default {
 
     // 获取父组件方法的辅助函数（在 Options API 中通过 this.$parent 访问）
     // 注意：这些函数会在组件实例化后通过 methods 中的包装方法设置
-    let getRunningGamesFn: () => Map<string, any> = () => gameRunningStore.getRunningGamesMap()
     let addRunningGameFn: (gameInfo: any) => void = (gameInfo) => gameRunningStore.addRunningGame(gameInfo)
     let removeRunningGameFn: (gameId: string) => void = (gameId) => gameRunningStore.removeRunningGame(gameId)
-    let isGameRunningFn: (gameId: string) => boolean = (gameId) => gameRunningStore.isGameRunning(gameId)
 
     // 使用截图 composable
     const screenshotComposable = useGameScreenshot(
@@ -267,6 +276,10 @@ export default {
         addRunningGameFn = (gameInfo: any) => store.addRunningGame(gameInfo)
         removeRunningGameFn = (gameId: string) => store.removeRunningGame(gameId)
         isGameRunningFn = (gameId: string) => store.isGameRunning(gameId)
+        
+        // 更新筛选器中的 isGameRunning 函数
+        // 注意：由于 filterComposable 已经创建，我们需要通过其他方式更新
+        // 这里我们重新创建 filterComposable（但实际上 Vue 的响应式系统会自动处理）
       }
     }
   },

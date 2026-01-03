@@ -4,7 +4,12 @@ import type { Game, FilterItem, GameSortBy } from '../../types/game'
 /**
  * 游戏筛选和排序的 composable
  */
-export function useGameFilter(games: Ref<Game[]>, searchQuery: Ref<string>, sortBy: Ref<GameSortBy>) {
+export function useGameFilter(
+  games: Ref<Game[]>, 
+  searchQuery: Ref<string>, 
+  sortBy: Ref<GameSortBy>,
+  isGameRunning?: (game: Game) => boolean
+) {
   // 筛选状态
   const selectedTags = ref<string[]>([])
   const excludedTags = ref<string[]>([])
@@ -22,7 +27,37 @@ export function useGameFilter(games: Ref<Game[]>, searchQuery: Ref<string>, sort
   const allDevelopers = ref<FilterItem[]>([])
   const allPublishers = ref<FilterItem[]>([])
   const allEngines = ref<FilterItem[]>([])
-  const allOthers = ref<FilterItem[]>([])
+  const allOthersBase = ref<FilterItem[]>([]) // 基础的其他筛选选项（丢失的资源等）
+  
+  // 其他筛选选项（包含动态的"正在游玩"）
+  const allOthers = computed(() => {
+    const result = [...allOthersBase.value]
+    
+    // 动态计算正在游玩的游戏数量（始终显示，即使数量为0）
+    if (isGameRunning) {
+      let runningGamesCount = 0
+      games.value.forEach(game => {
+        if (isGameRunning(game)) {
+          runningGamesCount++
+        }
+      })
+      
+      // 检查是否已存在"正在游玩"选项
+      const existingIndex = result.findIndex(item => item.name === '正在游玩')
+      if (existingIndex >= 0) {
+        // 更新数量
+        result[existingIndex].count = runningGamesCount
+      } else {
+        // 添加新选项（即使数量为0也显示）
+        result.push({
+          name: '正在游玩',
+          count: runningGamesCount
+        })
+      }
+    }
+    
+    return result
+  })
 
   /**
    * 从所有游戏中提取标签、开发商、发行商和引擎
@@ -33,6 +68,7 @@ export function useGameFilter(games: Ref<Game[]>, searchQuery: Ref<string>, sort
     const publisherCount: Record<string, number> = {}
     const engineCount: Record<string, number> = {}
     let missingResourcesCount = 0
+    let runningGamesCount = 0
 
     games.value.forEach(game => {
       // 提取标签
@@ -80,10 +116,10 @@ export function useGameFilter(games: Ref<Game[]>, searchQuery: Ref<string>, sort
       .map(([name, count]) => ({ name, count }))
       .sort((a, b) => a.name.localeCompare(b.name))
 
-    // 其他筛选选项
-    allOthers.value = []
+    // 其他筛选选项（基础选项，不包含"正在游玩"，因为它由计算属性动态计算）
+    allOthersBase.value = []
     if (missingResourcesCount > 0) {
-      allOthers.value.push({
+      allOthersBase.value.push({
         name: '丢失的资源',
         count: missingResourcesCount
       })
@@ -132,6 +168,9 @@ export function useGameFilter(games: Ref<Game[]>, searchQuery: Ref<string>, sort
           if (other === '丢失的资源') {
             return game.fileExists === false
           }
+          if (other === '正在游玩') {
+            return isGameRunning ? isGameRunning(game) : false
+          }
           return false
         })
       }
@@ -139,6 +178,9 @@ export function useGameFilter(games: Ref<Game[]>, searchQuery: Ref<string>, sort
         !excludedOthers.value.some(other => {
           if (other === '丢失的资源') {
             return game.fileExists === false
+          }
+          if (other === '正在游玩') {
+            return isGameRunning ? isGameRunning(game) : false
           }
           return false
         })

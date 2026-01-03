@@ -148,11 +148,8 @@ class SaveManager {
    */
   async initialize() {
     try {
-      console.log('=== 初始化存档系统 ===')
-      
       // 获取应用版本号
       this.version = await this.getAppVersion()
-      console.log('应用版本号:', this.version)
       
       // 首先从根目录读取设置，确定真正的存档位置
       try {
@@ -191,7 +188,6 @@ class SaveManager {
           console.error('无法创建目录:', dir)
           return false
         }
-        console.log('✅ 目录已创建:', dir)
       }
       
       // 创建缩略图目录
@@ -202,13 +198,10 @@ class SaveManager {
           console.error('无法创建缩略图目录:', dir)
           return false
         }
-        console.log('✅ 缩略图目录已创建:', dir)
       }
       
       // 检查并创建默认数据文件
       await this.initializeDataFiles()
-      
-      console.log('=== 存档系统初始化完成 ===')
       return true
     } catch (error) {
       console.error('初始化存档系统失败:', error)
@@ -307,7 +300,7 @@ class SaveManager {
    */
   async initializeDataFiles() {
     try {
-      console.log('=== 初始化数据文件 ===')
+      // console.log('=== 初始化数据文件 ===')
       
       // 检查并创建各种数据文件
       const dataTypes = ['games', 'images', 'videos', 'audios', 'websites', 'novels', 'settings', 'user', 'achievements', 'collections']
@@ -320,11 +313,10 @@ class SaveManager {
           console.log(`创建默认 ${dataType} 文件:`, filePath)
           await this.createDefaultDataFile(dataType)
         } else {
-          console.log(`✅ ${dataType} 文件已存在:`, filePath)
+          //文件存在，啥也不用干
+          // console.log(`✅ ${dataType} 文件已存在:`, filePath)
         }
       }
-      
-      console.log('=== 数据文件初始化完成 ===')
     } catch (error) {
       console.error('初始化数据文件失败:', error)
       throw error

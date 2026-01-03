@@ -122,14 +122,14 @@ function registerIpcHandlers(ipcMain, shell, pathUtils) {
       const disguiseTextPath = path.join(disguiseDir, 'disguise.txt')
       try {
         if (fs.existsSync(disguiseTextPath)) {
-          console.log('发现 disguise.txt 文件，正在读取...')
+          // console.log('发现 disguise.txt 文件，正在读取...')
           const textContent = fs.readFileSync(disguiseTextPath, 'utf8')
           // 按行分割，过滤空行和空白字符
           disguiseTexts = textContent
             .split(/\r?\n/)
             .map(line => line.trim())
             .filter(line => line.length > 0)
-          console.log(`✅ 从 disguise.txt 读取了 ${disguiseTexts.length} 条伪装文字`)
+          // console.log(`✅ 从 disguise.txt 读取了 ${disguiseTexts.length} 条伪装文字`)
         } else {
           console.log('disguise.txt 文件不存在，将使用默认伪装文字')
         }

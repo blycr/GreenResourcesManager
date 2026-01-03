@@ -655,14 +655,14 @@ export default {
       // 检查是否启用伪装模式（对所有类型有效）
       // 依赖 disguiseModeState 以确保响应式更新
       if (this.disguiseModeState) {
-        console.log('MediaCard: 伪装模式已启用，处理图片:', imagePath)
+        // console.log('MediaCard: 伪装模式已启用，处理图片:', imagePath)
         // 检查伪装图片缓存
         if (this.disguiseImageCache[imagePath]) {
-          console.log('MediaCard: 使用缓存的伪装图片:', this.disguiseImageCache[imagePath])
+          // console.log('MediaCard: 使用缓存的伪装图片:', this.disguiseImageCache[imagePath])
           return this.disguiseImageCache[imagePath]
         }
         
-        console.log('MediaCard: 开始异步加载伪装图片')
+        // console.log('MediaCard: 开始异步加载伪装图片')
         // 异步获取伪装图片
         this.loadDisguiseImage(imagePath)
         return this.getDefaultImage() // 先返回默认图片，等异步加载完成
@@ -776,15 +776,15 @@ export default {
      * @param {string} itemId - 项目ID
      */
     async loadDisguiseText(itemId) {
-      console.log('MediaCard: 开始加载伪装文字，项目ID:', itemId)
+      // console.log('MediaCard: 开始加载伪装文字，项目ID:', itemId)
       try {
         const disguiseText = await disguiseManager.getRandomDisguiseText()
-        console.log('MediaCard: 获取到伪装文字:', disguiseText)
+        // console.log('MediaCard: 获取到伪装文字:', disguiseText)
         // 使用Vue的响应式更新
         this.$set ? this.$set(this.disguiseTextCache, itemId, disguiseText) : (this.disguiseTextCache[itemId] = disguiseText)
         // 强制更新组件
         this.$forceUpdate()
-        console.log('MediaCard: 伪装文字已更新到缓存')
+        // console.log('MediaCard: 伪装文字已更新到缓存')
       } catch (error) {
         console.error('MediaCard: 加载伪装文字失败:', error)
       }
@@ -795,15 +795,15 @@ export default {
      * @param {string} tagName - 标签名称
      */
     async loadDisguiseTag(tagName) {
-      console.log('MediaCard: 开始加载标签伪装，标签:', tagName)
+      // console.log('MediaCard: 开始加载标签伪装，标签:', tagName)
       try {
         const disguiseTag = await disguiseManager.getDisguiseTag(tagName)
-        console.log('MediaCard: 获取到标签伪装:', disguiseTag)
+        // console.log('MediaCard: 获取到标签伪装:', disguiseTag)
         // 使用Vue的响应式更新
         this.$set ? this.$set(this.disguiseTagCache, tagName, disguiseTag) : (this.disguiseTagCache[tagName] = disguiseTag)
         // 强制更新组件
         this.$forceUpdate()
-        console.log('MediaCard: 标签伪装已更新到缓存')
+        // console.log('MediaCard: 标签伪装已更新到缓存')
       } catch (error) {
         console.error('MediaCard: 加载标签伪装失败:', error)
       }
