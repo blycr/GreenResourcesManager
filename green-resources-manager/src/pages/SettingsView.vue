@@ -569,13 +569,12 @@ export default {
           
           // 自动保存重置后的设置
           await this.autoSave()
-        } catch (error) {
-          console.error('重置设置失败:', error)
-          try {
-            notify.error('重置设置失败', '重置设置时发生错误: ' + error.message)
-          } catch (importError) {
-            console.error('无法导入NotificationService:', importError)
-          }
+      } catch (error) {
+        console.error('重置设置失败:', error)
+        try {
+          notify.error('重置设置失败', '重置设置时发生错误: ' + error.message)
+        } catch (importError) {
+          console.error('无法导入NotificationService:', importError)
         }
       }
     },
