@@ -208,6 +208,11 @@ export default {
           icon: '🔍',
           description: '在所有资源中搜索内容'
         },
+        workshop: {
+          name: '创意工坊',
+          icon: '🎨',
+          description: '分享和发现社区创作内容'
+        },
         users: {
           name: '用户',
           icon: '👤',
@@ -263,7 +268,7 @@ export default {
     },
     // 底部导航页面ID列表
     footerViews() {
-      return ['users', 'messages', 'help', 'settings']
+      return ['workshop', 'users', 'messages', 'help', 'settings']
     },
     // 根据点击状态返回对应的 logo 图标
     logoIcon() {

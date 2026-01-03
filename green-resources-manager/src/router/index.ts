@@ -27,6 +27,17 @@ const fixedRoutes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/workshop',
+    name: 'workshop',
+    component: () => import('../pages/WorkshopView.vue'),
+    meta: {
+      title: '创意工坊',
+      icon: '🎨',
+      description: '分享和发现社区创作内容',
+      requiresFilter: false
+    }
+  },
+  {
     path: '/users',
     name: 'users',
     component: () => import('../pages/UserView.vue'),
