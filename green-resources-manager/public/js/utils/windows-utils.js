@@ -52,8 +52,8 @@ async function getActiveWindowPID() {
       return
     }
     
-    // 使用 PowerShell 获取活跃窗口的 PID
-    const psCommand = `Add-Type -TypeDefinition @"
+    // 使用临时文件执行 PowerShell 脚本，避免命令行转义问题
+    const psScript = `Add-Type -TypeDefinition @"
 using System;
 using System.Runtime.InteropServices;
 public class Win32 {
@@ -68,23 +68,43 @@ public class Win32 {
         return processId;
     }
 }
-"@ ; [Win32]::GetForegroundWindowProcessId()`
+"@
+[Win32]::GetForegroundWindowProcessId()`
     
-    exec(`powershell -Command "${psCommand}"`, { encoding: 'utf8' }, (error, stdout, stderr) => {
-      if (error) {
-        console.warn('获取活跃窗口 PID 失败:', error)
-        reject(error)
-        return
-      }
+    const tempScriptPath = path.join(os.tmpdir(), `get_active_pid_${Date.now()}.ps1`)
+    
+    try {
+      fs.writeFileSync(tempScriptPath, psScript, 'utf8')
       
-      const pid = parseInt(stdout.trim(), 10)
-      if (isNaN(pid)) {
-        reject(new Error('无法解析 PID'))
-        return
-      }
-      
-      resolve(pid)
-    })
+      // 使用 chcp 65001 设置代码页为 UTF-8，确保输出编码正确
+      exec(`chcp 65001 >nul & powershell -NoProfile -ExecutionPolicy Bypass -File "${tempScriptPath}"`, { encoding: 'utf8' }, (error, stdout, stderr) => {
+        // 清理临时文件
+        try {
+          if (fs.existsSync(tempScriptPath)) {
+            fs.unlinkSync(tempScriptPath)
+          }
+        } catch (cleanupError) {
+          // 忽略清理错误
+        }
+        
+        if (error) {
+          console.warn('获取活跃窗口 PID 失败:', error)
+          reject(error)
+          return
+        }
+        
+        const pid = parseInt(stdout.trim(), 10)
+        if (isNaN(pid)) {
+          reject(new Error('无法解析 PID'))
+          return
+        }
+        
+        resolve(pid)
+      })
+    } catch (writeError) {
+      console.error('写入临时脚本失败:', writeError)
+      reject(writeError)
+    }
   })
 }
 
@@ -100,23 +120,48 @@ async function getWindowTitleByPID(pid) {
       return
     }
 
-    const psCommand = `Get-Process -Id ${pid} -ErrorAction SilentlyContinue | Select-Object -ExpandProperty MainWindowTitle`
+    // 使用临时文件执行 PowerShell 脚本，并确保输出使用 UTF-8 编码
+    const psScript = `[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$OutputEncoding = [System.Text.Encoding]::UTF8
+$process = Get-Process -Id ${pid} -ErrorAction SilentlyContinue
+if ($process -and $process.MainWindowTitle) {
+    [Console]::Out.WriteLine($process.MainWindowTitle)
+}`
     
-    exec(`powershell -Command "${psCommand}"`, { encoding: 'utf8' }, (error, stdout, stderr) => {
-      if (error) {
-        // 如果进程不存在或没有窗口，返回 null
-        if (error.code === 1 || stdout.trim() === '') {
-          resolve(null)
+    const tempScriptPath = path.join(os.tmpdir(), `get_window_title_${pid}_${Date.now()}.ps1`)
+    
+    try {
+      fs.writeFileSync(tempScriptPath, psScript, 'utf8')
+      
+      // 使用 chcp 65001 设置代码页为 UTF-8，确保输出编码正确
+      exec(`chcp 65001 >nul & powershell -NoProfile -ExecutionPolicy Bypass -File "${tempScriptPath}"`, { encoding: 'utf8' }, (error, stdout, stderr) => {
+        // 清理临时文件
+        try {
+          if (fs.existsSync(tempScriptPath)) {
+            fs.unlinkSync(tempScriptPath)
+          }
+        } catch (cleanupError) {
+          // 忽略清理错误
+        }
+        
+        if (error) {
+          // 如果进程不存在或没有窗口，返回 null
+          if (error.code === 1 || stdout.trim() === '') {
+            resolve(null)
+            return
+          }
+          reject(error)
           return
         }
-        reject(error)
-        return
-      }
 
-      const windowTitle = stdout.trim()
-      // 如果窗口标题为空，返回 null
-      resolve(windowTitle || null)
-    })
+        const windowTitle = stdout.trim()
+        // 如果窗口标题为空，返回 null
+        resolve(windowTitle || null)
+      })
+    } catch (writeError) {
+      console.error(`写入临时脚本失败 (PID: ${pid}):`, writeError)
+      reject(writeError)
+    }
   })
 }
 
@@ -132,33 +177,62 @@ async function getAllWindowTitlesByPID(pid) {
       return
     }
 
-    // 使用 PowerShell 获取进程的所有窗口标题
-    const psCommand = `$titles = @(); Get-Process | Where-Object { $_.Id -eq ${pid} } | ForEach-Object { if ($_.MainWindowTitle -and $_.MainWindowTitle.Trim() -ne '') { $titles += $_.MainWindowTitle.Trim() } }; $titles | Sort-Object -Unique | ForEach-Object { $_ }`
+    // 使用临时文件执行 PowerShell 脚本，并确保输出使用 UTF-8 编码
+    const psScript = `[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$OutputEncoding = [System.Text.Encoding]::UTF8
+$titles = @()
+Get-Process | Where-Object { $_.Id -eq ${pid} } | ForEach-Object { 
+    if ($_.MainWindowTitle -and $_.MainWindowTitle.Trim() -ne '') { 
+        $titles += $_.MainWindowTitle.Trim() 
+    } 
+}
+$titles | Sort-Object -Unique | ForEach-Object { 
+    [Console]::Out.WriteLine($_)
+}`
     
-    exec(`powershell -Command "${psCommand}"`, { encoding: 'utf8' }, (error, stdout, stderr) => {
-      if (error) {
-        // 如果进程不存在或没有窗口，返回空数组
-        if (error.code === 1 || stdout.trim() === '') {
+    const tempScriptPath = path.join(os.tmpdir(), `get_all_window_titles_${pid}_${Date.now()}.ps1`)
+    
+    try {
+      fs.writeFileSync(tempScriptPath, psScript, 'utf8')
+      
+      // 使用 chcp 65001 设置代码页为 UTF-8，确保输出编码正确
+      exec(`chcp 65001 >nul & powershell -NoProfile -ExecutionPolicy Bypass -File "${tempScriptPath}"`, { encoding: 'utf8' }, (error, stdout, stderr) => {
+        // 清理临时文件
+        try {
+          if (fs.existsSync(tempScriptPath)) {
+            fs.unlinkSync(tempScriptPath)
+          }
+        } catch (cleanupError) {
+          // 忽略清理错误
+        }
+        
+        if (error) {
+          // 如果进程不存在或没有窗口，返回空数组
+          if (error.code === 1 || stdout.trim() === '') {
+            resolve([])
+            return
+          }
+          reject(error)
+          return
+        }
+
+        const output = stdout.trim()
+        if (!output) {
           resolve([])
           return
         }
-        reject(error)
-        return
-      }
 
-      const output = stdout.trim()
-      if (!output) {
-        resolve([])
-        return
-      }
-
-      // 按行分割并过滤空字符串
-      const titles = output.split('\n')
-        .map(title => title.trim())
-        .filter(title => title !== '')
-      
-      resolve(titles)
-    })
+        // 按行分割并过滤空字符串
+        const titles = output.split('\n')
+          .map(title => title.trim())
+          .filter(title => title !== '')
+        
+        resolve(titles)
+      })
+    } catch (writeError) {
+      console.error(`写入临时脚本失败 (PID: ${pid}):`, writeError)
+      reject(writeError)
+    }
   })
 }
 
