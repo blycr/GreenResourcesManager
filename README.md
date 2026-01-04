@@ -177,7 +177,9 @@ npm install
 
 ## 🤝 加入我们
 
-如果有开发意愿，欢迎来加入客服群@群主！让我们一起开发！
+如果有开发意愿，欢迎Fork本项目并提交Pull Request!
+
+也欢迎来加入客服群@群主！让我们一起开发！
 
 点击链接加入群聊【GreenResourcesManager客服群】：https://qm.qq.com/q/weqIkXUN6o
 
