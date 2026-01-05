@@ -33,6 +33,40 @@ const constants = require('./js/utils/constants')
 // 判断是否为开发环境
 const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged
 
+const disableGpu = process.env.ELECTRON_DISABLE_GPU === '1' || process.env.GRM_DISABLE_GPU === '1'
+if (disableGpu) {
+  app.disableHardwareAcceleration()
+  app.commandLine.appendSwitch('disable-gpu')
+  app.commandLine.appendSwitch('disable-gpu-compositing')
+  console.log('GPU acceleration disabled by environment flag')
+} else {
+  const angle = (process.env.GRM_ANGLE || 'd3d11').toLowerCase()
+  app.commandLine.appendSwitch('use-angle', angle)
+  let profile = (process.env.GRM_GPU_PROFILE || '').toLowerCase()
+  if (!profile) {
+    try {
+      if (process.platform === 'win32') {
+        const result = require('child_process').spawnSync('powershell', [
+          '-Command',
+          'Get-CimInstance Win32_VideoController | Select-Object -ExpandProperty Name | ConvertTo-Json -Depth 5'
+        ], { encoding: 'utf-8', timeout: 1500 })
+        const names = JSON.parse(result.stdout || '[]')
+        const nameStr = Array.isArray(names) ? names.join(' ').toLowerCase() : String(names || '').toLowerCase()
+        if (nameStr.includes('amd') || nameStr.includes('radeon')) profile = 'amd'
+        else if (nameStr.includes('nvidia') || nameStr.includes('geforce') || nameStr.includes('quadro')) profile = 'nvidia'
+        else if (nameStr.includes('intel')) profile = 'intel'
+      }
+    } catch (e) {}
+  }
+  if (profile === 'amd') {
+    app.commandLine.appendSwitch('disable-features', 'CanvasOopRasterization')
+  } else {
+    app.commandLine.appendSwitch('disable-features', 'CanvasOopRasterization,Vulkan')
+    app.commandLine.appendSwitch('disable-direct-composition')
+  }
+  console.log('GPU acceleration profile applied:', { angle, profile: profile || 'auto' })
+}
+
 // 是否启用最小化到托盘功能
 let minimizeToTrayEnabled = true
 
@@ -54,6 +88,14 @@ if (!gotTheLock) {
   console.log('应用已在运行，退出当前实例')
   app.quit()
 } else {
+  process.on('SIGINT', () => {
+    console.log('收到 SIGINT，准备退出应用')
+    app.quit()
+  })
+  process.on('SIGTERM', () => {
+    console.log('收到 SIGTERM，准备退出应用')
+    app.quit()
+  })
   // 监听第二个实例启动的事件
   app.on('second-instance', (event, commandLine, workingDirectory) => {
     // 当用户尝试启动第二个实例时，将焦点移到已运行的应用窗口
@@ -166,6 +208,18 @@ app.on('window-all-closed', () => {
 
 // 在这个文件中，你可以包含应用程序其余的主进程代码
 // 也可以拆分成几个文件，然后用 require 导入
+
+// 监听子进程崩溃（包括 GPU），记录并给出建议
+app.on('child-process-gone', (event, details) => {
+  if (details && details.type === 'GPU') {
+    console.error('GPU process crashed:', details)
+    const msg = '检测到 GPU 进程崩溃，已启用稳定化标志。如仍复现，可使用 GRM_DISABLE_GPU=1 重新启动以禁用 GPU。'
+    const mainWindow = mainWindowModule.getMainWindow()
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('gpu-crashed', { message: msg, details })
+    }
+  }
+})
 
 // 安全相关：防止新窗口创建
 app.on('web-contents-created', (event, contents) => {
