@@ -2,8 +2,9 @@ const { contextBridge, ipcRenderer } = require('electron')
 
 // 暴露安全的API给渲染进程
 contextBridge.exposeInMainWorld('electronAPI', {
-  // 获取应用信息
+  // 系统信息
   getAppVersion: () => ipcRenderer.invoke('get-app-version'),
+  listLogicalDrives: () => ipcRenderer.invoke('list-logical-drives'),
   
   // 窗口控制
   minimizeWindow: () => ipcRenderer.invoke('minimize-window'),

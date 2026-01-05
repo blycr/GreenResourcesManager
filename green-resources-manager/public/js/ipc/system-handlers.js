@@ -51,6 +51,44 @@ function registerIpcHandlers(ipcMain, app, windowsUtils, shell, getMainWindow) {
     }
   })
 
+  // 列出逻辑磁盘（盘符）
+  ipcMain.handle('list-logical-drives', async () => {
+    try {
+      if (process.platform !== 'win32') {
+        return { success: false, error: '此功能仅在 Windows 系统上可用' }
+      }
+      return new Promise((resolve) => {
+        const powershell = spawn('powershell', [
+          '-Command',
+          'Get-PSDrive -PSProvider FileSystem | Select-Object -ExpandProperty Root | ConvertTo-Json -Depth 10'
+        ])
+        let output = ''
+        let errorOutput = ''
+        powershell.stdout.on('data', (data) => { output += data.toString() })
+        powershell.stderr.on('data', (data) => { errorOutput += data.toString() })
+        powershell.on('close', (code) => {
+          if (code !== 0) {
+            resolve({ success: false, error: errorOutput || '获取逻辑磁盘失败' })
+            return
+          }
+          try {
+            const roots = JSON.parse(output.trim())
+            const arr = Array.isArray(roots) ? roots : [roots]
+            const drives = arr
+              .map(r => (typeof r === 'string' ? r : '').trim())
+              .filter(r => /^[A-Za-z]:\\$/.test(r))
+              .map(r => r.replace(/\\$/,'').toUpperCase())
+            resolve({ success: true, drives })
+          } catch (e) {
+            resolve({ success: false, error: '解析逻辑磁盘失败: ' + e.message })
+          }
+        })
+      })
+    } catch (error) {
+      return { success: false, error: error.message }
+    }
+  })
+
   // 获取所有物理磁盘信息（包括类型：SSD/HDD）
   ipcMain.handle('get-disk-info', async () => {
     try {
